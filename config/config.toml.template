@@ -1,27 +1,26 @@
 # Configuration Aitao - TEMPLATE
-# Copiez ce fichier en `config.toml` et adaptez les chemins.
+# Copiez ce fichier en 'config.toml' et adaptez les chemins.
 
 [system]
 # Répertoire racine pour le stockage des données (VectorDB, Logs, ChatHistory)
-# DOIT être un chemin absolu.
-# Pour le zéro-copy, pointez vers un disque externe ou un dossier partagé.
-storage_root = "/path/to/your/data_storage/.aitao"
+# Exemple: "/Users/username/ai-data/.aitao"
+storage_root = "/path/to/your/storage/.aitao"
 
 # Chemin des logs
 logs_path = "$storage_root/logs"
 
 [models]
-# Dossier contenant vos modèles GGUF téléchargés (Llama, Qwen, etc)
+# Dossier contenant vos modèles GGUF téléchargés (ex: de HuggingFace)
+# Exemple: "/Users/username/ai-models"
 models_dir = "/path/to/your/models"
 
 [indexing]
-# Liste des dossiers à scanner et indexer pour le RAG
+# Liste des dossiers que vous souhaitez scanner pour le RAG
 include_paths = [ 
     "/path/to/your/documents",
-    "/path/to/another/folder"
 ]
 
-# Modèles d'exclusion pour le scan
+# Modèles d'exclusion pour le scan (ne pas modifier sauf besoin spécifique)
 exclude_dirs = [ 
     "__pycache__", ".git", ".venv", "venv", "env", ".env", 
     "node_modules", ".ds_store", "dist", "build", "target", 
