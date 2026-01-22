@@ -1,0 +1,36 @@
+# --- Core AI & Inference ---
+llama-cpp-python>=0.3.16
+# Sentence-transformers includes Torch (Heavy! ~800MB)
+sentence-transformers>=3.3.1
+
+# --- Databases ---
+lancedb>=0.17.0
+SQLAlchemy>=2.0.0
+# SqlAlchemy async support requires greenlet
+greenlet>=2.0.0
+aiosqlite>=0.20.0
+
+# --- Web Engine ---
+ddgs>=6.0.0
+tavily-python>=0.3.0
+beautifulsoup4>=4.12.0
+
+# --- API & Server ---
+fastapi>=0.115.0
+uvicorn>=0.34.0
+requests>=2.32.0
+python-dotenv>=1.0.0
+starlette-context>=0.3.6
+
+# --- Interfaces ---
+chainlit>=2.0.0
+streamlit>=1.41.0
+
+# --- Utilities ---
+psutil>=6.1.0
+watchfiles>=1.0.0
+openai>=1.59.0
+
+# --- Optional but often pulled by Chainlit (to keep version control) ---
+# opentelemetry-api
+# opentelemetry-sdk
