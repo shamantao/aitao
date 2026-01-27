@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aitao"
+version = "0.1.0"
+description = "AI Tao - Local, Sovereign AI Assistant"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Philippe", email = "phil@example.com" }
+]
+license = { text = "MIT" }
+keywords = ["ai", "local", "rag", "privacy", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Natural Language :: French",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # --- Core AI & Inference ---
+    "llama-cpp-python>=0.3.16",
+    "sentence-transformers>=3.3.1",
+    # --- Vector Database ---
+    "lancedb>=0.17.0",
+    # --- SQL & ORM ---
+    "SQLAlchemy>=2.0.0",
+    "greenlet>=2.0.0",
+    "aiosqlite>=0.20.0",
+    # --- Web Search ---
+    "duckduckgo-search>=6.0.0",
+    "beautifulsoup4>=4.12.0",
+    # --- API & Server ---
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "requests>=2.32.0",
+    "python-dotenv>=1.0.0",
+    # --- File System & Utilities ---
+    "psutil>=6.1.0",
+    "watchfiles>=1.0.0",
+    "toml>=0.10.2",
+    "gradio>=6.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.black]
+line-length = 120
+target-version = ["py314"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+extend-exclude = [".git", ".venv", "build", "dist"]
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

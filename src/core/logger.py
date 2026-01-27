@@ -20,21 +20,42 @@ log_formatter = logging.Formatter(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# Fonction pour obtenir un logger configuré
-def get_logger(name):
+def get_logger(name, log_filename=None):
+    """
+    Get a configured logger for a module.
+    
+    Args:
+        name (str): Logger name (typically module path like 'web_search', 'sync_agent')
+        log_filename (str, optional): Custom log filename. If None, derives from name.
+                                     Example: 'web_search.log', 'api.log', 'sync.log'
+    
+    Returns:
+        logging.Logger: Configured logger with file and console handlers
+    
+    Example:
+        >>> logger = get_logger("web_search", "web_search.log")
+        >>> logger.info("Search completed")
+    """
     logger = logging.getLogger(name)
     
     # Éviter d'ajouter plusieurs handlers si le logger existe déjà
     if not logger.handlers:
         logger.setLevel(logging.INFO)
         
+        # Determine log filename
+        if log_filename is None:
+            # Extract last part of name: 'src.core.web_search' → 'web_search.log'
+            module_name = name.split('.')[-1]
+            log_filename = f"{module_name}.log"
+        
         # Handler fichier via PathManager
         try:
             logs_dir = path_manager.get_logs_dir()
-            log_file = logs_dir / "web_search.log"
-        except Exception:
+            log_file = logs_dir / log_filename
+        except Exception as e:
             # Fallback très dégradé si path_manager échoue au boot
-            log_file = "web_search.log"
+            print(f"⚠️ Logger: PathManager unavailable ({e}), using fallback")
+            log_file = log_filename
 
         file_handler = RotatingFileHandler(str(log_file), maxBytes=1024*1024, backupCount=5)
         file_handler.setFormatter(log_formatter)

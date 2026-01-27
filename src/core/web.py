@@ -7,9 +7,9 @@ try:
     from src.core.logger import get_logger
 except ImportError:
     import logging
-    def get_logger(name): return logging.getLogger(name)
+    def get_logger(name, log_filename=None): return logging.getLogger(name)
 
-logger = get_logger("web_search")
+logger = get_logger("web_search", "web_search.log")
 
 # Tentative d'import Tavily
 try:

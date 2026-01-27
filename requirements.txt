@@ -20,17 +20,10 @@ fastapi>=0.115.0
 uvicorn>=0.34.0
 requests>=2.32.0
 python-dotenv>=1.0.0
+# starlette-context required by some internal modules if used
 starlette-context>=0.3.6
-
-# --- Interfaces ---
-chainlit>=2.0.0
-streamlit>=1.41.0
 
 # --- Utilities ---
 psutil>=6.1.0
 watchfiles>=1.0.0
-openai>=1.59.0
 
-# --- Optional but often pulled by Chainlit (to keep version control) ---
-# opentelemetry-api
-# opentelemetry-sdk

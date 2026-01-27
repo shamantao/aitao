@@ -106,5 +106,19 @@ class AitaoPathManager(GenericPathManager):
             "exclude_extensions": idx.get("exclude_extensions", [])
         }
 
+    def get_ocr_config(self) -> Dict[str, Any]:
+        """Return OCR router configuration with defaults."""
+        ocr_cfg = self.config.get("ocr", {})
+        qwen_path = ocr_cfg.get("qwen_model_path", "")
+        if qwen_path:
+            qwen_path = str(self.resolve_path(qwen_path))
+        return {
+            "engine": ocr_cfg.get("engine", "auto"),
+            "table_area_min": float(ocr_cfg.get("table_area_min", 0.15)),
+            "min_intersections": int(ocr_cfg.get("min_intersections", 4)),
+            "min_line_density": float(ocr_cfg.get("min_line_density", 0.0005)),
+            "qwen_model_path": qwen_path,
+        }
+
 # Global Instance
 path_manager = AitaoPathManager()

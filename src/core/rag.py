@@ -198,7 +198,7 @@ class RagEngine:
                     count = "N/A"
         return {
             "documents": count,
-            "path": PERSIST_DIR
+            "path": str(self.persist_dir)
         }
 
     def reset_memory(self):

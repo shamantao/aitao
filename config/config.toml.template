@@ -9,6 +9,22 @@ storage_root = "/path/to/your/storage/.aitao"
 # Chemin des logs
 logs_path = "$storage_root/logs"
 
+[server]
+# Configuration du serveur d'inférence (modèle d'inférence)
+# Port peu commun pour éviter conflits avec autres projets
+api_host = "0.0.0.0"
+api_port = 8247  # OpenAI-compatible API (pour tous les modèles)
+api_url = "http://localhost:8247"  # Utilisé pour connexions internes
+
+# Configuration AnythingLLM UI (Chat + Document Management)
+ui_port = 3001
+ui_url = "http://localhost:3001"
+
+# Configuration RAG Server (Generic Document Search API)
+# Permet aux apps externes (VSCode, Wave Terminal, etc.) de chercher des docs indépendamment
+rag_port = 8200
+rag_url = "http://localhost:8200"
+
 [models]
 # Dossier contenant vos modèles GGUF téléchargés (ex: de HuggingFace)
 # Exemple: "/Users/username/ai-models"
@@ -32,3 +48,21 @@ exclude_files = [
 exclude_extensions = [ 
     ".lock", ".log", ".tmp" 
 ]
+
+[ocr]
+# Engine selection: auto | easyocr | qwen
+engine = "auto"
+
+# Router thresholds
+# Minimum relative area of detected table vs image (0-1)
+table_area_min = 0.15
+
+# Minimum number of line intersections to consider a table
+min_intersections = 4
+
+# Minimum density of lines (lines pixels / total pixels)
+min_line_density = 0.0005
+
+# Qwen-VL model path (for table OCR and complex layouts)
+# Example: "$models_dir/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+qwen_model_path = "/path/to/your/models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"

@@ -147,10 +147,15 @@ MODELS_MAP = {
 }
 
 if __name__ == "__main__":
+    # Load configuration from config.toml for ports
+    config = path_manager.config
+    default_api_port = config.get("server", {}).get("api_port", 8247)
+    default_api_host = config.get("server", {}).get("api_host", "0.0.0.0")
+    
     parser = argparse.ArgumentParser(description="AI Tao API Server")
     parser.add_argument("--model", type=str, default="llama3-8b", help="Modèle à charger au démarrage")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Hôte")
-    parser.add_argument("--port", type=int, default=8000, help="Port API")
+    parser.add_argument("--host", type=str, default=default_api_host, help="Hôte")
+    parser.add_argument("--port", type=int, default=default_api_port, help="Port API")
     parser.add_argument("--n_ctx", type=int, default=8192, help="Contexte tokens")
     
     args = parser.parse_args()

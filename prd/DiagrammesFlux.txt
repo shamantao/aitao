@@ -1,0 +1,198 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    AI TAO - ARCHITECTURE MULTI-CLIENT                         ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────┐
+│ Single Source of Truth: AnythingLLM DB (SQLite)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                ┌─────────────┴──────────────┐
+                │                            │
+                ↓                            ↓
+        ┌─────────────────┐      ┌─────────────────────────┐
+        │  AnythingLLM    │      │  RAG API Server         │
+        │  UI (3001)      │      │  (NEW - port 8200)      │
+        │                 │      │                         │
+        │ Built-in REST   │      │ Generic OpenAI-style    │
+        │ API             │      │ /v1/rag/search endpoint │
+        │                 │      │                         │
+        │ For UI queries  │      │ For external apps       │
+        └─────────────────┘      └─────────────────────────┘
+                │                            │
+                └────────────┬───────────────┘
+                             │
+                      ┌──────↓────────┐
+                      │ AnythingLLM   │
+                      │ SQLite DB     │
+                      │               │
+                      │ • Docs        │
+                      │ • Embeddings  │
+                      │ • Vectors     │
+                      └───────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CAS 1 : ANYTHINGLLM UI (Interface Web - Port 3001)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  User opens: http://localhost:3001                                          │
+│       │                                                                      │
+│       ↓                                                                      │
+│  ┌─────────────────────────────────────────┐                                │
+│  │    AnythingLLM UI                       │                                │
+│  │  • Chat Interface                       │                                │
+│  │  • Workspace Management                 │                                │
+│  │  • Document Upload/Browse               │                                │
+│  └─────────────────────────────────────────┘                                │
+│       │                                                                      │
+│       ├─→ /api/v1/query          → Inférence + RAG                          │
+│       │   (built-in, no network)                                            │
+│       └─→ Internal Vector Store                                             │
+│           (AnythingLLM's SQLite DB)                                         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CAS 2 : APPLICATIONS EXTERNES (VSCode/Continue, Wave Terminal, etc.)       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  External App (VSCode + Continue, Wave Terminal, etc.)                      │
+│       │                                                                      │
+│       ├─→ Inference API: http://localhost:8247/v1/chat/completions        │
+│       │   (OpenAI-compatible)                                               │
+│       │   • Model selection (llama3.1-8b | qwen-2.5-coder | qwen2-vl)      │
+│       │   • Direct inference (NO RAG, context only)                         │
+│       │                                                                      │
+│       └─→ RAG API: http://localhost:8200/v1/rag/search [NEW]              │
+│           (our standalone RAG server)                                       │
+│           • Query: "Find docs about X"                                      │
+│           • Returns: Chunks + embeddings from LanceDB                       │
+│                                                                              │
+│  ⚠️ These apps can ALSO call AnythingLLM API if they want:                 │
+│           http://localhost:3001/api/v1/query                               │
+│           (But then they'd be dependent on AnythingLLM's model)             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                           BACKEND ARCHITECTURE                                ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────┐
+│ File System          │
+│ /Users/phil/         │
+│  Downloads/_Volumes  │
+└──────────────┬───────┘
+               │
+               ↓
+        ┌──────────────────────────────────────────────┐
+        │  Sync Agent (sync_agent.py)                  │
+        │  • Watches file changes                      │
+        │  • Creates Workspaces in AnythingLLM         │
+        │  • Adds watched folders → triggers scan      │
+        └──────────────┬───────────────────────────────┘
+                       │
+         ┌─────────────┴────────────────┐
+         │                              │
+         ↓                              ↓
+    ┌─────────────────────┐    ┌──────────────────────┐
+    │ AnythingLLM         │    │ RAG Sync Service     │
+    │ (Port 3001)         │    │ (NEW - Port 8200)    │
+    │                     │    │                      │
+    │ • Scans files       │───→│ • Pulls embeddings   │
+    │ • Creates vectors   │    │   from AnythingLLM   │
+    │ • Stores in SQLite  │    │ • Stores in LanceDB  │
+    │ • API endpoints     │    │ • Exposes RAG API    │
+    └─────────────────────┘    └──────────────────────┘
+         │                               │
+         ↓                               ↓
+    ┌─────────────────────┐    ┌──────────────────────┐
+    │ AnythingLLM DB      │    │ LanceDB              │
+    │ (SQLite)            │    │ (Vector Store)       │
+    │ • Documents         │    │ • Embeddings         │
+    │ • Vectors           │    │ • Metadata (hash)    │
+    │ • Sessions          │    │ • Sync timestamps    │
+    └─────────────────────┘    └──────────────────────┘
+         │                               │
+         └─────────────┬─────────────────┘
+                       │
+                       ↓
+        ┌──────────────────────────────────┐
+        │ llama-cpp-python Server          │
+        │ (Port 8247 - OpenAI compatible)  │
+        │                                  │
+        │ • llama3.1-8b                    │
+        │ • qwen-2.5-coder                 │
+        │ • qwen2-vl-7b (multimodal)       │
+        └──────────────────────────────────┘
+
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                     QUERY FLOW EXAMPLES                                       ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SCENARIO A: User in AnythingLLM (http://localhost:3001)                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  User: "Résume le document sur les tarifs"                                  │
+│     │                                                                        │
+│     ↓                                                                        │
+│  AnythingLLM API                                                            │
+│  1. Search internal vector store: "tarifs"                                  │
+│     ↓                                                                        │
+│  2. Found: 3 relevant chunks (from workspace._Volumes)                      │
+│     ↓                                                                        │
+│  3. Build context: chunks + system prompt                                   │
+│     ↓                                                                        │
+│  4. Call inference: POST /v1/chat/completions (port 8247)                   │
+│     Input: {messages: [...context + question...], model: "llama3.1-8b"}     │
+│     ↓                                                                        │
+│  5. Return response to UI                                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SCENARIO B: Developer in VSCode (Continue extension)                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Dev: "@codebase Write a test for the indexer"                              │
+│     │                                                                        │
+│     ↓                                                                        │
+│  Continue Extension                                                         │
+│  1. Search external RAG API:                                                │
+│     POST http://localhost:8200/v1/rag/search                               │
+│     {query: "indexer", limit: 5}                                            │
+│     ↓                                                                        │
+│  2. Get back: [indexer.py chunks with metadata + hash256]                   │
+│     ↓                                                                        │
+│  3. Build context: chunks + current file                                    │
+│     ↓                                                                        │
+│  4. Call inference (OpenAI-compatible):                                      │
+│     POST http://localhost:8247/v1/chat/completions                         │
+│     Input: {messages: [...context + request...], model: "qwen-coder"}       │
+│     ↓                                                                        │
+│  5. Stream response back to editor                                          │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SCENARIO C: Developer in Wave Terminal                                      │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Dev: "ai -m qwen-coder -rag 'How to deploy this?' < current_file"         │
+│     │                                                                        │
+│     ├─→ 1. Call RAG API: Search for "deploy"                                │
+│     │      http://localhost:8200/v1/rag/search                             │
+│     │                                                                        │
+│     └─→ 2. Call Inference API with context:                                │
+│           http://localhost:8247/v1/chat/completions                        │
+│           model=qwen-coder, messages=[context + question]                   │
+│           ↓                                                                  │
+│           Stream response to terminal                                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
