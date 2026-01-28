@@ -3,7 +3,7 @@
 **Date:** January 28, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.2.11 (Sprint 2 en cours)
+**Version actuelle:** 2.2.12 (Sprint 2 en cours)
 
 ---
 
@@ -13,7 +13,7 @@
 |--------|--------|--------------|-------|---------|
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
-| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 254 | v2.2.11 → |
+| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 287 | v2.2.11 → |
 
 ---
 
@@ -280,27 +280,52 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-#### US-012: Indexer documents dans LanceDB + Meilisearch [MUST] 📋
+#### US-012: Indexer documents dans LanceDB + Meilisearch [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** indexer les documents extraits  
 **Afin de** permettre la recherche
 
 **Critères d'acceptation:**
-- [ ] Classe `DocumentIndexer` dans `src/indexation/indexer.py`
-- [ ] Workflow: Extract text → Generate embeddings → Index LanceDB + Meilisearch
-- [ ] Calcule SHA256 (déduplication)
-- [ ] Extrait metadata: path, mtime, size, language, category (TBD)
-- [ ] Ajoute à LanceDB (embeddings)
-- [ ] Ajoute à Meilisearch (full-text + filtres)
-- [ ] Log succès/erreurs
-- [ ] Tests end-to-end
+- [x] Classe `DocumentIndexer` dans `src/indexation/indexer.py`
+- [x] Workflow: Extract text → Generate embeddings → Index LanceDB + Meilisearch
+- [x] Calcule SHA256 (déduplication)
+- [x] Extrait metadata: path, mtime, size, language, category
+- [x] Ajoute à LanceDB (embeddings)
+- [x] Ajoute à Meilisearch (full-text + filtres)
+- [x] Log succès/erreurs
+- [x] CLI: index file, index batch, index status, index delete, index test
+- [x] Tests unitaires: 33 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-006 (LanceDB), US-007 (Meilisearch), US-011 (TextExtractor)
+**Dépendances:** US-006 (LanceDB), US-007 (Meilisearch), US-011 (TextExtractor)  
+**Commit:** Tag: v2.2.12 - Date: 2026-01-28
 
 ---
 
-## Sprint 2: Recherche hybride (2 semaines - Mars 2026)
+#### US-012b: Dette technique - Gestion des dépendances uv [SHOULD] 📋
+**En tant que** développeur  
+**Je veux** que toutes les dépendances soient gérées via `uv`  
+**Afin de** respecter le PRD et garantir la reproductibilité
+
+**Contexte:**
+Durant le développement, des confusions ont eu lieu entre `pip` et `uv`.
+Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (not raw `pip`)".
+
+**Critères d'acceptation:**
+- [ ] Vérifier que toutes les dépendances sont dans `pyproject.toml`
+- [ ] Script de validation `scripts/check_deps.py` 
+- [ ] Documenter la procédure d'installation avec `uv sync`
+- [ ] Ajouter un pre-commit hook ou CI check pour détecter `pip install`
+- [ ] Si un README.md est nécessaire afin d'éviter ce genre d'erreurs à l'avenir le créer en version simple.
+- [ ] Mettre à jour README.md avec instructions uv
+
+**Estimation:** 2 points  
+**Dépendances:** Aucune  
+**Priorité:** Après US-015
+
+---
+
+## Sprint 3: Recherche hybride (2 semaines - Mars 2026)
 
 ### Epic 5: Search API [MUST]
 
@@ -359,7 +384,7 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-## Sprint 3: OCR & Extraction (3 semaines - Mars-Avr 2026)
+## Sprint 4: OCR & Extraction (3 semaines - Mars-Avr 2026)
 
 ### Epic 6: OCR Pipeline [MUST]
 
@@ -458,7 +483,7 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-## Sprint 4: Traduction (2 semaines - Avr-Mai 2026)
+## Sprint 5: Traduction (2 semaines - Avr-Mai 2026)
 
 ### Epic 8: Translation Pipeline [MUST]
 
@@ -516,7 +541,7 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-## Sprint 5: Catégorisation (2 semaines - Mai 2026)
+## Sprint 6: Catégorisation (2 semaines - Mai 2026)
 
 ### Epic 9: Category Management [SHOULD]
 
@@ -573,7 +598,7 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-## Sprint 6: Dashboard & Polish (2 semaines - Juin 2026)
+## Sprint 7: Dashboard & Polish (2 semaines - Juin 2026)
 
 ### Epic 10: CLI & Dashboard [SHOULD]
 
