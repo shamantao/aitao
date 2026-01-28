@@ -1,1024 +1,667 @@
-# AI Tao - Agile Product Backlog
+# AItao V2.0 - Backlog Agile
 
-**Last Updated:** January 27, 2026 (Comprehensive Status Update)  
-**Sprint Velocity:** TBD (Measure after first sprint)  
-**Current Focus:** Phase 1 - Foundation (Bug Fixes Required)
-
----
-
-## 🚨 CRITICAL BUGS BLOCKING PHASE 1 (Discovered Jan 27, 2026)
-
-**Status:** FIXING NOW — These bugs prevent successful `./aitao.sh start`
-
-### BUG-SYNC-001: SyncAgent Calls Non-Existent Method
-**Severity:** 🔴 Critical  
-**File:** `src/core/sync_agent.py` line 73  
-**Issue:** `self.indexer.index_folder(vp, recursive=True)` — method doesn't exist in AITaoIndexer  
-**Fix:** Change to `self.indexer.index_files([vp])` or implement batch folder indexing  
-**Impact:** SyncAgent crashes on startup, no file watching possible
-
-### BUG-RAG-001: Undefined Variable in RagEngine.get_stats()
-**Severity:** 🔴 Critical  
-**File:** `src/core/rag.py` line 201  
-**Issue:** `PERSIST_DIR` undefined, should be `self.persist_dir`  
-**Fix:** Replace `"path": PERSIST_DIR` with `"path": str(self.persist_dir)`  
-**Impact:** get_stats() endpoint crashes when called from RAG Server API
-
-### BUG-AITAO-001: Incomplete Check Scan Command
-**Severity:** 🔴 Critical  
-**File:** `aitao.sh` lines 315-327  
-**Issue:** `./aitao.sh check scan` imports `load_paths()` but function not in sys.path  
-**Fix:** Add proper imports from src.core before calling  
-**Impact:** `./aitao.sh check scan` silently fails
+**Date:** January 28, 2026  
+**Branch:** `pdr/v2-remodular`  
+**Priorité:** MOSCOW (Must/Should/Could/Won't)
 
 ---
 
-## 📊 REAL STATUS ASSESSMENT (vs Documentation)
+## Sprint 0: Foundation (2 semaines - Fév 2026)
 
-### Code vs Documentation Discrepancies
+### Epic 1: Core Architecture ✅
 
-| Component | Documented | Actual | Gap |
-|-----------|------------|--------|-----|
-| **OCR** | "Not built-in" | EasyOCR + Qwen-VL implemented | 🟡 Doc is outdated |
-| **Indexer** | Single system | 3 systems coexist (rag.py legacy + indexer.py + kotaemo_indexer.py) | 🔴 Technical debt |
-| **Sync Agent** | "In Progress" | Code exists but broken (bug) | ✅ Documented correctly |
-| **RAG Server** | "TO DO" | 90% complete, port 8200 works | 🟡 Doc behind reality |
-| **Web Search** | "Core Done" | Backend done, UI integration missing | ✅ Accurate |
-| **Vision Models** | "TODO" | Models downloaded, code ready, UI integration pending | 🟡 Partially done |
+#### US-001: Créer le PathManager [MUST] 🔄
+**En tant que** développeur  
+**Je veux** un gestionnaire centralisé de chemins  
+**Afin de** ne jamais hard-coder des chemins absolus dans le code
 
-### True Implementation Status (January 27, 2026)
+**Critères d'acceptation:**
+- [ ] Classe `PathManager` dans `src/core/pathmanager.py`
+- [ ] Méthodes: `get_storage_root()`, `get_models_dir()`, `get_logs_dir()`, `get_queue_dir()`, `get_cache_dir()`
+- [ ] Lit les chemins depuis `config.yaml`
+- [ ] Crée les répertoires s'ils n'existent pas
+- [ ] Tests unitaires pour tous les chemins
 
-**Phase 1 - Foundation (60% complete, blocked by 3 bugs)**
-- ✅ PathManager architecture (AITAO-001, AITAO-002) — COMPLETE
-- ✅ CLI orchestration (`aitao.sh`) — 90% (check scan broken)
-- ❌ Sync Agent — CODE EXISTS BUT BUG-SYNC-001 BLOCKS
-- ✅ RAG Server API — 90% (BUG-RAG-001 blocks get_stats endpoint)
-- ✅ Failed files tracking — COMPLETE
-- ✅ AnythingLLM integration — COMPLETE
-- ❌ End-to-end testing — NO TESTS WRITTEN
-
-**Phase 2 - Core Features (30% complete)**
-- ✅ Vision (Qwen-VL) — Code 80%, UI integration TODO
-- ✅ Web Search (DuckDuckGo) — Backend 100%, UI integration TODO
-- ❌ Code Assistant (Qwen2.5-Coder) — Model available, routing TODO
-- ❌ Audio Transcription — Research needed (Whisper alternative)
-
-**Phase 3/4 - Polish (0% complete)**
-- All tasks deferred until Phase 1/2 complete
-
----
-
-## 📊 VALIDATION DATA (January 27, 2026)
-
-### Test Results Summary
-- ✅ **Automated Tests:** 6/6 PASSED
-- ✅ **Module Imports:** 7/7 OK (1 graceful degradation)
-- ✅ **System Compatibility:** 14/14 PASSED
-- ✅ **CLI Commands:** All functional
-- ✅ **Phase 1 Completion:** 75% (up from 60%)
-
-### Test Coverage
-```
-✅ CLI: check config, check scan, check system, start, stop, status, restart
-✅ Core Services: PathManager, Logger, SyncAgent, RAG Server, AnythingLLM Client
-✅ Infrastructure: Path resolution, logging, failed files tracking, configuration
-⚠️  Optional: LanceDB/sentence-transformers (graceful degradation implemented)
-```
-
-### Validated Features
-- Python 3.14.2, macOS 15.7.3
-- Docker available (for AnythingLLM UI)
-- 3 GGUF models present (llama3.1-8b, qwen2.5-coder, qwen2.5-vl)
-- 804GB disk space available
-- Ports 8247, 3001, 8200 available
-- Storage & logs directories writable
-
----
-
-## 🎯 Current Sprint (Active Work)
-
-### Sprint Goal
-**COMPLETED:** Phase 1 Foundation Stabilized - All critical bugs fixed, system validated
-
-Previous Goal: "Stabilize CLI orchestration, fix path/logger issues, and validate basic RAG functionality"  
-**Status:** ✅ ACHIEVED (Jan 27, 2026)
-
-### Completed Stories (This Sprint)
-
-### Completed Stories (This Sprint)
-
-The following critical bugs were blocking Phase 1 and are now FIXED:
-
-#### BUG-FIX-SYNC-001: SyncAgent Method Not Found ✅ FIXED
-**File:** `src/core/sync_agent.py:73`  
-**Status:** ✅ FIXED & TESTED (Jan 27, 2026)  
-**What was fixed:** Replaced non-existent `index_folder()` call with proper `os.walk()` + `index_files()` implementation  
-**Impact:** SyncAgent can now start and watch folders without crashing
-
-#### BUG-FIX-RAG-001: Undefined Variable in RagEngine ✅ FIXED
-**File:** `src/core/rag.py:201`  
-**Status:** ✅ FIXED & TESTED (Jan 27, 2026)  
-**What was fixed:** Changed `PERSIST_DIR` (undefined) to `self.persist_dir` (instance variable)  
-**Impact:** RAG Server `/v1/rag/stats/` endpoint now works without crashing
-
-#### BUG-FIX-AITAO-001: Missing Imports in CLI ✅ FIXED
-**File:** `aitao.sh:315-327` (check scan command)  
-**Status:** ✅ FIXED & TESTED (Jan 27, 2026)  
-**What was fixed:** Added proper `sys.path` setup before importing from src.core in shell context  
-**Impact:** `./aitao.sh check scan` now lists indexing paths correctly
-
-### Validation Results
-
-**Automated Test Scripts Created:**
-- ✅ `scripts/test_critical_bugs.sh` - Validates all 3 bug fixes (6 tests, 6/6 passed)
-- ✅ `scripts/test_imports.py` - Validates module imports (7/7 loaded)
-- ✅ `QUICK_TEST.sh` - Comprehensive validation suite
-
-**CLI Validation:**
-- ✅ `./aitao.sh check config` - TOML parsing works
-- ✅ `./aitao.sh check scan` - Lists 1 path correctly
-- ✅ `./aitao.sh check system` - Reports 14/14 passed
-
-**System Check (14/14 PASSED):**
-```
-✅ macOS 15.7.3, Python 3.14.2
-✅ Docker installed & available
-✅ Required packages: FastAPI, llama-cpp-python, TOML parser
-✅ Ports 8247, 3001, 8200 available
-✅ Storage & logs directories writable
-✅ 3 models present (llama3.1-8b, qwen2-coder, qwen2-vl)
-✅ 804GB disk space
-```
-
----
-
-## 🎯 Next Sprint Planning
-
-### Phase 2: Core Features (Ready to Start)
-
-**High Priority (Start immediately after Phase 1 closure):**
-1. AITAO-010: Vision Model Integration (Qwen2.5-VL) - 8 points
-2. AITAO-007: Web Search UI Integration - 3 points
-3. AITAO-011: Code Assistant Model - 5 points
-
-**Medium Priority:**
-- AITAO-012: Audio Transcription (Whisper alternative)
-- AITAO-007.6: External App Integration Guide
-
-### Phase 2 Active Stories - TEST VOLUME VALIDATION (Jan 27, 2026)
-
-**Context:** Test volume `/Users/phil/Downloads/_Volumes` contains 250 files (603.3 MB) - see `_sources/20260127_Volumes-DIRAnalyzed.txt`
-- 113 .md files (45%)
-- 68 .pdf files (27%)
-- 43 .json files (17%)
-- 10 .jpg files (4%)
-- Others: .pptx, .ppt, .7z, .zip, .txt, .bin
-
-**Sprint Goal:** Complete end-to-end validation with real test data - indexing + RAG search + UI query
-
----
-
-#### AITAO-013: Configure & Index Test Volume (_Volumes)
-**Priority:** 🔥 CRITICAL  
-**Status:** 📋 TO DO  
-**Estimation:** 3 points  
-**Assignee:** TBD  
-**Sprint:** Phase 2 - Week 1
-
-**User Story:**  
-As a project manager, I want to scan and index the test volume `/Users/phil/Downloads/_Volumes` (250 files, 603 MB) so that I can validate the entire RAG pipeline with real data.
-
-**Acceptance Criteria:**
-- [ ] Update `config/config.toml`: Add `/Users/phil/Downloads/_Volumes` to `include_paths`
-- [ ] Run `./aitao.sh check scan` - should list _Volumes path
-- [ ] Run indexing: `./aitao.sh start` → SyncAgent should process all 250 files
-- [ ] Verify logs show: "Indexed 250 files from _Volumes" (or similar)
-- [ ] Check failed files: `python scripts/manage_failed_files.py stats` - should be <10% failure rate
-- [ ] Verify file type support:
-  - ✅ .md (113 files) - text extraction
-  - ✅ .pdf (68 files) - text + OCR if scanned
-  - ✅ .json (43 files) - structured data
-  - ✅ .jpg (10 files) - OCR with EasyOCR/Qwen-VL
-  - ⚠️ .pptx/.ppt (3 files) - may need python-pptx library
-  - ⚠️ .7z/.zip (3 files) - should skip or extract?
-  - ⚠️ .bin (1 file) - should skip
-
-**Technical Tasks:**
-1. Edit `config/config.toml` - add path to include_paths
-2. Verify file type handlers in `src/core/kotaemon_indexer.py`
-3. Add .pptx/.ppt support if missing (python-pptx library)
-4. Decide archive handling strategy (.7z/.zip): skip or extract contents?
-5. Run indexing with verbose logging
-6. Monitor logs: `tail -f $storage_root/logs/sync_agent.log`
-7. Validate document count in LanceDB
-
-**Definition of Done:**
-- [ ] All supported files indexed (md, pdf, json, jpg, txt)
-- [ ] Unsupported files logged in failed_files.json with reason
-- [ ] No crashes during indexing
-- [ ] Logs show completion: "Indexing complete: X/250 files"
-
----
-
-#### AITAO-014: Validate RAG Search with Test Data
-**Priority:** 🔥 CRITICAL  
-**Status:** 📋 TO DO  
 **Estimation:** 2 points  
-**Depends on:** AITAO-013  
-**Sprint:** Phase 2 - Week 1
-
-**User Story:**  
-As a project manager, I want to verify that the RAG system correctly retrieves information from the indexed test volume so that I can trust the search results.
-
-**Acceptance Criteria:**
-- [ ] RAG Server running: `curl http://localhost:8200/health` returns OK
-- [ ] Check document count: `curl http://localhost:8200/v1/rag/stats/default` shows ~200+ docs
-- [ ] Test search queries (at least 5):
-  1. Search for content from .md files → should return relevant excerpts
-  2. Search for content from .pdf files → should return PDF text
-  3. Search for JSON structure → should return JSON content
-  4. Search for image content (if OCR worked) → should return OCR text
-  5. Mixed query → should return results from multiple file types
-- [ ] Verify similarity scores: all results should have score > 0.5
-- [ ] Verify metadata: each result should include filename, path, type
-- [ ] Test pagination: limit=5 should return exactly 5 results
-
-**Test Commands:**
-```bash
-# Health check
-curl http://localhost:8200/health
-
-# Stats
-curl http://localhost:8200/v1/rag/stats/default | jq
-
-# Search query
-curl -X POST http://localhost:8200/v1/rag/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "your search term", "limit": 10}' | jq
-```
-
-**Expected Results:**
-```json
-{
-  "documents": [
-    {
-      "content": "...",
-      "metadata": {
-        "filename": "example.md",
-        "path": "/Users/phil/Downloads/_Volumes/...",
-        "type": "markdown"
-      },
-      "similarity": 0.85
-    }
-  ],
-  "total": 10
-}
-```
-
-**Definition of Done:**
-- [ ] All 5 test queries return relevant results
-- [ ] Document count matches indexed files (±10%)
-- [ ] Metadata is complete and accurate
-- [ ] Response time < 3 seconds for 1000+ docs
+**Dépendances:** Aucune
 
 ---
 
-#### AITAO-015: Setup Query Interface (AnythingLLM or CLI)
-**Priority:** 🔥 CRITICAL  
-**Status:** 📋 TO DO  
+#### US-002: Créer le Logger [MUST] 🔄
+**En tant que** développeur  
+**Je veux** un logger structuré en JSON  
+**Afin de** faciliter le debugging et le monitoring
+
+**Critères d'acceptation:**
+- [ ] Classe `Logger` dans `src/core/logger.py`
+- [ ] Format JSON avec timestamp, level, module, message, metadata
+- [ ] Rotation des logs (100MB max par fichier)
+- [ ] Logs séparés par module (indexer.log, ocr.log, api.log)
+- [ ] Niveaux: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- [ ] Tests unitaires
+
 **Estimation:** 3 points  
-**Depends on:** AITAO-013, AITAO-014  
-**Sprint:** Phase 2 - Week 1
-
-**User Story:**  
-As a project manager, I want a user-friendly interface to ask questions about the test volume files so that I can interact with the RAG system naturally.
-
-**Acceptance Criteria:**
-- [ ] **Option A: AnythingLLM UI** (Recommended)
-  - [ ] Docker container running: `docker ps | grep anythingllm`
-  - [ ] UI accessible: http://localhost:3001
-  - [ ] Workspace "_Volumes" created and linked to test folder
-  - [ ] Can ask questions like: "What topics are covered in the markdown files?"
-  - [ ] Responses cite source documents with file names
-
-- [ ] **Option B: CLI Query Tool** (Fallback)
-  - [ ] Create `scripts/query_rag.py` - CLI interface
-  - [ ] Usage: `python scripts/query_rag.py "What is in the PDFs?"`
-  - [ ] Output: formatted results with sources and scores
-
-**Test Scenarios:**
-1. **General query:** "Summarize the content of this volume"
-   - Should return overview mentioning main topics
-   
-2. **Specific file query:** "What is in the JSON files?"
-   - Should identify JSON content structure
-   
-3. **Content search:** "Find information about [specific topic from test files]"
-   - Should return relevant excerpts with sources
-   
-4. **Multi-file synthesis:** "Compare information across PDF and markdown files"
-   - Should synthesize from multiple sources
-
-**Technical Implementation:**
-- **If AnythingLLM:** Use existing setup, create workspace via SyncAgent
-- **If CLI:** Create simple Python script using RAG Server API
-
-**Definition of Done:**
-- [ ] Interface accessible (web or CLI)
-- [ ] Can submit natural language queries
-- [ ] Responses include source citations
-- [ ] Response time < 5 seconds per query
-- [ ] User can easily understand results
+**Dépendances:** US-001 (PathManager)
 
 ---
 
-#### AITAO-003: Add SHA-256 Hash to File Metadata in Indexer
-**Priority:** 🚀 High  
-**Status:** ✅ PARTIALLY DONE  
-**Estimation:** 2 points  
+#### US-003: Créer le ConfigManager [MUST] 🔄
+**En tant que** développeur  
+**Je veux** un gestionnaire de configuration centralisé  
+**Afin de** charger et valider `config.yaml`
 
-**User Story:**  
-As a user, I want the system to detect when files change so that the RAG index stays up-to-date without re-indexing unchanged files.
+**Critères d'acceptation:**
+- [ ] Classe `ConfigManager` dans `src/core/config.py`
+- [ ] Charge `config.yaml` avec validation de schéma
+- [ ] Fournit des valeurs par défaut
+- [ ] Hot-reload sur modification du fichier
+- [ ] Méthodes: `get(key)`, `get_section(name)`, `reload()`
+- [ ] Tests unitaires avec fixtures
 
-**Current State (Jan 27):**
-- ✅ `FailedFilesTracker` computes SHA-256 for failed files
-- ⚠️ `AITaoIndexer` stores `size_bytes` in metadata but NOT hash
-- ❌ Hash-based deduplication not implemented in indexing logic
-
-**Acceptance Criteria:**
-- [ ] Compute SHA-256 hash for EACH indexed file
-- [ ] Store hash in LanceDB metadata: `{"hash": "sha256:abc123..."}`
-- [ ] On re-scan, skip files with unchanged hash
-- [ ] Log: "File [path] unchanged (hash match), skipping."
-- [ ] Test: Modify file, verify re-indexing; leave file unchanged, verify skip
-
-**Technical Tasks:**
-1. Update `AITaoIndexer.index_files()` to compute SHA-256 before embedding
-2. Store hash in document dict: `"hash": f"sha256:{hash_hex}"`
-3. Before indexing, compare hash with existing LanceDB entries
-4. Skip if hash matches (log skipped count)
-
----
-
-## 📦 Backlog (Prioritized)
-
-### Phase 1: Foundation - Remaining Work
-
-#### AITAO-004: Complete aitao.sh CLI - Add Missing Commands
-**Priority:** 🚀 High  
-**Status:** � IN PROGRESS (check scan BROKEN)  
 **Estimation:** 3 points  
-
-**Commands Implemented:**
-- ✅ `start` - Launch all services
-- ✅ `stop` - Stop all services
-- ✅ `status` - Check service health
-- ✅ `restart` - Graceful restart
-
-**Commands Status:**
-- ❌ `check config` - Works but needs import fix
-- ❌ `check scan` - **BROKEN**: Missing imports for `load_paths()`
-- ✅ `check system` - Calls `scripts/check_system.py` correctly
-- ✅ `help` - Displays usage guide
-
-**Blocking Issue:**
-- Lines 315-327: Python code in shell script tries to import `load_paths()` without proper sys.path setup
-
-**Fix Required:**
-- Add `import sys; sys.path.append(BASE_DIR)` before relative imports in check scan
-
-**Acceptance Criteria:**
-- [ ] `./aitao.sh check config` validates TOML and shows parsed values
-- [ ] `./aitao.sh check scan` lists indexed paths and file counts (no actual indexing)
-- [ ] All commands return appropriate exit codes (0=success, 1=error)
-- [ ] Test all commands after fix
+**Dépendances:** US-001 (PathManager)
 
 ---
 
-#### AITAO-005: Expand Supported File Types (Presentations)
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
+#### US-004: Créer config.yaml [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** un fichier de configuration unique  
+**Afin de** configurer tous les aspects d'AItao
+
+**Critères d'acceptation:**
+- [ ] Fichier `config/config.yaml` avec schema complet (voir PRD FR-002)
+- [ ] Sections: paths, indexing, ocr, translation, search, categories, api, resources, logging
+- [ ] Variables d'environnement supportées (ex: `${HOME}`)
+- [ ] Documentation inline (commentaires YAML)
+- [ ] Fichier template `config.yaml.template` pour installation
+
 **Estimation:** 2 points  
-
-**User Story:**  
-As a user, I want to index my PowerPoint and LibreOffice presentations so I can search their content.
-
-**Current Support:**
-- Documents: .txt, .md, .docx, .odt
-- Code: .py, .js, .ts, etc.
-- No presentation formats
-
-**New Formats:**
-- [ ] `.pptx` (Microsoft PowerPoint)
-- [ ] `.odp` (OpenDocument Presentation)
-
-**Acceptance Criteria:**
-- [ ] Add `.pptx` and `.odp` to `SUPPORTED_EXTENSIONS` in `indexer.py`
-- [ ] Use `python-pptx` library for .pptx extraction
-- [ ] Use `odfpy` or similar for .odp extraction
-- [ ] Extract: slide text, speaker notes, metadata
-- [ ] Test: Index sample presentation, search for slide content
-- [ ] Update `requirements.txt` with new dependencies
-
-**Technical Tasks:**
-1. Research best library for each format (ensure open-source)
-2. Implement text extraction functions
-3. Add to indexer pipeline
-4. Handle errors gracefully (corrupted files)
+**Dépendances:** Aucune
 
 ---
 
-#### AITAO-006: Sync Agent - Auto-Create Workspaces from config.toml
-**Priority:** 🔥 Critical  
-**Status:** � BROKEN - BUG-SYNC-001  
+#### US-005: Créer CLI aitao.sh [MUST] 🔄
+**En tant que** utilisateur  
+**Je veux** un script shell pour gérer AItao  
+**Afin de** démarrer/arrêter/vérifier les services
+
+**Critères d'acceptation:**
+- [ ] Script `aitao.sh` avec commandes: start, stop, status, ingest, search, logs, config
+- [ ] `aitao.sh start`: Lance API, worker, cronjob
+- [ ] `aitao.sh stop`: Arrête proprement tous les services
+- [ ] `aitao.sh status`: Affiche dashboard TUI
+- [ ] `aitao.sh ingest <path>`: Ingestion manuelle
+- [ ] `aitao.sh search "query"`: Recherche en CLI
+- [ ] `aitao.sh logs <module>`: Affiche les logs
+- [ ] `aitao.sh config validate`: Valide config.yaml
+
 **Estimation:** 5 points  
-
-**User Story:**  
-As a user, I want my `include_paths` from config.toml to automatically appear as Workspaces in AnythingLLM so I don't have to configure the UI manually.
-
-**Current State (Jan 27):**
-- ✅ `sync_agent.py` exists with good structure
-- ✅ Async file watching via `watchfiles.awatch()` implemented
-- ✅ `anythingllm_client.py` provides API wrapper
-- ❌ **CRITICAL BUG**: Line 73 calls `indexer.index_folder()` which doesn't exist
-
-**Blocking Bug:**
-```python
-# WRONG - AITaoIndexer has no index_folder() method
-count = self.indexer.index_folder(vp, recursive=True)
-
-# SHOULD BE - Use index_files() instead or implement batch method
-```
-
-**Acceptance Criteria:**
-- [ ] Fix BUG-SYNC-001 (change to `index_files()`)
-- [ ] On `./aitao.sh start`, sync_agent runs after UI is ready
-- [ ] Reads `config.toml` → `indexing.include_paths`
-- [ ] For each path, creates AnythingLLM Workspace (if not exists)
-- [ ] Watches for file changes and triggers incremental indexing
-- [ ] Handles API errors gracefully (retry logic)
-- [ ] Test: Add new path to config, restart, verify Workspace appears
-
-**Technical Tasks:**
-1. **FIX**: Implement proper folder indexing in sync_agent
-2. Add deduplication (don't recreate existing workspaces)
-3. Integrate into `aitao.sh` startup sequence
-4. Test file watcher with sample files
+**Dépendances:** US-001, US-002, US-003
 
 ---
 
-#### AITAO-007: Integrate DuckDuckGo Web Search into Chat UI
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
+### Epic 2: Base de données [MUST]
+
+#### US-006: Intégrer LanceDB [MUST] 📋
+**En tant que** système  
+**Je veux** un index vectoriel local  
+**Afin de** faire de la recherche sémantique
+
+**Critères d'acceptation:**
+- [ ] Classe `LanceDBClient` dans `src/search/lancedb_client.py`
+- [ ] Connexion à LanceDB (`${storage_root}/lancedb`)
+- [ ] Schéma: id (sha256), path, title, content, embeddings, metadata
+- [ ] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
+- [ ] Embeddings avec `sentence-transformers/all-MiniLM-L6-v2`
+- [ ] Tests unitaires avec documents de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-001, US-003
+
+---
+
+#### US-007: Intégrer Meilisearch [MUST] 📋
+**En tant que** système  
+**Je veux** un moteur de recherche full-text  
+**Afin de** faire de la recherche rapide avec filtres
+
+**Critères d'acceptation:**
+- [ ] Classe `MeilisearchClient` dans `src/search/meilisearch_client.py`
+- [ ] Connexion à Meilisearch host (`localhost:7700`)
+- [ ] Création index `aitao_documents` avec filtres: date, path, category, language
+- [ ] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
+- [ ] Gestion des erreurs (connexion, index missing)
+- [ ] Tests unitaires avec documents de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-001, US-003
+
+---
+
+## Sprint 1: Indexation basique (2 semaines - Fév 2026)
+
+### Epic 3: Filesystem Scanning [MUST]
+
+#### US-008: Scanner filesystem [MUST] 📋
+**En tant que** système  
+**Je veux** scanner les volumes configurés  
+**Afin de** détecter les nouveaux fichiers
+
+**Critères d'acceptation:**
+- [ ] Classe `FilesystemScanner` dans `src/indexation/scanner.py`
+- [ ] Lit `config.yaml` → `paths.test_volumes` / `paths.prod_volumes`
+- [ ] Parcourt récursivement les volumes
+- [ ] Skip patterns: `.*`, `__pycache__`, `node_modules`, `.git`
+- [ ] Filtre par extensions supportées (config.yaml)
+- [ ] Compare mtime + SHA256 pour détecter modifications
+- [ ] Retourne liste de fichiers nouveaux/modifiés
+- [ ] Tests unitaires avec filesystem de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-003 (ConfigManager)
+
+---
+
+#### US-009: Créer système de queue [MUST] 📋
+**En tant que** système  
+**Je veux** une queue JSON pour les tâches d'indexation  
+**Afin de** traiter les fichiers de manière asynchrone
+
+**Critères d'acceptation:**
+- [ ] Classe `TaskQueue` dans `src/indexation/queue.py`
+- [ ] Fichier JSON: `${storage_root}/queue/tasks.json`
+- [ ] Structure: `[{id, file_path, task_type, priority, added_at, status}]`
+- [ ] Méthodes: `add_task()`, `get_next_task()`, `update_status()`, `get_stats()`
+- [ ] Priorités: `high`, `normal`, `low`
+- [ ] Statuts: `pending`, `processing`, `completed`, `failed`
+- [ ] Thread-safe (file locking)
+- [ ] Tests unitaires
+
 **Estimation:** 3 points  
-
-**User Story:**  
-As a user, I want to enable web search from the chat interface with an explicit opt-in checkbox so I can get external information while staying in control.
-
-**Current State:**
-- ✅ `web.py` implements DuckDuckGo scraper
-- ✅ `search_ddg_html()` function works
-- ❌ Not exposed in chat interface
-
-**Acceptance Criteria:**
-- [ ] AnythingLLM chat UI shows "🌐 Web Search" toggle
-- [ ] When enabled, query includes web search results
-- [ ] Results formatted: "Sources (Web): [1] Title - URL"
-- [ ] After results shown, prompt: "Do you want me to remember this?"
-- [ ] If yes → index into RAG, if no → forget
-- [ ] Test: Search "recipe for gloubiboulga", verify results + prompt
-
-**Technical Tasks:**
-1. Add web search toggle to AnythingLLM workspace settings
-2. Modify chat prompt to call `search_ddg_html()` when enabled
-3. Format results using `format_source_output()`
-4. Implement post-result prompt for indexing decision
-5. Add rate limiting (1 search per 5 seconds to respect DDG)
+**Dépendances:** US-001 (PathManager)
 
 ---
 
-### Phase 1: External Integration
+#### US-010: Créer background worker [MUST] 📋
+**En tant que** système  
+**Je veux** un worker qui traite la queue  
+**Afin de** indexer les fichiers en arrière-plan
 
-#### AITAO-007.5: RAG Server - Generic Document Search API
-**Priority:** 🔥 Critical  
-**Status:** � 90% DONE - BUG-RAG-001  
-**Estimation:** 3 points  
+**Critères d'acceptation:**
+- [ ] Script `src/indexation/worker.py`
+- [ ] Boucle infinie: poll queue toutes les 30 secondes
+- [ ] Traite les tâches séquentiellement (1 à la fois)
+- [ ] Vérifie charge système (CPU <80%) avant traitement
+- [ ] Met à jour statut tâche: `pending` → `processing` → `completed`/`failed`
+- [ ] Log chaque étape (JSON)
+- [ ] Daemon mode (background process)
+- [ ] Tests avec queue simulée
 
-**User Story:**  
-As a developer using external apps (VSCode, Wave Terminal), I want a generic RAG API endpoint so I can search documents without being dependent on AnythingLLM's UI or model choices.
-
-**Current State (Jan 27):**
-- ✅ FastAPI server on port 8200 fully implemented
-- ✅ Endpoints `/v1/rag/search`, `/v1/rag/workspaces`, `/v1/rag/stats/{workspace}` ready
-- ✅ Reads from local LanceDB (independent of AnythingLLM)
-- ❌ **BUG-RAG-001**: `get_stats()` crashes due to undefined `PERSIST_DIR` variable
-
-**Blocking Bug:**
-```python
-# WRONG (rag.py:201)
-return { "documents": count, "path": PERSIST_DIR }
-
-# SHOULD BE
-return { "documents": count, "path": str(self.persist_dir) }
-```
-
-**Acceptance Criteria:**
-- [ ] Fix BUG-RAG-001 (undefined variable)
-- [ ] FastAPI server on port 8200 (configurable in `config.toml`)
-- [ ] `/v1/rag/search?query=text&limit=5` returns results
-- [ ] `/v1/rag/stats/_default` returns document count without crashing
-- [ ] Respects `include_paths` filtering from config.toml
-- [ ] Error handling: Clear messages for invalid queries
-- [ ] Test: Query from curl/Postman, verify results
-
-**Technical Tasks:**
-1. **FIX**: Replace `PERSIST_DIR` with `self.persist_dir` in rag.py:201
-2. Test all endpoints after fix
-3. Verify vector similarity search quality
-
-**Implementation Notes:**
-- Leverage existing `anythingllm_client.py` for DB connection logic
-- Share same `path_manager` for config consistency
-- Use same logger infrastructure
+**Estimation:** 5 points  
+**Dépendances:** US-009 (TaskQueue), US-002 (Logger)
 
 ---
 
-#### AITAO-007.6: External App Integration Guide
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
-**Estimation:** 1 point  
+### Epic 4: Indexation texte direct [MUST]
 
-**User Story:**  
-As a developer, I want documentation on how to integrate AI Tao into my tools so I can build custom applications.
+#### US-011: Extraire texte direct (PDF, DOCX) [MUST] 📋
+**En tant que** système  
+**Je veux** extraire le texte des documents  
+**Afin de** les indexer sans OCR
 
-**Acceptance Criteria:**
-- [ ] Document: `docs/EXTERNAL_APPS.md`
-- [ ] Example: VSCode Continuation plugin integration
-- [ ] Example: Wave Terminal CLI wrapper script
-- [ ] Example: Custom Python script using REST APIs
-- [ ] Show both ports (8247 for inference, 8200 for RAG)
-- [ ] Sample curl commands for each endpoint
+**Critères d'acceptation:**
+- [ ] Classe `TextExtractor` dans `src/indexation/text_extractor.py`
+- [ ] PDF: `pdfminer.six` ou `pypdf`
+- [ ] DOCX: `python-docx`
+- [ ] TXT, MD, JSON, TOML: lecture directe
+- [ ] Code (.py, .js, .ts): lecture directe
+- [ ] Retourne: `{text, metadata: {pages, word_count, language}}`
+- [ ] Détecte langue (langdetect)
+- [ ] Tests avec fichiers de test
 
----
-
-### Phase 1: Testing & Validation
-
-#### AITAO-008: End-to-End Test - Basic RAG Search
-**Priority:** 🔥 Critical  
-**Status:** 📋 To Do  
-**Estimation:** 2 points  
-
-**User Story:**  
-As a QA tester, I want a reproducible test that validates the complete RAG pipeline from file drop to search.
-
-**Test Scenario:**
-1. Clean install: Delete `$storage_root/lancedb`
-2. Add test documents to `include_paths` (5 markdown files with known content)
-3. Run `./aitao.sh start`
-4. Wait for indexing completion
-5. Query via AnythingLLM: "Find document about [known keyword]"
-6. Verify: Correct document returned with source path
-
-**Acceptance Criteria:**
-- [ ] Test script: `scripts/test_rag_e2e.py`
-- [ ] Automated setup (creates test files)
-- [ ] Validates indexing (checks LanceDB row count)
-- [ ] Validates search (asserts correct document returned)
-- [ ] Cleans up test data after run
-- [ ] Exit code 0 if pass, 1 if fail
+**Estimation:** 5 points  
+**Dépendances:** US-003 (ConfigManager)
 
 ---
 
-#### AITAO-009: Performance Benchmark - Indexing Speed
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
-**Estimation:** 2 points  
+#### US-012: Indexer documents dans LanceDB + Meilisearch [MUST] 📋
+**En tant que** système  
+**Je veux** indexer les documents extraits  
+**Afin de** permettre la recherche
 
-**User Story:**  
-As a product owner, I want to know how long it takes to index 1GB / 10GB / 100GB of documents so I can set realistic user expectations.
+**Critères d'acceptation:**
+- [ ] Classe `DocumentIndexer` dans `src/indexation/indexer.py`
+- [ ] Workflow: Extract text → Generate embeddings → Index LanceDB + Meilisearch
+- [ ] Calcule SHA256 (déduplication)
+- [ ] Extrait metadata: path, mtime, size, language, category (TBD)
+- [ ] Ajoute à LanceDB (embeddings)
+- [ ] Ajoute à Meilisearch (full-text + filtres)
+- [ ] Log succès/erreurs
+- [ ] Tests end-to-end
 
-**Metrics to Capture:**
-- Files/second indexed
-- GB/hour indexing rate
-- CPU/RAM usage during indexing
-- LanceDB size vs. source data size
-
-**Acceptance Criteria:**
-- [ ] Benchmark script: `scripts/benchmark_indexing.py`
-- [ ] Test datasets: 1GB (code), 10GB (mixed docs), 100GB (large corpus)
-- [ ] Output: Markdown table with results
-- [ ] Store results in `prd/BENCHMARKS.md`
-- [ ] Identify bottlenecks (disk I/O, embedding generation, etc.)
+**Estimation:** 5 points  
+**Dépendances:** US-006 (LanceDB), US-007 (Meilisearch), US-011 (TextExtractor)
 
 ---
 
-### Phase 2: Core Features
+## Sprint 2: Recherche hybride (2 semaines - Mars 2026)
 
-#### AITAO-010: Vision Model Integration (Qwen2.5-VL)
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
+### Epic 5: Search API [MUST]
+
+#### US-013: Créer API REST FastAPI [MUST] 📋
+**En tant que** développeur  
+**Je veux** une API REST pour accéder à AItao  
+**Afin de** intégrer avec Continue/Wave/Custom UI
+
+**Critères d'acceptation:**
+- [ ] FastAPI app dans `src/api/main.py`
+- [ ] Endpoints: `/api/search`, `/api/ingest`, `/api/health`, `/api/stats`
+- [ ] CORS configuré (`config.yaml` → `api.cors_origins`)
+- [ ] Port configurable (défaut: 5000)
+- [ ] Documentation OpenAPI auto-générée (`/docs`)
+- [ ] Logging des requêtes
+- [ ] Tests unitaires + intégration
+
+**Estimation:** 5 points  
+**Dépendances:** US-003 (ConfigManager), US-002 (Logger)
+
+---
+
+#### US-014: Implémenter recherche hybride [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** une recherche combinant full-text + sémantique  
+**Afin de** trouver mes documents rapidement
+
+**Critères d'acceptation:**
+- [ ] Endpoint `POST /api/search`
+- [ ] Requête parallèle: Meilisearch + LanceDB
+- [ ] Merge résultats (weighted: 40% Meilisearch, 60% LanceDB)
+- [ ] Filtres: date_after, date_before, path_contains, category, language
+- [ ] Retourne top 10 avec: path, title, summary, score, metadata
+- [ ] Latence <3 secondes (500K documents)
+- [ ] Tests avec dataset de test
+
 **Estimation:** 8 points  
-
-**User Story:**  
-As a user, I want to upload an image to the chat and have AI describe it, extract text (OCR), or convert tables to CSV.
-
-**Current State:**
-- ✅ Model downloaded: `Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf`
-- ❌ Not integrated into inference pipeline
-
-**Acceptance Criteria:**
-- [ ] AnythingLLM accepts image uploads (.jpg, .png, .pdf)
-- [ ] Inference server routes to vision model when image detected
-- [ ] OCR: Extract text from scanned documents
-- [ ] Table Extraction: Convert table images → CSV/JSON
-- [ ] Image Description: "This is a photo of..."
-- [ ] Test: Upload invoice scan, extract line items
-
-**Technical Tasks:**
-1. Update `server.py` to load Qwen2.5-VL model
-2. Add multimodal input handling (text + image)
-3. Implement preprocessing (resize, format conversion)
-4. Add specialized prompts for OCR vs. description
-5. Integrate table parsing (post-processing with regex/LLM)
-6. Update AnythingLLM UI to support image uploads
+**Dépendances:** US-006 (LanceDB), US-007 (Meilisearch), US-013 (API)
 
 ---
 
-#### AITAO-011: Code Assistant Model Integration (Qwen2.5-Coder)
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
-**Estimation:** 5 points  
+#### US-015: Implémenter endpoint /api/health [MUST] 📋
+**En tant que** système externe  
+**Je veux** vérifier la santé d'AItao  
+**Afin de** détecter les problèmes
 
-**User Story:**  
-As a developer, I want to ask coding questions and get code-specific answers using a specialized model.
+**Critères d'acceptation:**
+- [ ] Endpoint `GET /api/health`
+- [ ] Vérifie: API running, LanceDB connected, Meilisearch connected
+- [ ] Retourne JSON: `{status, services: {api, lancedb, meilisearch, worker}, timestamp}`
+- [ ] Status: `healthy`, `degraded`, `down`
+- [ ] Tests unitaires
 
-**Current State:**
-- ✅ Model downloaded: `qwen2.5-coder-7b-instruct-q4_k_m.gguf`
-- ❌ Not integrated
-
-**Acceptance Criteria:**
-- [ ] Add model switcher in AnythingLLM UI: "General | Code | Vision"
-- [ ] Code mode uses Qwen2.5-Coder model
-- [ ] Code-specific prompts (e.g., "Generate Python function for...")
-- [ ] Syntax highlighting in responses
-- [ ] Test: Ask "Write a binary search in Python", verify code quality
-
-**Technical Tasks:**
-1. Add model selection to server.py (dynamic loading)
-2. Create model profiles in config.toml
-3. Update AnythingLLM settings to expose model selector
-4. Optimize inference settings for code generation (temperature, top_p)
+**Estimation:** 2 points  
+**Dépendances:** US-013 (API)
 
 ---
 
-#### AITAO-012: Audio Transcription (Whisper Alternative)
-**Priority:** 🔮 Future  
-**Status:** 📋 To Do  
-**Estimation:** 5 points  
+## Sprint 3: OCR & Extraction (3 semaines - Mars-Avr 2026)
 
-**User Story:**  
-As a user, I want to drop an audio file (.mp3, .wav) into a watched folder and have it automatically transcribed and indexed.
+### Epic 6: OCR Pipeline [MUST]
 
-**Requirements:**
-- NOT Whisper (per user request)
-- Explore alternatives: Vosk, Coqui STT, SpeechBrain
+#### US-016: Détecter tableaux dans PDF/images [SHOULD] 📋
+**En tant que** système  
+**Je veux** détecter la présence de tableaux  
+**Afin de** router vers le bon OCR
 
-**Acceptance Criteria:**
-- [ ] Research and select open-source alternative
-- [ ] Implement transcription pipeline
-- [ ] Watch folder: `$storage_root/audio_inbox`
-- [ ] Output: `.txt` file with same name + timestamp
-- [ ] Index transcription into RAG
-- [ ] Test: Drop podcast.mp3, verify transcript searchable
+**Critères d'acceptation:**
+- [ ] Classe `TableDetector` dans `src/ocr/table_detector.py`
+- [ ] Utilise OpenCV pour détecter contours
+- [ ] Calcule score de probabilité (seuil configurable: 0.7)
+- [ ] Retourne: `{has_tables: bool, confidence: float}`
+- [ ] Tests avec images de test (tableaux, texte simple)
 
----
-
-#### AITAO-013: SVG/Image Generation
-**Priority:** 🔮 Future  
-**Status:** 📋 To Do  
-**Estimation:** 8 points  
-
-**User Story:**  
-As a user, I want to ask "Create a logo for my project" and receive an SVG or PNG image.
-
-**Approach Options:**
-1. Fine-tuned LLM for SVG code generation (prompt engineering)
-2. Integrate Stable Diffusion / Flux locally
-3. Hybrid: LLM generates SVG code, fallback to image model
-
-**Acceptance Criteria:**
-- [ ] Chat command: `/generate image: [description]`
-- [ ] Returns SVG or PNG embedded in chat
-- [ ] User can download result
-- [ ] Test: "Create minimalist logo with yin-yang symbol"
-
----
-
-### Phase 3: Advanced Capabilities
-
-#### AITAO-014: External API for Terminal Apps (Wave Terminal)
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
 **Estimation:** 3 points  
-
-**User Story:**  
-As a developer, I want to query AI Tao from my terminal (Wave Terminal, zsh, etc.) without opening the browser.
-
-**Current State:**
-- ✅ `server.py` exposes OpenAI-compatible API on port 8000
-- ❌ Not documented, no CLI client
-
-**Acceptance Criteria:**
-- [ ] API endpoint documented: `POST http://localhost:8000/v1/chat/completions`
-- [ ] Example curl commands in README
-- [ ] CLI wrapper script: `aitao-cli "What is RAG?"`
-- [ ] Wave Terminal integration guide
-- [ ] Test: Query from terminal, receive response
-
-**Technical Tasks:**
-1. Document API spec (OpenAPI/Swagger)
-2. Create `scripts/aitao_cli.py` (simple Python client)
-3. Add authentication (API key) for external access
-4. Write integration guide for Wave Terminal
+**Dépendances:** Aucune
 
 ---
 
-#### AITAO-015: Watch Folders - Auto-Indexing on File Changes
-**Priority:** 🚀 High  
-**Status:** 📋 To Do  
+#### US-017: Intégrer AppleScript OCR [MUST] 📋
+**En tant que** système  
+**Je veux** utiliser l'OCR natif macOS  
+**Afin d'** OCRer rapidement les documents simples
+
+**Critères d'acceptation:**
+- [ ] Classe `AppleScriptOCR` dans `src/ocr/applescript_ocr.py`
+- [ ] Appel AppleScript via subprocess
+- [ ] Entrée: chemin PDF/image
+- [ ] Sortie: texte extrait
+- [ ] Gestion erreurs (OCR failed)
+- [ ] Cache résultats (`${storage_root}/cache/ocr/{sha256}.json`)
+- [ ] Tests avec documents de test
+
+**Estimation:** 3 points  
+**Dépendances:** US-001 (PathManager)
+
+---
+
+#### US-018: Intégrer Qwen-VL OCR [MUST] 🔄
+**En tant que** système  
+**Je veux** utiliser Qwen-VL pour les documents complexes  
+**Afin d'** extraire texte + tableaux avec précision
+
+**Critères d'acceptation:**
+- [ ] Classe `QwenVLOCR` dans `src/ocr/qwen_vl_ocr.py`
+- [ ] Charge modèle + mmproj (`config.yaml` → `ocr.qwen_vl`)
+- [ ] Entrée: chemin PDF/image + `extract_tables=True/False`
+- [ ] Sortie: `{text, tables: [{table_id, data: [...]}]}`
+- [ ] Format tables: JSON (défaut), CSV, Markdown
+- [ ] Cache résultats
+- [ ] Tests avec documents de test (tableaux)
+
 **Estimation:** 5 points  
-
-**User Story:**  
-As a user, I want files I add to my indexed folders to be automatically indexed without restarting AI Tao.
-
-**Current State:**
-- Indexing only runs on startup
-- No file system monitoring
-
-**Acceptance Criteria:**
-- [ ] Use `watchdog` library to monitor `include_paths`
-- [ ] On file create/modify: trigger incremental index
-- [ ] On file delete: remove from LanceDB
-- [ ] Debouncing: Wait 5 seconds after last change before indexing
-- [ ] Log: "🔄 Detected change in [path], re-indexing..."
-- [ ] Test: Create file in watched folder, verify searchable within 10 seconds
+**Dépendances:** US-001 (PathManager), US-003 (ConfigManager)  
+**Note:** Script bench déjà existant, à intégrer
 
 ---
 
-#### AITAO-016: Multi-Platform Support (Linux & Windows)
-**Priority:** 🛡️ Polish  
-**Status:** 📋 To Do  
+#### US-019: Créer OCR Router [MUST] 📋
+**En tant que** système  
+**Je veux** un router qui choisit le bon OCR  
+**Afin d'** optimiser vitesse/qualité
+
+**Critères d'acceptation:**
+- [ ] Classe `OCRRouter` dans `src/ocr/router.py`
+- [ ] Workflow:
+  1. Essayer extraction texte direct (pdfminer)
+  2. Si insuffisant, détecter tableaux
+  3. Si tableaux → Qwen-VL, sinon AppleScript OCR
+- [ ] Configurable (`config.yaml` → `ocr.router`)
+- [ ] Retourne: `{method, text, tables, metadata}`
+- [ ] Tests avec divers documents
+
+**Estimation:** 5 points  
+**Dépendances:** US-016, US-017, US-018
+
+---
+
+### Epic 7: Extraction EXIF [SHOULD]
+
+#### US-020: Extraire métadonnées EXIF des images [SHOULD] 📋
+**En tant que** système  
+**Je veux** extraire les EXIF des images  
+**Afin d'** enrichir l'indexation
+
+**Critères d'acceptation:**
+- [ ] Classe `EXIFExtractor` dans `src/indexation/exif_extractor.py`
+- [ ] Extraction: date_taken, camera, location (GPS), dimensions
+- [ ] Retourne: `{exif: {...}, metadata: {...}}`
+- [ ] Indexe dans LanceDB + Meilisearch (filtres)
+- [ ] Tests avec images de test (avec/sans EXIF)
+
+**Estimation:** 3 points  
+**Dépendances:** US-012 (DocumentIndexer)
+
+---
+
+## Sprint 4: Traduction (2 semaines - Avr-Mai 2026)
+
+### Epic 8: Translation Pipeline [MUST]
+
+#### US-021: Créer pipeline de traduction [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** traduire des documents chinois  
+**Afin de** les comprendre en français/anglais
+
+**Critères d'acceptation:**
+- [ ] Classe `Translator` dans `src/translation/translator.py`
+- [ ] LLM: Qwen-2.5-Coder ou équivalent (`config.yaml` → `translation.model`)
+- [ ] Entrée: texte chinois
+- [ ] Sortie: `{translation_fr, translation_en, confidence}`
+- [ ] Prompt engineering pour contexte formel
+- [ ] Cache traductions (`${storage_root}/cache/translations/{sha256}.json`)
+- [ ] Tests avec documents de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-003 (ConfigManager)
+
+---
+
+#### US-022: Extraire actions/deadlines [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** extraire les échéances d'un document  
+**Afin de** connaître mes tâches et deadlines
+
+**Critères d'acceptation:**
+- [ ] Classe `ActionExtractor` dans `src/translation/action_extractor.py`
+- [ ] Prompt LLM pour extraire: deadlines, tasks, amounts, entities
+- [ ] Retourne JSON: `{deadlines: [{task, date, days_remaining}], actions, entities}`
+- [ ] Parse dates (français, anglais, chinois)
+- [ ] Calcule days_remaining
+- [ ] Tests avec documents de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-021 (Translator)
+
+---
+
+#### US-023: API endpoint /api/translate [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** traduire un document via API  
+**Afin de** l'intégrer dans mon workflow
+
+**Critères d'acceptation:**
+- [ ] Endpoint `POST /api/translate`
+- [ ] Entrée: `{file_path OR text, source_lang, target_lang, extract_actions}`
+- [ ] Workflow: OCR (si nécessaire) → Translate → Extract actions
+- [ ] Retourne: `{translation, actions, metadata}`
+- [ ] Tests unitaires + intégration
+
+**Estimation:** 3 points  
+**Dépendances:** US-021, US-022, US-013 (API)
+
+---
+
+## Sprint 5: Catégorisation (2 semaines - Mai 2026)
+
+### Epic 9: Category Management [SHOULD]
+
+#### US-024: Auto-catégoriser documents [SHOULD] 📋
+**En tant que** système  
+**Je veux** catégoriser automatiquement les documents  
+**Afin de** faciliter la recherche
+
+**Critères d'acceptation:**
+- [ ] Classe `Categorizer` dans `src/indexation/categorizer.py`
+- [ ] Charge catégories depuis `config/categories.yaml`
+- [ ] LLM analyse: title + first 1000 words + keywords
+- [ ] Retourne: `{category, confidence}`
+- [ ] Si confidence <0.7 → flag pour review manuel
+- [ ] Tests avec documents de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-003 (ConfigManager)
+
+---
+
+#### US-025: API correction catégories [SHOULD] 📋
+**En tant que** utilisateur  
+**Je veux** corriger les catégories erronées  
+**Afin d'** améliorer le système
+
+**Critères d'acceptation:**
+- [ ] Endpoint `PUT /api/categories/{doc_id}`
+- [ ] Entrée: `{new_category, reason}`
+- [ ] Met à jour metadata dans LanceDB + Meilisearch
+- [ ] Sauvegarde correction dans `corrections.json`
+- [ ] Retourne: `{success, message}`
+- [ ] Tests unitaires
+
+**Estimation:** 3 points  
+**Dépendances:** US-013 (API), US-024 (Categorizer)
+
+---
+
+#### US-026: Feedback loop catégorisation [COULD] 🔮
+**En tant que** système  
+**Je veux** utiliser les corrections pour améliorer  
+**Afin d'** augmenter la précision
+
+**Critères d'acceptation:**
+- [ ] Lit `corrections.json`
+- [ ] Ajuste prompt système avec exemples de corrections
+- [ ] Option: Fine-tuning model (V3+)
+- [ ] Tests avec corrections simulées
+
+**Estimation:** 5 points  
+**Dépendances:** US-025  
+**Note:** Nice-to-have, peut être déféré
+
+---
+
+## Sprint 6: Dashboard & Polish (2 semaines - Juin 2026)
+
+### Epic 10: CLI & Dashboard [SHOULD]
+
+#### US-027: Dashboard TUI (status) [SHOULD] 📋
+**En tant que** utilisateur  
+**Je veux** voir le statut d'AItao en CLI  
+**Afin de** monitorer le système
+
+**Critères d'acceptation:**
+- [ ] Script `src/dashboard/tui.py`
+- [ ] Utilise Rich (Python TUI)
+- [ ] Affiche: Services (API, Worker, LanceDB, Meilisearch), Resources (CPU, RAM, Disk), Recent Activity
+- [ ] Refresh auto toutes les 5 secondes
+- [ ] Couleurs: vert (OK), jaune (warning), rouge (erreur)
+- [ ] Accessible via `./aitao.sh status`
+
+**Estimation:** 5 points  
+**Dépendances:** US-005 (CLI)
+
+---
+
+#### US-028: Cronjob daily scan [MUST] 📋
+**En tant que** système  
+**Je veux** scanner les volumes quotidiennement  
+**Afin d'** indexer les nouveaux fichiers
+
+**Critères d'acceptation:**
+- [ ] Script `scripts/daily_scan.sh`
+- [ ] Cron: `0 2 * * *` (2am daily)
+- [ ] Appelle `FilesystemScanner` → ajoute à queue
+- [ ] Log début/fin scan (JSON)
+- [ ] Notification utilisateur: "X nouveaux documents détectés"
+- [ ] Tests avec cronjob simulé
+
+**Estimation:** 2 points  
+**Dépendances:** US-008 (FilesystemScanner), US-009 (TaskQueue)
+
+---
+
+#### US-029: System load monitor [SHOULD] 📋
+**En tant que** système  
+**Je veux** détecter la charge système  
+**Afin de** throttler les tâches background
+
+**Critères d'acceptation:**
+- [ ] Classe `SystemMonitor` dans `src/core/system_monitor.py`
+- [ ] Méthodes: `get_cpu_percent()`, `get_memory_usage()`, `get_disk_usage()`
+- [ ] Détecte activité utilisateur (macOS: mouse/keyboard events)
+- [ ] Retourne: `{is_busy: bool, cpu_percent, memory_gb, disk_gb}`
+- [ ] Worker utilise ce module pour throttler
+- [ ] Tests unitaires
+
+**Estimation:** 3 points  
+**Dépendances:** US-010 (Worker)
+
+---
+
+### Epic 11: Testing & Documentation [SHOULD]
+
+#### US-030: Tests end-to-end [SHOULD] 📋
+**En tant que** développeur  
+**Je veux** des tests E2E  
+**Afin de** garantir le fonctionnement
+
+**Critères d'acceptation:**
+- [ ] Tests E2E dans `tests/e2e/`
+- [ ] Scénarios: Ingest document → Index → Search → Retrieve
+- [ ] Tests avec dataset réel (PDF, DOCX, images)
+- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] Coverage >80%
+
 **Estimation:** 8 points  
-
-**User Story:**  
-As a Linux/Windows user, I want to run AI Tao without macOS-specific dependencies.
-
-**Current Blockers:**
-- `aitao.sh` uses macOS-specific commands (`open`)
-- Docker Desktop auto-start logic
-
-**Acceptance Criteria:**
-- [ ] `aitao.sh` detects OS and adapts commands
-- [ ] Linux: Replace `open -a Docker` with `systemctl start docker`
-- [ ] Windows: Create `aitao.ps1` PowerShell script
-- [ ] Test on Ubuntu 22.04 and Windows 11
-- [ ] Update installation guide with OS-specific instructions
+**Dépendances:** Tous les précédents
 
 ---
 
-### Phase 4: Polish & Expansion
+#### US-031: Documentation utilisateur [SHOULD] 📋
+**En tant que** utilisateur  
+**Je veux** une documentation claire  
+**Afin d'** installer et utiliser AItao
 
-#### AITAO-017: Zero-Config Installer
-**Priority:** 🛡️ Polish  
-**Status:** 📋 To Do  
-**Estimation:** 13 points (Epic)  
+**Critères d'acceptation:**
+- [ ] README.md mis à jour (v2)
+- [ ] Installation guide (macOS)
+- [ ] Configuration guide (config.yaml)
+- [ ] API documentation (OpenAPI)
+- [ ] Troubleshooting guide
+- [ ] FAQ
 
-**User Story:**  
-As a non-technical user, I want to run a single installer that sets up everything automatically.
-
-**What to Automate:**
-1. Install Python 3.14 (if missing)
-2. Install Docker Desktop (if missing)
-3. Download AI models from HuggingFace
-4. Create virtual environment
-5. Install Python dependencies
-6. Generate config.toml from user prompts
-7. Run first-time setup
-
-**Acceptance Criteria:**
-- [ ] Installer script: `install.sh` (macOS/Linux), `install.ps1` (Windows)
-- [ ] Interactive prompts: "Where to store data?", "Which models?"
-- [ ] Progress indicators (% complete)
-- [ ] Error handling with rollback
-- [ ] Test: Fresh macOS VM → working AI Tao in <15 minutes
-
----
-
-#### AITAO-018: Metrics & Telemetry Dashboard (Local Only)
-**Priority:** 🛡️ Polish  
-**Status:** 📋 To Do  
 **Estimation:** 5 points  
-
-**User Story:**  
-As a product owner, I want to see usage metrics (queries/day, index size, model performance) to guide improvements.
-
-**Metrics to Track:**
-- Total indexed files/size
-- Queries per day (local only, no external sending)
-- Average query latency
-- Model selection frequency
-- Top search terms
-
-**Acceptance Criteria:**
-- [ ] Dashboard: `http://localhost:3001/metrics` (embedded in AnythingLLM)
-- [ ] Charts: Line graphs (queries over time), pie charts (model usage)
-- [ ] Export: CSV download for analysis
-- [ ] Privacy: All data stored locally in `$storage_root/metrics.db`
-- [ ] Test: Run for 7 days, verify data accuracy
+**Dépendances:** US-030
 
 ---
 
-#### AITAO-019: Code Cleanup - Remove Legacy Files
-**Priority:** 🧹 Low  
-**Status:** 📋 To Do  
-**Estimation:** 1 point  
+## Backlog (Future - V3+)
 
-**User Story:**  
-As a maintainer, I want to remove unused legacy files so the codebase stays clean and comprehensible.
+### Epic 12: Multi-platform [WON'T - V3]
 
-**Files to Remove:**
-- [ ] `data/schema.sql` (Chainlit legacy, AnythingLLM has own DB)
-- [ ] Any other `_legacy_` or backup files in src/
+- **US-032:** Support Linux
+- **US-033:** Support Windows
+- **US-034:** Docker full stack
 
-**Acceptance Criteria:**
-- [ ] Verify no imports of removed files (grep search)
-- [ ] Update .gitignore if needed
-- [ ] Document removed files in CHANGELOG
-- [ ] Test: Full system start/stop without errors
+### Epic 13: Advanced Features [WON'T - V3]
+
+- **US-035:** Email indexing (Gmail, Outlook)
+- **US-036:** Audio/Video transcription
+- **US-037:** Image generation (local)
+- **US-038:** Encryption at-rest
+- **US-039:** Multi-user support
 
 ---
 
-## 🐛 Bugs & Technical Debt
+## Définition de "Done"
 
-### CRITICAL BUGS (Blocking Phase 1 - Fixing Jan 27)
-
-#### BUG-SYNC-001: SyncAgent Method Not Found
-**Priority:** 🔥 Critical  
-**Status:** 🔧 FIXING  
-**File:** `src/core/sync_agent.py` line 73  
-**Reproduction:**
-1. Run `./aitao.sh start`
-2. SyncAgent crashes: `AttributeError: 'AITaoIndexer' object has no attribute 'index_folder'`
-
-**Root Cause:** 
-```python
-# AITaoIndexer has index_files(files), not index_folder()
-count = self.indexer.index_folder(vp, recursive=True)  # ❌ WRONG
-```
-
-**Fix:**
-Implement proper folder batch indexing in sync_agent, or call `index_files()` with list of files
+Une US est considérée "Done" quand:
+1. ✅ Code écrit et respecte les conventions (< 400 lignes/fichier)
+2. ✅ File header présent (description module)
+3. ✅ Tests unitaires écrits et passent
+4. ✅ Code review OK
+5. ✅ Documentation inline (docstrings)
+6. ✅ Logs JSON pour debugging
+7. ✅ Intégré dans branche `pdr/v2-remodular`
 
 ---
 
-#### BUG-RAG-001: Undefined Variable in get_stats()
-**Priority:** 🔥 Critical  
-**Status:** 🔧 FIXING  
-**File:** `src/core/rag.py` line 201  
-**Reproduction:**
-1. Call `GET http://localhost:8200/v1/rag/stats/_default`
-2. Server crashes: `NameError: name 'PERSIST_DIR' is not defined`
+## Points d'estimation
 
-**Root Cause:**
-```python
-def get_stats(self):
-    # ...
-    return { "documents": count, "path": PERSIST_DIR }  # ❌ Undefined
-```
-
-**Fix:**
-Replace `PERSIST_DIR` with `self.persist_dir` (instance variable)
+- **1 point:** 1-2 heures (trivial)
+- **2 points:** 3-4 heures (simple)
+- **3 points:** 1 jour (moyen)
+- **5 points:** 2-3 jours (complexe)
+- **8 points:** 4-5 jours (très complexe, à décomposer)
 
 ---
 
-#### BUG-AITAO-001: Missing Imports in check scan Command
-**Priority:** 🔥 Critical  
-**Status:** 🔧 FIXING  
-**File:** `aitao.sh` lines 315-327  
-**Reproduction:**
-1. Run `./aitao.sh check scan`
-2. No output, silently fails (no imports in $PYTHON context)
+## Priorités MOSCOW
 
-**Root Cause:**
-```bash
-$PYTHON -c "
-from src.core.indexer import load_paths  # ❌ src.core not in sys.path
-```
-
-**Fix:**
-Add proper path setup before relative imports in the check scan command
+- **MUST:** Fonctionnalité critique pour MVP
+- **SHOULD:** Importante mais pas bloquante
+- **COULD:** Nice-to-have, peut être déférée
+- **WON'T:** Hors scope V2, pour V3+
 
 ---
 
-### DEBT-001: Three Parallel RAG Systems (Consolidate Later)
-**Priority:** 🚀 High  
-**Status:** 📋 TODO (after Phase 1)  
-**Description:** 
-- `rag.py` (legacy LanceDB wrapper)
-- `indexer.py` (old indexation system)
-- `kotaemo_indexer.py` + `rag_server.py` (new, modern system)
+**Velocity cible:** 20-25 points/sprint (1 dev, 2 semaines)
 
-**Recommendation:** Keep new system, remove legacy after full testing
-
----
-
-### DEBT-002: Outdated Documentation  
-**Priority:** 🚀 High  
-**Status:** 📋 TODO  
-**Files affected:**
-- README.md: Says "OCR not built-in" but it is
-- Mentions AnythingLLM "UI" but newer design is API-first
-
----
-
-## 📊 Metrics & KPIs
-
-### Phase 1 Success Metrics
-- [ ] 100% of logs written to configured directory
-- [ ] Zero hardcoded paths in Python code
-- [ ] `./aitao.sh check config` validates successfully
-- [ ] RAG search returns relevant results in <3 seconds (1GB corpus)
-- [ ] All 3 models loadable and functional
-
-### V1 Launch Metrics (From PRD)
-- [ ] Non-technical user setup time <15 minutes
-- [ ] Search 100GB+ documents <5 seconds
-- [ ] OCR accuracy >90%
-- [ ] 30-day uptime without crashes
-- [ ] Zero external data leakage (verified)
-
----
-
-## 🔄 Backlog Refinement Notes
-
-### Risks & Dependencies
-1. **AITAO-006** (Sync Agent) depends on stable AnythingLLM API (version pinning needed)
-2. **AITAO-010** (Vision) requires significant GPU resources (document minimum specs)
-3. **AITAO-017** (Installer) blocked until Phase 1/2 complete
-
-### Open Questions
-1. **License Selection:** Which open-source license balances commercialization + attribution? (Action: Consult legal advisor)
-2. **Sandboxing Strategy:** How to safely process untrusted files (PDFs with exploits)? (Action: Research container isolation)
-3. **Storage Quotas:** Should we implement hard limits or just warnings? (Action: User survey)
-
----
-
-## 🎯 Sprint Planning Template
-
-### Sprint N (Dates: TBD)
-**Sprint Goal:** [Clear, measurable objective]
-
-**Selected Stories:**
-- [ ] AITAO-XXX (X points)
-- [ ] AITAO-YYY (Y points)
-
-**Total Points:** X  
-**Sprint Review Date:** [Date]  
-**Sprint Retrospective:** [Link to notes]
-
----
-
-**Backlog Maintenance:**  
-- Review weekly: Reprioritize based on user feedback
-- Groom monthly: Break down epics, refine estimates
-- Retrospective after each Phase: Adjust process, celebrate wins
-
----
-
-## ✅ Completed Stories & Phase 1 Closure (Jan 27, 2026)
-
-### Critical Bugs Fixed & Validated
-
-**BUG-SYNC-001** (src/core/sync_agent.py:73)
-- ✅ Fixed: indexer.index_folder() → os.walk() + index_files()
-- ✅ Validated: test_critical_bugs.sh PASSED
-
-**BUG-RAG-001** (src/core/rag.py:201)
-- ✅ Fixed: PERSIST_DIR → self.persist_dir
-- ✅ Validated: RAG health check PASSED
-
-**BUG-AITAO-001** (aitao.sh:315-327)
-- ✅ Fixed: Added sys.path for imports
-- ✅ Validated: check scan command PASSED
-
-### Phase 1 Validation Results
-
-- ✅ Automated tests: 6/6 PASSED
-- ✅ Module imports: 7/7 OK
-- ✅ System checks: 14/14 PASSED
-- ✅ CLI commands: 8/8 working
-- ✅ Phase completion: 75% (from 60%)
-
----
-
-*Last Updated: January 27, 2026 | Next Sprint: Phase 2 Core Features*
+**Total points MVP (Sprint 0-6):** ~140 points → 6-7 sprints → 3-4 mois

@@ -1,485 +1,897 @@
 # Product Requirements Document (PRD)
-# AI Tao - Local, Sovereign & Accessible AI Assistant
+# AI Tao 2.0 - Local-First Search & Translation Engine
 
-**Version:** 1.0  
-**Date:** January 22, 2026  
-**Status:** Draft  
-**Author:** shamantao (AI Tao Project)
+**Version:** 2.0  
+**Date:** January 28, 2026  
+**Status:** Active  
+**Author:** shamantao (AI Tao Project)  
+**Branch:** `pdr/v2-remodular`
 
 ---
 
 ## Executive Summary
 
-**AI Tao** is a local-first, privacy-focused AI assistant that runs entirely on your personal computer. It empowers users to leverage powerful AI capabilities without sacrificing data privacy, environmental sustainability, or paying expensive cloud subscriptions. AI Tao is the ultimate alternative to cloud-based AI services for users who want to own their data and their intelligence.
+**AItao** is a local-first, privacy-focused document search and translation engine that runs entirely on your personal computer. It empowers users to find, understand, and translate documents across their filesystem without sacrificing data privacy or paying cloud subscriptions.
 
 **Core Principle:** *"Your data are your own. What happens on your Mac, stays on your Mac."*
 
+**V2 Mission:** Build a modular, production-ready **document retrieval and translation system** with priority on:
+- **Traditional Chinese → French/English** translation accuracy
+- **Semantic search** across all personal documents (< 1TB, < 500K files)
+- **Zero external dependencies** (no API keys, all free/open-source)
+- **Modular architecture** (every component is replaceable)
+
 ---
 
-## 1. Vision & Mission
+## 1. Vision & Core Values
 
 ### Vision
-Create an accessible, open-source AI assistant that preserves user privacy, reduces environmental impact, and democratizes AI technology for everyone with a capable personal computer.
-
-### Mission
-Deliver a production-ready tool that helps users with daily tasks—document search, translation, visual analysis, content generation—while keeping all data local and secure.
+Create a **privacy-first knowledge retrieval system** that empowers users to find, understand, and translate documents across their entire filesystem—without sacrificing privacy, speed, or control.
 
 ### Core Values
-1. **🔒 Absolute Privacy**: Financial documents, contracts, and code never leave the hard drive
-2. **⚡️ Radical Simplicity**: Users should not need to "code" to "use"—drop a file, ask a question
-3. **🏗 Modularity**: Connect best-in-class open-source tools (llama.cpp, AnythingLLM, Python scripts) into a fluid ecosystem
-   - **AI Tao must remain independent of any single UI or inference engine**
-   - Users can swap tools without losing data or functionality
-4. **🌱 Environmental Responsibility**: Local processing over cloud reduces carbon footprint
-5. **💰 Zero Cost**: Free and open-source—users are not the product
-6. **🔧 Developer Freedom**: External apps (Wave Terminal, VSCode, custom scripts) can access AI Tao's capabilities without depending on AnythingLLM's choices
+1. **🔒 Absolute Privacy**: Documents never leave the local machine
+2. **🧩 Modularity**: Each component (indexer, search, OCR, translation, API) is independent and replaceable
+3. **🔧 Maintainability**: Clean code, standard interfaces, comprehensive logging
+4. **⚡️ Efficiency**: Optimized for limited resources (Mac M1, not cloud servers)
+5. **💰 Zero Cost**: All models and tools are free and open-source (no API keys)
+6. **🎯 Accuracy**: Translation and OCR quality prioritized over speed for critical documents
+7. **🔄 Reversibility**: All decisions must be revertable—users can correct categorizations, swap models, change storage
 
 ---
 
-## 2. Target Audience & Personas
+## 2. Target User & Use Cases
 
-### Primary Target
-**General Public** with personal computers powerful enough to run AI models locally.
+### Primary Persona: "Multilingual Knowledge Worker"
+- **Profile**: Professional managing mixed-language documents (Traditional Chinese, French, English)
+- **Pain Points**:
+  - Cannot read Chinese but receives important docs (government, business, school)
+  - Forgets where files are stored (Dropbox, local drive, external HD, clouds)
+  - Spotlight/Finder fails on semantic search ("where's the Germany trip doc from June 2025?")
+  - Needs quick answers: "What are the deadlines in this accountant's doc?"
+- **Success Criteria**: 
+  - Find document in <5 seconds with natural language query
+  - Get accurate translation + summary in <30 seconds
+  - Never expose documents to external services
 
-### User Personas
+### Critical Use Cases (MVP)
 
-#### Persona 1: "Privacy-Conscious Professional"
-- **Profile**: Lawyer, accountant, consultant handling sensitive documents
-- **Needs**: Confidential document search, translation, analysis without cloud exposure
-- **Technical Level**: Non-technical, expects "just works" experience
+#### UC-001: Semantic Document Search 🔥
+**User Query:**
+> "Where is the document about the Germany trip in June 2025?"
 
-#### Persona 2: "Cost-Conscious Knowledge Worker"
-- **Profile**: Student, freelancer, small business owner
-- **Needs**: Cannot afford expensive AI subscriptions ($20-50/month)
-- **Technical Level**: Basic computer skills, can follow simple instructions
+**System Response:**
+1. Searches **Meilisearch** (full-text + filters) + **LanceDB** (semantic) in parallel
+2. Returns: `/Dropbox/travel/germany_2025.pdf - This document mentions a trip to Germany from June 10-15, 2025...` (score: 0.95)
+3. User clicks → file opens in default app
 
-#### Persona 3: "Developer/Power User"
-- **Profile**: Software engineer wanting local AI for coding assistance
-- **Needs**: Integration with terminal apps (Wave Terminal), code generation, local model control
-- **Technical Level**: Advanced, comfortable with CLI and configuration files
-
-#### Persona 4: "Digital Packrat"
-- **Profile**: Anyone with years of accumulated files and forgotten documents
-- **Needs**: Powerful search beyond Spotlight—semantic understanding of "where is that invoice from 2023?"
-- **Technical Level**: Variable, needs intuitive interface
-
----
-
-## 3. Use Cases (V1 Priority)
-
-### UC-001: Local Document Search (Semantic)
-**Priority:** 🔥 Critical  
-**User Story (Variant A):** "I'm looking for a document about 'computer usage policy at Sesame Motor'"  
-**User Story (Variant B):** "I forgot where I placed the roof work estimate, and forgot the company name"  
-**Expected Behavior:**
-- AI searches indexed volumes using semantic understanding
-- **Variant A** (precise query): Returns "I found this document, located at [path], here's a summary..."
-- **Variant B** (fuzzy recovery): Returns "You have several estimates about the house, located here. There's one standalone file from [company name]"
-- Shows relevant excerpts with source citations
-- **Key Feature**: More powerful than Spotlight—understands intent, not just keywords
-
-### UC-002: Visual Analysis (OCR)
-**Priority:** 🔥 Critical  
-**User Story:** "I received an image via messaging but don't understand it, analyze it for me"  
-**Expected Behavior:**
-- AI analyzes image using vision model (Qwen-VL/Llava)
-- Returns: "Here's what I see, and here's the translation/explanation..."
-- Extracts tables from scanned PDFs → Excel/CSV
-
-### UC-003: Web Search with Consent (Opt-in)
-**Priority:** 🚀 High  
-**User Story:** "I'm looking for the recipe for 'gloubiboulga'" [user checks web search option]  
-**Expected Behavior:**
-- AI explicitly asks: "This requires web search, proceed?"
-- Performs secure, non-logged search via **DuckDuckGo** (privacy-respecting)
-- Returns: "Here's the recipe from [source]" (Perplexity-style citations)
-- Asks: "Do you want me to remember this recipe?" → indexes if yes, forgets if no
-
-### UC-004: Image/SVG Generation
-**Priority:** 🔮 Future  
-**User Story:** "Create an image to illustrate my post about this topic"  
-**Expected Behavior:**
-- AI generates SVG or open-format image
-- Returns: "Here's the image I propose in SVG format"
-
-### UC-005: External Integration (Wave Terminal)
-**Priority:** 🚀 High  
-**User Story:** Developer wants to query AI from terminal/external app  
-**Expected Behavior:**
-- AI Tao exposes OpenAI-compatible API endpoint
-- Wave Terminal (or other apps) can send prompts and receive responses
+**Requirements:**
+- Query latency: <3 seconds for 500K documents
+- Hybrid search (full-text + semantic)
+- Filters: date, path, category, file type
 
 ---
 
-## 4. Functional Requirements
+#### UC-002: Document Translation & Action Extraction 🔥
+**User Request:**
+> "The accountant sent me a Chinese document with tasks. What are the deadlines?"
 
-### FR-001: Configuration Management
-- **Single source of truth:** `config.toml` file
-- **No GUI configuration:** All settings (volumes, models, preferences) defined in config file
-- **Settings include:**
-  - Indexed volumes/folders
-  - Active AI models
-  - Storage limits (500GB default, alerts at 25% increments)
-  - Network usage limits (unlimited in V1, configurable in config)
-  - Web search opt-in status
+**System Response:**
+1. OCR if scanned (Qwen-VL for tables, AppleScript for simple text)
+2. Translate Traditional Chinese → French/English
+3. Extract structured data: deadlines, tasks, amounts
+4. Returns:
+   - Full translation
+   - "Task 1: Invoice preparation - Due 2026-02-15 (15 days remaining)"
+   - "Task 2: Tax filing - Due 2026-03-01 (32 days remaining)"
 
-### FR-002: CLI Interface (`aitao.sh`)
-- **Commands:**
-  - `./aitao.sh start` - Start all services (AI engine + UI + sync agent)
-  - `./aitao.sh stop` - Gracefully stop all services
-  - `./aitao.sh restart` - Restart services
-  - `./aitao.sh status` - Check service health
-  - `./aitao.sh check [scan|config]` - Validate setup
-  - `./aitao.sh help` - Show usage guide
-- **Status:** ✅ In Progress
-
-### FR-003: RAG (Retrieval-Augmented Generation)
-- **Vector Database:** LanceDB (single source of truth)
-- **Indexing orchestration:** Sync Agent surveils `include_paths`, envoie les fichiers vers le pipeline d'extraction (texte direct ou OCR), puis insère dans LanceDB
-- **Access pattern:** 
-  - UI users: via l'UI choisie (optionnelle)
-  - External apps: via RAG Server API (port 8200, model-agnostic)
-- **Supported file types:**
-  - Documents: .txt, .md, .docx, .odt
-  - Presentations: .odp, .pptx
-  - PDFs (text or scanned)
-  - Images: .jpg, .png, .webp
-  - Code: .py, .js, .ts, .cpp, .java, etc.
-  - Audio/Video: basique (métadonnées), OCR pour contenus image/scans
-- **Metadata extraction:** File paths, modification dates, SHA-256 hash (integrity), source/ocr engine used
-- **Retention policy:** Storage limit-based (not time-based)—oldest/least-used data purged when approaching 500GB limit
-
-### FR-004: Web Search (Opt-in)
-- **User consent required:** Explicit checkbox or confirmation
-- **Search Engine:** DuckDuckGo (privacy-respecting, no tracking)
-- **Privacy safeguards:**
-  - Queries not logged online
-  - Results stored locally only
-  - User decides whether to index results into private RAG
-- **Citation style:** Perplexity-like source attribution
-- **Status:** ✅ Core Implementation Done (DuckDuckGo scraper in `web.py`), UI Integration TODO
-
-### FR-005: AnythingLLM Integration
-- **Deployment:** Docker container
-- **Sync Agent (`sync_agent.py`):** Automatically creates Workspaces from `config.toml` volumes
-- **UI Access:** Browser-based (default `http://localhost:3001`)
-- **Status:** ✅ AnythingLLM Done, Sync Agent In Progress
-
-### FR-006: Vision & OCR Routing
-- **OCR engines:** `easyocr` (léger, rapide texte simple) et `qwen-vl` (multimodal, extraction de tableaux)
-- **OCR router (`pipe_router`):** module léger (pdfminer/pypdf + OpenCV) qui détecte présence de texte existant et probabilité de tableaux, puis route vers l’OCR approprié ; évite d’exécuter Qwen-VL quand EasyOCR suffit. Les seuils (aire table, intersections, densité) sont configurables dans `config.toml` (section dédiée bas de fichier).
-- **Pre-downloaded models available:**
-  - `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf` (text generation)
-  - `qwen2.5-coder-7b-instruct-q4_k_m.gguf` (code assistance)
-  - `Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf` (vision/multimodal)
-- **Use cases:**
-  - OCR from scanned PDFs/images (auto routing)
-  - Table extraction (PDF/image → JSON/CSV/Excel) via Qwen-VL lorsqu’un tableau est détecté
-  - Image description and translation
-- **Status:** 🔄 Models downloaded; inspector + routing to be integrated
-
-### FR-007: Image/SVG Generation
-- **Approach:** Open-source models (Flux, Stable Diffusion) or specialized SVG prompting
-- **Output formats:** SVG (preferred), PNG, other open formats
-- **Status:** 📋 TODO
-
-### FR-008: Audio/Video Transcription
-- **V1 Scope:** Not Whisper—explore alternative open-source solutions
-- **Use cases:**
-  - Extract transcriptions from mp4/mp3 in watched folders
-  - Subtitle resynchronization
-- **Status:** 📋 TODO (Alternative to Whisper)
-
-### FR-009: Model Management
-- **Source:** HuggingFace open-source models
-- **Installation:** AI Tao can propose and download models
-- **Inference Engine:** `llama-cpp-python` (OpenAI-compatible API)
-- **Modularity:** Models are swappable "Lego blocks"
-
-### FR-010: Conversation History
-- **Storage:** Local only
-- **User control:** Ability to delete conversation history (retention/forget)
-- **UI:** Accessible via AnythingLLM interface
+**Requirements:**
+- Human-readable translation (context-aware, not word-for-word)
+- Table structure preserved (JSON/CSV output)
+- Entity extraction (dates, amounts, names)
 
 ---
 
-## 5. Non-Functional Requirements
+#### UC-003: Filesystem Scanning & Auto-Indexing 🚀
+**User Setup:**
+> "Index all my Dropbox and external hard drives daily"
+
+**System Behavior:**
+1. **Daily cronjob** (2am) scans configured volumes
+2. For each new/modified file:
+   - Extract text (direct or OCR)
+   - Extract EXIF metadata (images)
+   - **Auto-categorize** (enterprise/school/sports/leisure/news)
+   - Add to **JSON queue**
+3. **Background worker** processes queue (throttle based on system load)
+4. User gets summary: "15 new documents indexed, 3 need manual review"
+
+**Requirements:**
+- Watch filesystem changes (macOS FSEvents)
+- Queue: JSON files in `~/Downloads/_sources/aitao/queue/`
+- System load detection (pause if CPU >80%)
+
+---
+
+#### UC-004: Manual Document Ingestion (Priority) 🚀
+**User Command:**
+```bash
+aitao ingest /path/to/document.pdf --ocr qwen-vl --priority high
+```
+
+**System Response:**
+1. Skips queue (high priority)
+2. Shows progress: "Processing... 30% done"
+3. On completion:
+   - Displays translation + extracted tables
+   - Asks: "Categorize as [enterprise/school/other]?"
+   - Indexes into LanceDB + Meilisearch
+
+**Requirements:**
+- Real-time progress feedback
+- User can cancel/pause
+- Priority queue (user > background)
+
+---
+
+#### UC-005: Category Correction 🔮
+**User Action:**
+> "This news magazine was classified as 'cooking' because of a recipe. Reclassify as 'news/international'"
+
+**System Response:**
+1. Updates document metadata
+2. Saves correction to `corrections.json`
+3. Future scans use learned patterns
+
+**Requirements:**
+- User-friendly category picker
+- Feedback loop for model improvement
+
+---
+
+#### UC-006: RAG Integration (Continue/Wave/Custom UI) 🚀
+**External App Request:**
+```json
+POST /api/search
+{
+  "query": "Where is the Germany trip doc?",
+  "filters": {"date_after": "2025-01-01"},
+  "limit": 5
+}
+```
+
+**System Response:**
+```json
+{
+  "results": [
+    {
+      "path": "/path/to/doc.pdf",
+      "summary": "Trip to Germany...",
+      "score": 0.95,
+      "date": "2025-06-10"
+    }
+  ],
+  "query_time_ms": 234
+}
+```
+
+**Requirements:**
+- FastAPI REST endpoint (port 5000)
+- OpenAPI schema
+- Shared LanceDB/Meilisearch (no duplication)
+
+---
+
+## 3. Functional Requirements
+
+### FR-001: Modular Architecture ✅ CRITICAL
+
+**Principle:** All components communicate via **standard interfaces** (REST API, JSON files, shared databases). Each module can be replaced without breaking others.
+
+**Core Modules:**
+
+#### 1. PathManager (`src/core/pathmanager.py`)
+- Central registry of all file paths (code, config, logs, models, data)
+- Returns absolute paths based on environment (dev/prod)
+- **Never hard-code paths in source code**
+
+#### 2. Logger (`src/core/logger.py`)
+- Structured JSON logging
+- Separate log files per module (indexer.log, ocr.log, api.log)
+- Log rotation (100MB max per file)
+- Levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+#### 3. ConfigManager (`src/core/config.py`)
+- Loads `config.yaml` (centralized config)
+- Validates schema, provides defaults
+- Hot-reload on file change
+
+#### 4. ShellManager (`aitao.sh`)
+- CLI entry point: `start`, `stop`, `status`, `ingest`, `search`
+- Dashboard: Shows service status, queue length, resource usage
+
+**Directory Structure:**
+```
+# Code (Git-tracked)
+/Users/phil/Library/CloudStorage/Dropbox/devwww/AI-model/aitao/
+├── src/
+│   ├── core/              # PathManager, Logger, Config
+│   ├── indexation/        # Scanner, queue, worker
+│   ├── search/            # Meilisearch + LanceDB integration
+│   ├── ocr/               # OCR router, Qwen-VL, AppleScript
+│   ├── translation/       # Translation pipeline
+│   ├── api/               # FastAPI REST endpoints
+│   └── dashboard/         # CLI/TUI dashboard
+├── config/
+│   ├── config.yaml        # Main config
+│   └── categories.yaml    # Category definitions
+├── scripts/               # One-shot scripts (benchmarks, migrations)
+├── tests/
+└── aitao.sh               # CLI entry point
+
+# Data/Logs/Models (Not Git-tracked, local only)
+/Users/phil/Downloads/_sources/aitao/
+├── models/                # GGUF files, mmproj
+├── logs/                  # JSON logs
+├── lancedb/               # Vector index
+├── meilisearch/           # Full-text index (if not using host)
+├── cache/                 # OCR cache, translation cache
+├── queue/                 # JSON task queue
+└── corrections/           # User feedback (corrections.json)
+
+# Test data (dev)
+/Users/phil/Downloads/_Volumes/
+└── [scanned PDFs, images, docs]
+
+# Production (configured in config.yaml)
+[Various clouds/external drives]
+```
+
+---
+
+### FR-002: Configuration Management 🔄
+
+**Single config file:** `config.yaml`
+
+**Schema:**
+```yaml
+version: "2.0"
+
+# Paths
+paths:
+  storage_root: "/Users/phil/Downloads/_sources/aitao"
+  models_dir: "${storage_root}/models"
+  logs_dir: "${storage_root}/logs"
+  test_volumes: ["/Users/phil/Downloads/_Volumes"]
+  prod_volumes: []  # Add production cloud paths here
+
+# Indexing
+indexing:
+  scan_interval: "daily"  # cron: 0 2 * * * (2am daily)
+  watch_filesystem: true
+  supported_extensions:
+    text: [".txt", ".md", ".json", ".toml", ".yaml", ".conf"]
+    documents: [".pdf", ".docx", ".odt", ".pptx", ".odp", ".xlsx"]
+    images: [".jpg", ".png", ".webp"]
+    code: [".py", ".js", ".ts", ".cpp", ".java"]
+  skip_patterns: [".*", "__pycache__", "node_modules", ".git"]
+  auto_categorize: true
+  extract_exif: true  # For images
+
+# OCR
+ocr:
+  default_engine: "applescript"  # Fast for simple text
+  fallback_engine: "qwen-vl"     # Tables, complex layouts
+  router:
+    table_detection_threshold: 0.7
+    use_qwen_for_tables: true
+  qwen_vl:
+    model_path: "${models_dir}/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    mmproj_path: "${models_dir}/Qwen2.5-VL-7B-Instruct-mmproj-bf16.gguf"
+    max_tokens: 4096
+    temperature: 0.1  # Deterministic
+    table_output_format: "json"  # json, csv, markdown
+
+# Translation
+translation:
+  source_languages: ["zh-TW"]  # Traditional Chinese
+  target_languages: ["fr", "en"]
+  model: "qwen2.5-coder-7b-instruct"  # Or dedicated translation model
+  cache_enabled: true
+
+# Search
+search:
+  meilisearch:
+    host: "http://localhost:7700"  # Use host instance
+    api_key: null  # If required
+    index_name: "aitao_documents"
+  lancedb:
+    path: "${storage_root}/lancedb"
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  hybrid_search:
+    meilisearch_weight: 0.4
+    lancedb_weight: 0.6
+
+# Categories
+categories:
+  predefined: ["enterprise", "school", "sports", "leisure", "news", "personal"]
+  allow_custom: true
+
+# API
+api:
+  host: "127.0.0.1"
+  port: 5000
+  cors_origins: ["http://localhost:3000"]  # Custom UI
+
+# Resources
+resources:
+  max_cpu_percent: 80  # Throttle if system > 80% CPU
+  max_memory_gb: 8
+  gpu_enabled: true  # Apple Metal
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  max_size_mb: 100
+```
+
+---
+
+### FR-003: Search Engine (Hybrid) 🔄
+
+**Components:**
+1. **Meilisearch** (host instance at `localhost:7700`)
+   - Full-text search with typo tolerance
+   - Fast filtering (date, path, category)
+   - Faceted search
+
+2. **LanceDB** (local vector DB)
+   - Semantic embeddings (all-MiniLM-L6-v2)
+   - Similarity search
+   - Metadata storage (file path, hash, OCR method, language)
+
+**Search Workflow:**
+```
+User query → API
+  ├─→ Meilisearch (full-text + filters) [parallel]
+  └─→ LanceDB (semantic vectors)        [parallel]
+       ↓
+  Merge results (weighted ranking: 40% Meilisearch, 60% LanceDB)
+       ↓
+  Return top 10 with summaries
+```
+
+**API Endpoint:**
+```python
+POST /api/search
+{
+  "query": "Germany trip June 2025",
+  "filters": {
+    "date_after": "2025-01-01",
+    "path_contains": "Dropbox",
+    "category": "personal"
+  },
+  "limit": 10
+}
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "sha256:abc123...",
+      "path": "/Users/phil/Dropbox/travel/germany_2025.pdf",
+      "title": "Germany Trip Itinerary",
+      "summary": "Trip to Germany from June 10-15, 2025...",
+      "score": 0.95,
+      "metadata": {
+        "date_modified": "2025-06-01T10:30:00Z",
+        "category": "personal",
+        "language": "en",
+        "ocr_method": "direct"
+      }
+    }
+  ],
+  "query_time_ms": 234
+}
+```
+
+---
+
+### FR-004: OCR Pipeline 🔄
+
+**OCR Router Logic:**
+```python
+def route_ocr(file_path):
+    # 1. Try direct text extraction (pdfminer, pypdf)
+    text = extract_text_direct(file_path)
+    if is_sufficient(text):
+        return {"method": "direct", "text": text}
+    
+    # 2. Detect tables (OpenCV contours)
+    has_tables = detect_tables(file_path, threshold=0.7)
+    
+    if has_tables:
+        # Use Qwen-VL for table extraction
+        return qwen_vl_ocr(file_path, extract_tables=True)
+    else:
+        # Use AppleScript OCR (fast, macOS native)
+        return applescript_ocr(file_path)
+```
+
+**Qwen-VL Configuration:**
+```yaml
+qwen_vl:
+  model_path: "${models_dir}/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+  mmproj_path: "${models_dir}/Qwen2.5-VL-7B-Instruct-mmproj-bf16.gguf"
+  max_tokens: 4096
+  temperature: 0.1  # Deterministic for OCR
+  table_extraction:
+    output_format: "json"  # Also supports csv, markdown
+    preserve_structure: true
+```
+
+**Output Cache:**
+- OCR results cached in `${storage_root}/cache/ocr/`
+- Filename: `{file_sha256}.json`
+- Content:
+  ```json
+  {
+    "file_path": "/path/to/doc.pdf",
+    "sha256": "abc123...",
+    "ocr_method": "qwen-vl",
+    "timestamp": "2026-01-28T10:30:00Z",
+    "text": "...",
+    "tables": [
+      {
+        "table_id": 1,
+        "data": [[...], [...]]
+      }
+    ]
+  }
+  ```
+
+---
+
+### FR-005: Translation Pipeline 📋
+
+**Workflow:**
+```
+Chinese document → OCR → Translation LLM → French/English
+                                        ↓
+                             Extract actions/deadlines
+                                        ↓
+                             Save to cache + index
+```
+
+**Translation Prompt Template:**
+```
+You are a professional translator specializing in Traditional Chinese (Taiwan) to French/English.
+
+Document excerpt:
+"""
+{chinese_text}
+"""
+
+Tasks:
+1. Translate to French (formal, context-aware)
+2. Identify:
+   - Deadlines (dates, timeframes)
+   - Action items (tasks, requirements)
+   - Key entities (names, amounts, organizations)
+
+Output format (JSON):
+{
+  "translation_fr": "...",
+  "translation_en": "...",
+  "deadlines": [
+    {
+      "task": "Invoice preparation",
+      "date": "2026-02-15",
+      "days_remaining": 15
+    }
+  ],
+  "actions": ["Submit form", "Gather documents"],
+  "entities": {
+    "names": ["Chen Wei", "Taipei Office"],
+    "amounts": ["NT$50,000"],
+    "organizations": ["Ministry of Finance"]
+  }
+}
+```
+
+**Cache:**
+- Translations cached in `${storage_root}/cache/translations/`
+- User can view original + translation side-by-side in UI
+
+---
+
+### FR-006: Indexing & Queue System 🔄
+
+**Components:**
+
+#### 1. Filesystem Scanner (`src/indexation/scanner.py`)
+- Scans volumes daily (cronjob: `0 2 * * *`)
+- Watches filesystem changes (macOS FSEvents)
+- Detects new/modified files (compare mtime + SHA256)
+- Adds to queue
+
+#### 2. Task Queue (`${storage_root}/queue/tasks.json`)
+- JSON array of tasks:
+  ```json
+  [
+    {
+      "id": "uuid-1234",
+      "file_path": "/path/to/doc.pdf",
+      "task_type": "ocr",
+      "priority": "normal",
+      "added_at": "2026-01-28T10:00:00Z",
+      "status": "pending"
+    }
+  ]
+  ```
+- Priority levels: `high` (user request), `normal` (auto scan), `low` (re-indexing)
+
+#### 3. Background Worker (`src/indexation/worker.py`)
+- Polls queue every 30 seconds
+- Processes tasks sequentially (respects system load)
+- Updates task status: `pending` → `processing` → `completed` / `failed`
+
+#### 4. System Load Monitor
+- Checks CPU/Memory usage before processing
+- If system busy (>80% CPU), pauses worker
+- Detects user activity (mouse/keyboard events) → deprioritize background tasks
+
+**Workflow:**
+```
+Scanner → Queue → Worker → OCR/Translation → Index (LanceDB + Meilisearch)
+                     ↓
+              Log + Notify user
+```
+
+---
+
+### FR-007: Category Management 📋
+
+**Predefined Categories:** (in `config/categories.yaml`)
+```yaml
+categories:
+  - id: "enterprise"
+    label_fr: "Entreprise"
+    label_en: "Business"
+    keywords_fr: ["contrat", "facture", "comptabilité"]
+    keywords_en: ["contract", "invoice", "accounting"]
+    keywords_zh: ["合約", "發票", "會計"]
+  
+  - id: "school"
+    label_fr: "Scolarité"
+    label_en: "Education"
+    keywords_fr: ["école", "bulletin", "cours"]
+    keywords_en: ["school", "report", "class"]
+    keywords_zh: ["學校", "成績單", "課程"]
+  
+  - id: "sports"
+    label_fr: "Sport"
+    label_en: "Sports"
+    keywords_fr: ["entraînement", "match", "club"]
+    keywords_en: ["training", "match", "club"]
+    keywords_zh: ["訓練", "比賽", "俱樂部"]
+  
+  - id: "leisure"
+    label_fr: "Loisirs"
+    label_en: "Leisure"
+    keywords_fr: ["voyage", "restaurant", "cinéma"]
+    keywords_en: ["travel", "restaurant", "cinema"]
+    keywords_zh: ["旅行", "餐廳", "電影"]
+  
+  - id: "news"
+    label_fr: "Actualités"
+    label_en: "News"
+    keywords_fr: ["journal", "magazine", "info"]
+    keywords_en: ["newspaper", "magazine", "news"]
+    keywords_zh: ["報紙", "雜誌", "新聞"]
+```
+
+**Auto-Categorization:**
+- LLM analyzes document title + first 1000 words + keywords
+- Returns category + confidence score
+- If confidence < 0.7 → flag for manual review
+
+**Corrections:**
+- Stored in `${storage_root}/corrections/corrections.json`
+- Format:
+  ```json
+  {
+    "corrections": [
+      {
+        "file_sha256": "abc123",
+        "old_category": "leisure",
+        "new_category": "news",
+        "reason": "Magazine with recipe, but mainly news",
+        "corrected_at": "2026-01-28T10:00:00Z"
+      }
+    ]
+  }
+  ```
+- Future: Use corrections to fine-tune categorization model
+
+---
+
+### FR-008: API & External Integration 🔄
+
+**FastAPI REST Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/search` | POST | Hybrid search (Meilisearch + LanceDB) |
+| `/api/ingest` | POST | Manual file ingestion |
+| `/api/translate` | POST | Translate document on-demand |
+| `/api/categories` | GET | List categories |
+| `/api/categories/{id}` | PUT | Update category for document |
+| `/api/queue` | GET | View task queue status |
+| `/api/health` | GET | Service health check |
+| `/api/stats` | GET | Indexing stats (total docs, by category, by language) |
+
+**Shared RAG Access:**
+- Continue/Wave/Custom UI connect to same API (port 5000)
+- LanceDB/Meilisearch shared (no data duplication)
+- JWT auth for security (optional, V2+)
+
+**OpenAPI Schema:**
+- Auto-generated documentation at `/docs`
+- Client SDKs can be generated for external apps
+
+---
+
+### FR-009: CLI & Dashboard 🔄
+
+**CLI Commands:**
+```bash
+./aitao.sh start            # Start all services (API, worker, cronjob)
+./aitao.sh stop             # Stop services
+./aitao.sh status           # Show status dashboard
+./aitao.sh ingest <path>    # Ingest file/folder
+./aitao.sh search "query"   # CLI search
+./aitao.sh logs <module>    # View logs (indexer, ocr, api)
+./aitao.sh config edit      # Open config.yaml in editor
+./aitao.sh config validate  # Validate config schema
+```
+
+**Dashboard (TUI):**
+```
+┌─ AItao Status ────────────────────────────────────────┐
+│ API:         ● Running (port 5000)                    │
+│ Worker:      ● Processing (2 tasks in queue)          │
+│ Meilisearch: ● Connected (localhost:7700)             │
+│ LanceDB:     ● Ready (125K documents)                 │
+├───────────────────────────────────────────────────────┤
+│ Resources:                                            │
+│   CPU:  45% ████████░░░░░░░░                         │
+│   RAM:  6.2 / 16 GB                                   │
+│   Disk: 87 / 500 GB                                   │
+├───────────────────────────────────────────────────────┤
+│ Recent Activity:                                      │
+│   [10:30] Indexed: /Dropbox/invoices/2025.pdf        │
+│   [10:28] OCR completed: document_scan.jpg            │
+│   [10:25] Search query: "Germany trip"                │
+└───────────────────────────────────────────────────────┘
+```
+
+---
+
+## 4. Non-Functional Requirements
 
 ### NFR-001: Platform Support
-- **V1 Priority:** macOS (first-class support)
-- **Future:** Linux and Windows compatibility
-- **Architecture:** Cross-platform Python core + Bash orchestration (macOS/Linux), PowerShell (Windows future)
+- **V1 Priority:** macOS (Apple Silicon M1+)
+- **Future:** Linux, Windows (Intel/AMD)
+- **Python:** 3.13+ (managed via `uv`)
+- **GPU:** Apple Metal (macOS), CUDA (Linux/Windows future)
 
-### NFR-002: Performance & Resources
-- **Execution:** Asynchronous CPU/GPU/RAM utilization
-- **Latency:** To be measured and optimized based on user experience
-- **Resource Requirements:** User must have computer capable of running selected AI models (varies by model size)
+### NFR-002: Performance
+- **Search latency:** <3 seconds for 500K documents
+- **OCR latency:** 
+  - AppleScript: <10 seconds for simple PDF
+  - Qwen-VL: 10-15 minutes for complex scanned document with tables (acceptable for accuracy)
+- **Translation latency:** <30 seconds for 1-page document
+- **Resource throttling:** Pause background tasks if CPU >80% or user active
 
 ### NFR-003: Storage
 - **Default Limit:** 500GB
-- **Alerts:** Notify user at 25% increments (125GB, 250GB, 375GB, 500GB)
-- **Configurable:** Via `config.toml`
+- **Alerts:** Notify at 125GB, 250GB, 375GB, 500GB
+- **Configurable:** Via `config.yaml`
 - **Retention:** Oldest/least-used data purged when approaching limit
 
-### NFR-004: Network Usage
-- **Principle:** Offline-first
-- **V1 Limitation:** Unlimited (no throttling)
-- **Future:** Configurable in `config.toml`
-- **Web Search:** Explicit opt-in only, no background telemetry
+### NFR-004: Security & Privacy
+- **Data locality:** 100% local, never uploaded
+- **Logs:** Local storage only
+- **Encryption:** Not implemented in V1 (future)
+- **Access control:** Optional JWT auth for API (V2+)
 
-### NFR-005: Security & Privacy
-- **Logs:** Local storage only, never uploaded
-- **Encryption:** Not implemented in V1 (future consideration)
-- **Sandboxing:** Not implemented in V1 (to be clarified)
-- **Audit Policies:** Not implemented in V1 (to be clarified)
-- **Data Ownership:** 100% local, user retains full control
+### NFR-005: Maintainability
+- **Modular code:** Each module <400 lines (refactor if larger)
+- **File headers:** Every file starts with comment block explaining purpose
+- **Logging:** Comprehensive JSON logs for debugging
+- **Error handling:** Graceful degradation, clear error messages
+- **Testing:** Unit tests for core modules, integration tests for pipelines
 
-### NFR-006: Modularity
-- **Architecture:** Lego-block design
-- **Swappable Components:**
-  - AI models
-  - UI frontends (AnythingLLM, custom)
-  - Inference engines
-  - Vector databases
-  - Open-source frameworks/agents
-- **Dependency Management:** Prefer open-source, free, secure, popular libraries
-
-### NFR-007: Error Tolerance & UX
-- **Latency Target:** To be defined based on user testing
-- **Error Handling:** Graceful degradation, clear error messages
-- **Metrics Collection:** System to measure quality and make data-driven decisions
-
-### NFR-008: Build & Tooling
-- **uv-first workflow:** Manage and lock Python dependencies with `uv` (install, run, and sync). Do not rely on raw `pip` in scripts.
-- **Centralized paths:** All file system locations are derived through `path_manager` using `config.toml`. No hard-coded absolute paths in source code.
-- **Centralized logging:** Use the shared logger utility; logs live under the configured logs directory.
+### NFR-006: Dependency Management
+- **uv-first:** All Python dependencies managed via `uv` (not raw `pip`)
+- **No hard-coded paths:** All paths via PathManager + config.yaml
+- **Centralized logging:** All modules use shared Logger
+- **Open-source only:** No proprietary dependencies
 
 ---
 
-## 6. Technical Architecture
+## 5. Technology Stack
 
-### 6.1 Stack
-- **Language:** Python 3.14 (core engine), Bash (orchestration)
-- **Inference Engine:** `llama-cpp-python` (OpenAI-compatible server)
-- **Vector Database:** LanceDB
-- **UI Framework:** AnythingLLM (Docker)
-- **Configuration:** TOML (single `config.toml` file)
- - **Dependency Manager:** uv (Astral) — all Python dependencies are installed and executed via `uv`; avoid raw `pip`/manual venv usage
-   - Path policy: never hard-code absolute paths; always resolve through `path_manager` and `config.toml`
+### Core
+- **Language:** Python 3.13+
+- **Dependency Manager:** `uv` (Astral)
+- **Inference Engine:** `llama-cpp-python` (GGUF models)
+- **Vector DB:** LanceDB
+- **Full-text Search:** Meilisearch (host instance)
+- **API Framework:** FastAPI
+- **Config:** YAML (`config.yaml`)
 
-### 6.2 Key Components
-1. **aitao.sh** - CLI orchestrator (start/stop/status)
-2. **config.toml** - Single source of truth for all settings
-3. **sync_agent.py** - Bridge between file system and AnythingLLM (auto-creates Workspaces, watches folders)
-4. **Inference Server** (Port 8247) - `llama-cpp-python` serving OpenAI-compatible API (`/v1/chat/completions`)
-5. **RAG Server** (Port 8200) - Generic RAG query endpoint (`/v1/rag/search`) decoupled from AnythingLLM
-6. **AnythingLLM** (Port 3001) - Docker-based UI for chat, workspace management, and indexing orchestration
-7. **AnythingLLM SQLite DB** - Single source of truth for documents, embeddings, vectors (shared by UI and external apps)
+### Models (Pre-downloaded)
+- **LLM:** Qwen-2.5-Coder 7B (code/translation), Llama 3.1 8B (general)
+- **Vision:** Qwen-VL 7B + mmproj (OCR, table extraction)
+- **Embeddings:** sentence-transformers/all-MiniLM-L6-v2
 
-### 6.3 Architecture Principle: Model Independence
-**Critical Design Principle:** AI Tao is **model-agnostic** and **UI-agnostic**.
+### Tools
+- **OCR:** AppleScript (macOS native), Qwen-VL (complex)
+- **PDF:** pdfminer.six, pypdf
+- **Image:** OpenCV (table detection), Pillow
+- **EXIF:** piexif, exifread
+- **CLI:** Bash (orchestration), Rich (TUI dashboard)
 
-- **Apps choose their model:** Wave Terminal can use `qwen-coder`, VSCode can use `llama3.1-8b`. AnythingLLM's UI model choice is irrelevant.
-- **Apps share RAG data:** All apps query the same AnythingLLM DB for documents. Sync Agent is the single ingestion point.
-- **Inference decoupled from UI:** Inference Server (port 8247) is independent—AnythingLLM uses it, but so can external apps.
-- **RAG decoupled from AnythingLLM:** RAG Server (port 8200) reads AnythingLLM's DB but is a generic interface, not tied to AnythingLLM's implementation.
+---
 
-### 6.4 Data Flow (Multi-Client Architecture)
+## 6. Development Phases
+
+### Phase 1: Foundation (Current - Feb 2026) ✅🔄
+- ✅ Directory structure
+- ✅ Config.yaml schema
+- 🔄 PathManager, Logger, ConfigManager
+- 🔄 CLI (`aitao.sh`) - start/stop/status
+- 📋 Meilisearch integration
+- 📋 LanceDB integration
+
+### Phase 2: Search (Feb-Mar 2026) 🚀
+- 📋 Hybrid search (Meilisearch + LanceDB)
+- 📋 FastAPI REST endpoints
+- 📋 Filesystem scanner + queue system
+- 📋 Background worker
+- 📋 Direct text indexing (txt, md, docx, pdf)
+
+### Phase 3: OCR (Mar-Apr 2026) 🔄
+- 📋 OCR router (detect tables)
+- 📋 AppleScript OCR integration
+- ✅ Qwen-VL OCR (already tested)
+- 📋 Table extraction (JSON output)
+- 📋 OCR cache system
+
+### Phase 4: Translation (Apr-May 2026) 📋
+- 📋 Translation pipeline (zh-TW → fr/en)
+- 📋 Action extraction (deadlines, entities)
+- 📋 Translation cache
+- 📋 Prompt engineering for accuracy
+
+### Phase 5: Categorization (May-Jun 2026) 📋
+- 📋 Auto-categorization (LLM-based)
+- 📋 Category correction UI/API
+- 📋 Feedback loop (corrections.json)
+
+### Phase 6: Polish (Jun-Jul 2026) 🔮
+- 📋 Dashboard (TUI)
+- 📋 EXIF extraction (images)
+- 📋 System load monitoring
+- 📋 Comprehensive testing
+- 📋 Documentation
+
+---
+
+## 7. Success Metrics
+
+### User Experience
+- **Search accuracy:** >90% relevant results in top 5
+- **Translation quality:** Human-readable, context-aware (manual evaluation)
+- **Query latency:** <3 seconds
+- **User satisfaction:** "I found what I needed" >80%
+
+### Technical
+- **Indexing throughput:** 100 documents/hour (simple text), 10 documents/hour (OCR)
+- **System resource usage:** <80% CPU during background tasks
+- **Error rate:** <1% failed indexing tasks
+- **Cache hit rate:** >70% for repeated queries/documents
+
+### Business
+- **Zero cost:** No API subscriptions, all free/open-source
+- **Privacy:** 100% local processing
+- **Modularity:** Each component replaceable within 1 day of dev work
+
+---
+
+## 8. Known Limitations & Future Work
+
+### MVP Limitations
+- **No email support:** Gmail/Outlook indexing not included
+- **macOS only:** Linux/Windows support deferred
+- **No encryption:** Documents stored in plaintext
+- **No collaborative features:** Single-user system
+- **No web search:** Removed from V2 scope (focus on local docs)
+
+### Future Enhancements (V3+)
+- **Multi-platform:** Linux, Windows support
+- **Email indexing:** IMAP/MBOX integration
+- **Encryption:** At-rest encryption for sensitive docs
+- **Fine-tuning:** Use corrections to improve categorization model
+- **Audio/Video:** Transcription support
+- **Image generation:** Local image generation models
+
+---
+
+## 9. Risks & Mitigations
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|-----------|------------|
+| Qwen-VL too slow for large volumes | High | Medium | Prioritize AppleScript OCR, use Qwen-VL only for tables |
+| Translation quality insufficient | High | Medium | Benchmark multiple models, allow user to swap models |
+| System resource overload | Medium | High | Implement load monitoring, queue throttling |
+| Category errors (misclassification) | Low | High | Manual correction UI, feedback loop |
+| Filesystem changes not detected | Medium | Low | Use robust FSEvents, fallback to periodic scans |
+
+---
+
+## 10. Open Questions
+
+1. **Meilisearch vs Standalone:** Use host instance or bundle Meilisearch Docker?  
+   **Decision:** Benchmark both, prefer host for simplicity.
+
+2. **Queue System:** JSON files or Redis/Celery?  
+   **Decision:** JSON files (simpler, no external dependencies).
+
+3. **Cronjob vs Daemon:** Daily cronjob or 24/7 daemon for filesystem watching?  
+   **Decision:** Hybrid (cronjob for daily full scan, daemon for real-time changes).
+
+4. **Translation Model:** Qwen-Coder or dedicated translation model?  
+   **Decision:** Benchmark both, pick best accuracy.
+
+5. **Table Format:** JSON, CSV, or both?  
+   **Decision:** JSON (structured), with CSV export option.
+
+---
+
+## Appendix A: Configuration Example
+
+See [FR-002](#fr-002-configuration-management-) for full `config.yaml` schema.
+
+---
+
+## Appendix B: API Documentation
+
+OpenAPI schema available at `http://localhost:5000/docs` when API running.
+
+---
+
+## Appendix C: Logging Schema
+
+All logs in JSON format:
+```json
+{
+  "timestamp": "2026-01-28T10:30:00.123Z",
+  "level": "INFO",
+  "module": "indexer",
+  "message": "Indexed document successfully",
+  "metadata": {
+    "file_path": "/path/to/doc.pdf",
+    "sha256": "abc123...",
+    "duration_ms": 1234
+  }
+}
 ```
-FILE SYSTEM                                    ANYTHINGLLM INDEXING
-    │                                               │
-    ├─→ Wave Terminal creates/modifies file        │
-    │       │                                       │
-    │       ↓                                       │
-    │   Sync Agent detects (watchfiles)            │
-    │       │                                       │
-    │       ├─→ Creates Workspace (if new)         │
-    │       │                                       │
-    │       └─→ Tells AnythingLLM: "Index this"    │
-    │                               │               │
-    │                               ↓               │
-    │                   AnythingLLM Indexes         │
-    │                   (creates vectors)           │
-    │                           │                   │
-    │                           ↓                   │
-    └─────────────────→ AnythingLLM SQLite DB      │
-                        (Documents + Embeddings)   │
-                                 │
-                    ┌────────────┬────────────┐
-                    │            │            │
-        ┌───────────↓──────────┐ │ ┌──────────↓────────────┐
-        │  AnythingLLM UI      │ │ │  External Apps        │
-        │  (localhost:3001)    │ │ │  (Wave, VSCode, etc.) │
-        │                      │ │ │                       │
-        │ Browsing + Query     │ │ │  API Calls:           │
-        │                      │ │ │                       │
-        │ → UI issues queries  │ │ │  1. POST /v1/rag/     │
-        │   (model configured  │ │ │     search (8200)     │
-        │    in AnythingLLM)   │ │ │                       │
-        │                      │ │ │  2. POST /v1/chat/    │
-        └──────────────────────┘ │ │     completions (8247)│
-                                 │ │     (model of choice) │
-                                 │ │                       │
-                                 └─┴─────────────────────┘
-```
 
 ---
 
-## 7. Roadmap & Milestones
-
-### Phase 1: Foundation (Current - Q1 2026)
-- ✅ AnythingLLM Docker integration
-- 🔄 CLI (`aitao.sh`) - start/stop/status/check
-- 🔄 Sync Agent (`sync_agent.py`) - auto-create Workspaces from config
-- 🔄 Basic RAG with AnythingLLM SQLite (text documents)
-- 📋 **RAG Server API** (port 8200) - Generic document search for external apps
-- 📋 **System Verification** (`check_system.py`) - Port + dependency checks
-
-### Phase 2: Core Features (Q2 2026)
-- 📋 Web search with opt-in consent
-- 📋 Vision capabilities (Qwen-VL/Llava) for OCR and image analysis
-- 📋 Enhanced file type support (audio, video metadata)
- - 📋 Setup-time UI choice (AnythingLLM Docker vs. Kotaemon Gradio vs. API-only) with clear trade-offs (Docker requirement/footprint vs. lightweight)
-
-### Phase 3: Advanced Capabilities (Q3 2026)
-- 📋 Image/SVG generation (open-source models)
-- 📋 Audio/video transcription (Whisper alternative)
-- 📋 External app integration API (Wave Terminal, etc.)
-
-### Phase 4: Polish & Expansion (Q4 2026+)
-- 📋 Linux and Windows support
-- 📋 Zero-config installer (auto-install Python, Docker, models)
-- 📋 Performance optimization
-- 📋 Advanced security features (encryption, sandboxing)
-
-**Agile Approach:** Iterate with mini functional victories, testable at each step. Decide dependencies collaboratively as we progress.
-
----
-
-## 8. Dependencies & Integrations
-
-### Current Stack (Decided)
-- HuggingFace models (open-source)
-- LanceDB (vector database)
-- llama.cpp / llama-cpp-python (inference)
-- AnythingLLM (UI framework, Docker)
-- Python 3.14 + Bash
-
-### Future Explorations (To Be Decided Collaboratively)
-- Vision models (Qwen-VL, Llava, alternatives)
-- Image generation models (Flux, Stable Diffusion, alternatives)
-- Audio transcription (Whisper alternatives)
-- Additional UI frontends
-- External agent frameworks
-
-**Decision Process:** Agile, iterative exploration of most relevant tools at each step.
-
----
-
-## 9. Quality & Metrics
-
-### Measurement Strategy
-**V1 Approach:** Implement telemetry system to collect metrics and make data-driven decisions.
-
-### Key Metrics (To Be Defined)
-- **Performance:**
-  - Query latency (time from question to answer)
-  - Indexing speed (time to process X GB of documents)
-  - Resource utilization (CPU/GPU/RAM %)
-- **Quality:**
-  - RAG relevance (user feedback on results)
-  - OCR accuracy (% correct characters)
-  - Search recall (% of expected documents found)
-- **UX:**
-  - User satisfaction scores
-  - Error rate (% of failed queries)
-  - Time to complete common tasks
-
----
-
-## 10. Licensing & Commercialization
-
-### Open Source Approach
-- **Creator Attribution:** Philippe must be named as creator
-- **Commercialization Rights:** Creator retains right to commercialize if successful
-- **Community Contributions:** Welcome, with proper attribution
-- **License Type:** TBD - Need guidance to balance:
-  - Open-source collaboration
-  - Commercial viability
-  - Creator attribution
-  - Derivative work permissions
-
-**Action Item:** Research appropriate open-source licenses (MIT, Apache 2.0, GPL variants, or custom).
-
----
-
-## 11. Out of Scope (V1 Non-Goals)
-
-- ❌ Cloud integration or cloud-based processing
-- ❌ User accounts or authentication systems
-- ❌ Mobile apps (iOS/Android)
-- ❌ Telemetry or data collection sent to external servers
-- ❌ Built-in payment or subscription systems
-- ❌ Multi-user collaboration features
-- ❌ Real-time synchronization across devices
-
----
-
-## 12. Success Criteria
-
-### V1 Launch Success
-AI Tao V1 is considered successful if:
-1. A non-technical user can install and start using it within 15 minutes
-2. Users can search 100GB+ of documents with relevant results in <5 seconds
-3. OCR accurately extracts tables from scanned PDFs with >90% accuracy
-4. System runs stably for 30+ days without crashes
-5. Users report feeling "in control" of their data
-6. Zero external data leakage (verified via network monitoring)
-
-### Long-Term Success
-- 10,000+ active users within 1 year
-- Community contributors expanding capabilities
-- Featured in privacy-focused tech publications
-- Viable commercial offering for power users/enterprises
-- Demonstrable environmental impact (carbon savings vs. cloud AI)
-
----
-
-## 13. Open Questions & Risks
-
-### Questions Requiring Resolution
-1. **License:** Which open-source license best fits commercialization + attribution goals?
-2. **Sandboxing:** Define security boundaries for processing untrusted files
-3. **Audit Policies:** Clarify any compliance requirements (GDPR, local regulations)
-4. **UX Metrics:** Establish baseline performance targets after user testing
-5. **Whisper Alternative:** Which open-source transcription engine to adopt?
-
-### Risks & Mitigations
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| **User hardware insufficient** | High | Clear minimum specs, model size recommendations |
-| **AnythingLLM compatibility issues** | Medium | Maintain sync_agent flexibility, consider alternative UIs |
-| **Model quality/performance** | Medium | Extensive testing, model selection guidance |
-| **Complexity barrier** | High | Zero-config installer, comprehensive docs |
-| **Licensing conflicts** | Low | Careful license review of all dependencies |
-
----
-
-## 14. Appendix: Glossary
-
-- **RAG (Retrieval-Augmented Generation):** AI technique combining vector search with generative models
-- **LanceDB:** Modern vector database for AI applications
-- **llama.cpp:** Efficient C++ inference engine for LLM models
-- **AnythingLLM:** Open-source knowledge management and chat UI
-- **Workspace:** AnythingLLM term for indexed document collections
-- **Offline-first:** Architecture prioritizing local operation over network dependencies
-- **Opt-in:** Feature requiring explicit user consent before activation
-
----
-
-**Document Status:** Living document, updated iteratively as project evolves.  
-**Next Review:** After Phase 1 completion (CLI + Sync Agent + Basic RAG).
-
----
-
-*© 2026 AI Tao Project - Built for humans, powered by silicon.*
+**End of PRD v2.0**
