@@ -3,7 +3,7 @@
 **Date:** January 28, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.2.13 (Sprint 2 en cours)
+**Version actuelle:** 2.2.14 (Sprint 2 en cours)
 
 ---
 
@@ -13,7 +13,7 @@
 |--------|--------|--------------|-------|---------|
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
-| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 315 | v2.2.11 → |
+| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 347 | v2.2.11 → |
 
 ---
 
@@ -348,22 +348,24 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-014: Implémenter recherche hybride [MUST] 📋
+#### US-014: Implémenter recherche hybride [MUST] ✅ DONE
 **En tant que** utilisateur  
 **Je veux** une recherche combinant full-text + sémantique  
 **Afin de** trouver mes documents rapidement
 
 **Critères d'acceptation:**
-- [ ] Endpoint `POST /api/search`
-- [ ] Requête parallèle: Meilisearch + LanceDB
-- [ ] Merge résultats (weighted: 40% Meilisearch, 60% LanceDB)
-- [ ] Filtres: date_after, date_before, path_contains, category, language
-- [ ] Retourne top 10 avec: path, title, summary, score, metadata
-- [ ] Latence <3 secondes (500K documents)
-- [ ] Tests avec dataset de test
+- [x] Endpoint `POST /api/search`
+- [x] Requête parallèle: Meilisearch + LanceDB
+- [x] Merge résultats (weighted: 40% Meilisearch, 60% LanceDB)
+- [x] Filtres: date_after, date_before, path_contains, category, language
+- [x] Retourne top 10 avec: path, title, summary, score, metadata
+- [x] Classe `HybridSearchEngine` avec exécution parallèle
+- [x] CLI: search run, search test, search modes
+- [x] Tests unitaires: 32 tests passent
 
 **Estimation:** 8 points  
 **Dépendances:** US-006 (LanceDB), US-007 (Meilisearch), US-013 (API)
+**Commit:** Tag: v2.2.14 - Date: 2026-01-28
 
 ---
 

@@ -31,6 +31,7 @@ from cli.commands import queue as queue_cmd
 from cli.commands import worker as worker_cmd
 from cli.commands import extract as extract_cmd
 from cli.commands import index as index_cmd
+from cli.commands import search as search_cmd
 
 # Import version
 try:
@@ -153,6 +154,21 @@ def _show_detailed_help():
     console.print(worker_table)
     console.print()
     
+    # Search commands
+    console.print("[bold]Hybrid Search (search):[/bold]  [dim]Search across documents[/dim]")
+    search_table = Table(show_header=False, box=None, padding=(0, 2))
+    search_table.add_column("Command", style="cyan")
+    search_table.add_column("Description")
+    
+    search_table.add_row("search \"query\"", "Quick hybrid search")
+    search_table.add_row("search run \"query\"", "Full search with options")
+    search_table.add_row("search run -m semantic", "Semantic-only search")
+    search_table.add_row("search run -m fulltext", "Full-text only search")
+    search_table.add_row("search test", "Run search diagnostics")
+    search_table.add_row("search modes", "Explain search modes")
+    console.print(search_table)
+    console.print()
+    
     # Options
     console.print("[bold]Options:[/bold]")
     console.print("  [dim]-d, --debug[/dim]    Enable verbose logging")
@@ -189,6 +205,7 @@ app.add_typer(queue_cmd.app, name="queue", help="Task queue management")
 app.add_typer(worker_cmd.app, name="worker", help="Background worker control")
 app.add_typer(extract_cmd.app, name="extract", help="Text extraction from documents")
 app.add_typer(index_cmd.app, name="index", help="Document indexing pipeline")
+app.add_typer(search_cmd.app, name="search", help="Hybrid document search")
 
 
 @app.command()

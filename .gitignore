@@ -31,6 +31,8 @@ venv/
 
 # Project Specific
 config/config.toml
+config/config.yaml
+config/aitao-nginx.conf
 logs/
 data/
 *.log
