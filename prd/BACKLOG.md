@@ -2,7 +2,18 @@
 
 **Date:** January 28, 2026  
 **Branch:** `pdr/v2-remodular`  
-**Priorité:** MOSCOW (Must/Should/Could/Won't)
+**Priorité:** MOSCOW (Must/Should/Could/Won't)  
+**Version actuelle:** 2.1.11 (Sprint 1 terminé)
+
+---
+
+## 🏁 Sprint Summary
+
+| Sprint | Status | User Stories | Tests | Version |
+|--------|--------|--------------|-------|---------|
+| Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
+| Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
+| Sprint 2: Recherche | 📋 Planned | US-011 → US-015 | - | v2.2.x |
 
 ---
 
@@ -173,9 +184,9 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-## Sprint 1: Indexation basique (2 semaines - Fév 2026)
+## Sprint 1: Indexation basique (2 semaines - Fév 2026) ✅ COMPLETE
 
-### Epic 3: Filesystem Scanning [MUST]
+### Epic 3: Filesystem Scanning [MUST] ✅
 
 #### US-008: Scanner filesystem [MUST] ✅ DONE
 **En tant que** système  
@@ -200,43 +211,47 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-#### US-009: Créer système de queue [MUST] 📋
+#### US-009: Créer système de queue [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** une queue JSON pour les tâches d'indexation  
 **Afin de** traiter les fichiers de manière asynchrone
 
 **Critères d'acceptation:**
-- [ ] Classe `TaskQueue` dans `src/indexation/queue.py`
-- [ ] Fichier JSON: `${storage_root}/queue/tasks.json`
-- [ ] Structure: `[{id, file_path, task_type, priority, added_at, status}]`
-- [ ] Méthodes: `add_task()`, `get_next_task()`, `update_status()`, `get_stats()`
-- [ ] Priorités: `high`, `normal`, `low`
-- [ ] Statuts: `pending`, `processing`, `completed`, `failed`
-- [ ] Thread-safe (file locking)
-- [ ] Tests unitaires
+- [x] Classe `TaskQueue` dans `src/indexation/queue.py`
+- [x] Fichier JSON: `${storage_root}/queue/tasks.json`
+- [x] Structure: `[{id, file_path, task_type, priority, added_at, status}]`
+- [x] Méthodes: `add_task()`, `get_next_task()`, `update_status()`, `get_stats()`
+- [x] Priorités: `high`, `normal`, `low`
+- [x] Statuts: `pending`, `processing`, `completed`, `failed`
+- [x] Thread-safe (file locking avec fcntl)
+- [x] CLI: queue status, queue list, queue add, queue clear, queue retry, queue cancel, queue info
+- [x] Tests unitaires: 51 tests passent
 
 **Estimation:** 3 points  
-**Dépendances:** US-001 (PathManager)
+**Dépendances:** US-001 (PathManager)  
+**Commit:** Tag: v2.1.10 - Date: 2026-01-28
 
 ---
 
-#### US-010: Créer background worker [MUST] 📋
+#### US-010: Créer background worker [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** un worker qui traite la queue  
 **Afin de** indexer les fichiers en arrière-plan
 
 **Critères d'acceptation:**
-- [ ] Script `src/indexation/worker.py`
-- [ ] Boucle infinie: poll queue toutes les 30 secondes
-- [ ] Traite les tâches séquentiellement (1 à la fois)
-- [ ] Vérifie charge système (CPU <80%) avant traitement
-- [ ] Met à jour statut tâche: `pending` → `processing` → `completed`/`failed`
-- [ ] Log chaque étape (JSON)
-- [ ] Daemon mode (background process)
-- [ ] Tests avec queue simulée
+- [x] Classe `BackgroundWorker` dans `src/indexation/worker.py`
+- [x] Boucle infinie: poll queue configurable (default: 30 secondes)
+- [x] Traite les tâches séquentiellement (1 à la fois)
+- [x] Vérifie charge système (CPU <80% configurable) avant traitement
+- [x] Met à jour statut tâche: `pending` → `processing` → `completed`/`failed`
+- [x] Daemon mode avec PID file (`/tmp/aitao_worker.pid`)
+- [x] CLI: worker status, worker start, worker stop, worker restart, worker run-once, worker logs
+- [x] Graceful shutdown (SIGTERM/SIGINT)
+- [x] Tests unitaires: 40 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-009 (TaskQueue), US-002 (Logger)
+**Dépendances:** US-009 (TaskQueue), US-002 (Logger)  
+**Commit:** Tag: v2.1.11 - Date: 2026-01-28
 
 ---
 
