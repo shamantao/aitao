@@ -1,11 +1,13 @@
 """
-Indexation pipeline for AItao V2.
+Indexation module for AItao.
 
-Modules:
-- scanner: Filesystem scanner (FSEvents)
-- queue: JSON task queue
-- worker: Background worker daemon
-- indexer: Document indexer orchestrator
-- text_extractor: Direct text extraction (PDF, DOCX)
-- categorizer: Auto-categorization (LLM)
+This module handles:
+- Filesystem scanning and file discovery
+- Task queue management
+- Background worker processing
+- Document extraction and preparation
 """
+
+from indexation.scanner import FilesystemScanner
+
+__all__ = ["FilesystemScanner"]
