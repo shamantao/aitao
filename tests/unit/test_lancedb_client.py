@@ -6,6 +6,9 @@ Tests vector database operations:
 - Document CRUD operations
 - Semantic search
 - Statistics and index management
+
+OPTIMIZATION: Uses module-scoped embedding model to avoid reloading
+the sentence-transformers model for each test class (~5s savings per class).
 """
 
 import json
@@ -19,6 +22,33 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from search.lancedb_client import LanceDBClient, LanceDBError
+
+
+# =============================================================================
+# MODULE-SCOPED FIXTURES (loaded once per test file)
+# =============================================================================
+
+@pytest.fixture(scope="module")
+def shared_embedding_model():
+    """
+    Load embedding model once for all tests in this module.
+    
+    This is the key optimization: loading takes ~5s, doing it once
+    instead of 6 times saves ~25-30 seconds.
+    """
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+
+def create_client_with_shared_model(temp_dir: str, shared_model) -> LanceDBClient:
+    """Helper to create a LanceDB client with a shared embedding model."""
+    client = LanceDBClient(
+        db_path=temp_dir,
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2"
+    )
+    # Inject the pre-loaded model to avoid reloading
+    client.embedding_model = shared_model
+    return client
 
 
 class TestLanceDBClientInit:
@@ -75,13 +105,10 @@ class TestLanceDBClientCRUD:
     """Tests for document CRUD operations."""
     
     @pytest.fixture
-    def client(self):
-        """Create a test client with temporary database."""
+    def client(self, shared_embedding_model):
+        """Create a test client with temporary database using shared model."""
         temp_dir = tempfile.mkdtemp(prefix="lancedb_crud_")
-        client = LanceDBClient(
-            db_path=temp_dir,
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        client = create_client_with_shared_model(temp_dir, shared_embedding_model)
         yield client
         # Cleanup
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -217,13 +244,10 @@ class TestLanceDBClientSearch:
     """Tests for semantic search functionality."""
     
     @pytest.fixture
-    def client_with_docs(self):
-        """Create client with sample documents."""
+    def client_with_docs(self, shared_embedding_model):
+        """Create client with sample documents using shared model."""
         temp_dir = tempfile.mkdtemp(prefix="lancedb_search_")
-        client = LanceDBClient(
-            db_path=temp_dir,
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        client = create_client_with_shared_model(temp_dir, shared_embedding_model)
         
         # Add sample documents
         client.add_document(
@@ -309,13 +333,10 @@ class TestLanceDBClientStats:
     """Tests for statistics and index management."""
     
     @pytest.fixture
-    def client(self):
-        """Create a test client with temporary database."""
+    def client(self, shared_embedding_model):
+        """Create a test client using shared model."""
         temp_dir = tempfile.mkdtemp(prefix="lancedb_stats_")
-        client = LanceDBClient(
-            db_path=temp_dir,
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        client = create_client_with_shared_model(temp_dir, shared_embedding_model)
         yield client
         shutil.rmtree(temp_dir, ignore_errors=True)
     
@@ -387,13 +408,10 @@ class TestLanceDBClientEmbedding:
     """Tests for embedding functionality."""
     
     @pytest.fixture
-    def client(self):
-        """Create a test client."""
+    def client(self, shared_embedding_model):
+        """Create a test client using shared model."""
         temp_dir = tempfile.mkdtemp(prefix="lancedb_embed_")
-        client = LanceDBClient(
-            db_path=temp_dir,
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        client = create_client_with_shared_model(temp_dir, shared_embedding_model)
         yield client
         shutil.rmtree(temp_dir, ignore_errors=True)
     
@@ -437,13 +455,10 @@ class TestLanceDBClientMetadata:
     """Tests for metadata handling."""
     
     @pytest.fixture
-    def client(self):
-        """Create a test client."""
+    def client(self, shared_embedding_model):
+        """Create a test client using shared model."""
         temp_dir = tempfile.mkdtemp(prefix="lancedb_meta_")
-        client = LanceDBClient(
-            db_path=temp_dir,
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        client = create_client_with_shared_model(temp_dir, shared_embedding_model)
         yield client
         shutil.rmtree(temp_dir, ignore_errors=True)
     

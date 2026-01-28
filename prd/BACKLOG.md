@@ -3,7 +3,7 @@
 **Date:** January 28, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.2.12 (Sprint 2 en cours)
+**Version actuelle:** 2.2.13 (Sprint 2 en cours)
 
 ---
 
@@ -302,7 +302,7 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-#### US-012b: Dette technique - Gestion des dépendances uv [SHOULD] 📋
+#### US-012b: Dette technique - Gestion des dépendances uv [SHOULD] ✅ DONE
 **En tant que** développeur  
 **Je veux** que toutes les dépendances soient gérées via `uv`  
 **Afin de** respecter le PRD et garantir la reproductibilité
@@ -312,16 +312,15 @@ Durant le développement, des confusions ont eu lieu entre `pip` et `uv`.
 Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (not raw `pip`)".
 
 **Critères d'acceptation:**
-- [ ] Vérifier que toutes les dépendances sont dans `pyproject.toml`
-- [ ] Script de validation `scripts/check_deps.py` 
-- [ ] Documenter la procédure d'installation avec `uv sync`
-- [ ] Ajouter un pre-commit hook ou CI check pour détecter `pip install`
-- [ ] Si un README.md est nécessaire afin d'éviter ce genre d'erreurs à l'avenir le créer en version simple.
-- [ ] Mettre à jour README.md avec instructions uv
+- [x] Vérifier que toutes les dépendances sont dans `pyproject.toml`
+- [x] Script de validation `scripts/check_deps.py` 
+- [x] Documenter la procédure d'installation avec `uv sync`
+- [x] Ajouter un pre-commit hook ou CI check pour détecter `pip install`
+- [x] README.md créé avec instructions uv
 
 **Estimation:** 2 points  
 **Dépendances:** Aucune  
-**Priorité:** Après US-015
+**Commit:** Tag: v2.2.13 - Date: 2026-01-28
 
 ---
 
