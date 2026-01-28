@@ -9,5 +9,14 @@ This module handles:
 """
 
 from indexation.scanner import FilesystemScanner
+from indexation.queue import TaskQueue
+from indexation.worker import BackgroundWorker
+from indexation.text_extractor import TextExtractor, extract_text
 
-__all__ = ["FilesystemScanner"]
+__all__ = [
+    "FilesystemScanner",
+    "TaskQueue",
+    "BackgroundWorker",
+    "TextExtractor",
+    "extract_text",
+]

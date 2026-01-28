@@ -29,6 +29,7 @@ from cli.commands import config as config_cmd
 from cli.commands import scan as scan_cmd
 from cli.commands import queue as queue_cmd
 from cli.commands import worker as worker_cmd
+from cli.commands import extract as extract_cmd
 
 # Import version
 try:
@@ -185,6 +186,7 @@ app.add_typer(config_cmd.app, name="config", help="Configuration management")
 app.add_typer(scan_cmd.app, name="scan", help="Filesystem scanning")
 app.add_typer(queue_cmd.app, name="queue", help="Task queue management")
 app.add_typer(worker_cmd.app, name="worker", help="Background worker control")
+app.add_typer(extract_cmd.app, name="extract", help="Text extraction from documents")
 
 
 @app.command()

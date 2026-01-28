@@ -3,7 +3,7 @@
 **Date:** January 28, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.1.11 (Sprint 1 terminé)
+**Version actuelle:** 2.2.11 (Sprint 2 en cours)
 
 ---
 
@@ -13,7 +13,7 @@
 |--------|--------|--------------|-------|---------|
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
-| Sprint 2: Recherche | 📋 Planned | US-011 → US-015 | - | v2.2.x |
+| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 254 | v2.2.11 → |
 
 ---
 
@@ -257,23 +257,26 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ### Epic 4: Indexation texte direct [MUST]
 
-#### US-011: Extraire texte direct (PDF, DOCX) [MUST] 📋
+#### US-011: Extraire texte direct (PDF, DOCX) [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** extraire le texte des documents  
 **Afin de** les indexer sans OCR
 
 **Critères d'acceptation:**
-- [ ] Classe `TextExtractor` dans `src/indexation/text_extractor.py`
-- [ ] PDF: `pdfminer.six` ou `pypdf`
-- [ ] DOCX: `python-docx`
-- [ ] TXT, MD, JSON, TOML: lecture directe
-- [ ] Code (.py, .js, .ts): lecture directe
-- [ ] Retourne: `{text, metadata: {pages, word_count, language}}`
-- [ ] Détecte langue (langdetect)
-- [ ] Tests avec fichiers de test
+- [x] Classe `TextExtractor` dans `src/indexation/text_extractor.py`
+- [x] PDF: `pypdf` avec extraction de métadonnées
+- [x] DOCX: `python-docx` avec support des tableaux
+- [x] TXT, MD, RST, TEX: lecture directe avec détection encodage
+- [x] Code (.py, .js, .ts, etc.): 30+ extensions supportées
+- [x] JSON: parsing et formatage
+- [x] Retourne: `ExtractionResult{text, metadata: {pages, word_count, language}}`
+- [x] Détecte langue (langdetect)
+- [x] CLI: extract file, extract batch, extract types, extract test
+- [x] Tests unitaires: 36 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-003 (ConfigManager)
+**Dépendances:** US-003 (ConfigManager)  
+**Commit:** Tag: v2.2.11 - Date: 2026-01-28
 
 ---
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aitao"
-version = "2.1.11"
+version = "2.2.11"
 description = "AI Tao V2 - Document Search & Translation Engine (Local-first, Privacy-focused)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -50,6 +50,10 @@ dependencies = [
     "watchfiles>=1.0.0",
     "toml>=0.10.2",
     "gradio>=6.4.0",
+    # --- Document Extraction (US-011) ---
+    "pypdf>=5.0.0",
+    "python-docx>=1.0.0",
+    "langdetect>=1.0.9",
 ]
 
 [project.optional-dependencies]
