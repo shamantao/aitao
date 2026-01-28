@@ -129,17 +129,17 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
-#### US-007: Intégrer Meilisearch [MUST] 📋
+#### US-007: Intégrer Meilisearch [MUST] ✅ COMPLETED
 **En tant que** système  
 **Je veux** un moteur de recherche full-text  
 **Afin de** faire de la recherche rapide avec filtres
 
 **Critères d'acceptation:**
-- [ ] Classe `MeilisearchClient` dans `src/search/meilisearch_client.py`
-- [ ] Connexion à Meilisearch host (`localhost:7700`)
-- [ ] Création index `aitao_documents` avec filtres: date, path, category, language
+- [x] Classe `MeilisearchClient` dans `src/search/meilisearch_client.py`
+- [x] Connexion à Meilisearch host (`localhost:7700`)
+- [x] Création index `aitao_documents` avec filtres: date, path, category, language
 - [x] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
-- [ ] Gestion des erreurs (connexion, index missing)
+- [x] Gestion des erreurs (connexion, index missing)
 - [x] Tests unitaires: 26 tests passent
 
 **Estimation:** 5 points  

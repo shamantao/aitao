@@ -8,5 +8,16 @@ Modules:
 """
 
 from search.lancedb_client import LanceDBClient, LanceDBError
+from search.meilisearch_client import (
+    MeilisearchClient,
+    MeilisearchError,
+    MeilisearchConnectionError,
+)
 
-__all__ = ["LanceDBClient", "LanceDBError"]
+__all__ = [
+    "LanceDBClient",
+    "LanceDBError",
+    "MeilisearchClient",
+    "MeilisearchError",
+    "MeilisearchConnectionError",
+]
