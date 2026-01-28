@@ -29,9 +29,14 @@ NC='\033[0m' # No Color
 
 # --- Helper Functions ---
 
+get_version() {
+    $PYTHON -c "from src.core.version import get_version; print(get_version())" 2>/dev/null || echo "2.0.5"
+}
+
 print_header() {
+    local version=$(get_version)
     echo -e "${BOLD}${BLUE}"
-    echo "  ☯️  AI Tao V2"
+    echo "  ☯️  AI Tao V2 (v${version})"
     echo "  Document Search & Translation Engine"
     echo -e "${NC}"
 }
@@ -433,6 +438,10 @@ case "${1:-}" in
     
     stop)
         stop_services
+        ;;
+    
+    version|--version|-v)
+        echo "aitao $(get_version)"
         ;;
     
     help|--help|-h|"")
