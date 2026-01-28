@@ -13,7 +13,7 @@
 |--------|--------|--------------|-------|---------|
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
-| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 347 | v2.2.11 → |
+| Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
 
 ---
 
@@ -369,20 +369,21 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-015: Implémenter endpoint /api/health [MUST] 📋
+#### US-015: Implémenter endpoint /api/health [MUST] ✅ DONE
 **En tant que** système externe  
 **Je veux** vérifier la santé d'AItao  
 **Afin de** détecter les problèmes
 
 **Critères d'acceptation:**
-- [ ] Endpoint `GET /api/health`
-- [ ] Vérifie: API running, LanceDB connected, Meilisearch connected
-- [ ] Retourne JSON: `{status, services: {api, lancedb, meilisearch, worker}, timestamp}`
-- [ ] Status: `healthy`, `degraded`, `down`
-- [ ] Tests unitaires
+- [x] Endpoint `GET /api/health`
+- [x] Vérifie: API running, LanceDB connected, Meilisearch connected
+- [x] Retourne JSON: `{status, services: {api, lancedb, meilisearch, worker}, timestamp}`
+- [x] Status: `healthy`, `degraded`, `down`
+- [x] Tests unitaires (23 tests)
 
 **Estimation:** 2 points  
 **Dépendances:** US-013 (API)
+**Version:** v2.2.15
 
 ---
 

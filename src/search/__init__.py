@@ -7,8 +7,8 @@ Modules:
 - hybrid_search: Hybrid search combining both engines
 """
 
-from search.lancedb_client import LanceDBClient, LanceDBError
-from search.meilisearch_client import (
+from src.search.lancedb_client import LanceDBClient, LanceDBError
+from src.search.meilisearch_client import (
     MeilisearchClient,
     MeilisearchError,
     MeilisearchConnectionError,

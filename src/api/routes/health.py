@@ -140,9 +140,16 @@ async def check_health(start_time: Optional[float], version: str) -> HealthRespo
     }
     
     # Determine overall status
+    # Critical services: lancedb and meilisearch (search capability)
+    critical_services = [lancedb_status, meilisearch_status]
+    all_critical_down = all(s.status == "down" for s in critical_services)
+    
     statuses = [s.status for s in services.values()]
     if all(s == "healthy" for s in statuses):
         overall_status = "healthy"
+    elif all_critical_down:
+        # System is down if both search backends are unavailable
+        overall_status = "down"
     elif any(s == "down" for s in statuses):
         overall_status = "degraded"
     else:
