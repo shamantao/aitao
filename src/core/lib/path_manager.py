@@ -17,6 +17,13 @@ except ImportError:
         except ImportError:
             tomllib = None
 
+# YAML support for V2
+yaml = None
+try:
+    import yaml
+except ImportError:
+    pass
+
 class GenericPathManager:
     """
     A generic, reusable configuration and path manager.
@@ -79,22 +86,31 @@ class GenericPathManager:
         return Path(os.getcwd()) # Fallback to CWD
 
     def load_config(self):
-        """Loads and parses the TOML configuration."""
+        """Loads and parses the configuration (YAML or TOML)."""
         if not self.config_path.exists():
-            print(f"⚠️ PathManager: Config file not found at {self.config_path}")
+            # Silently skip if not found - ConfigManager is the primary config source in V2
             return
 
-        if not tomllib:
-            print("❌ PathManager Error: No TOML parser found (tomllib, tomli, or toml required).")
-            return
-
-        try:
-            with open(self.config_path, "r" if hasattr(tomllib, "load") and tomllib.__name__ == "toml" else "rb") as f:
-                # La lib 'toml' lit du texte, 'tomllib/tomli' lit du binaire
-                self.config = tomllib.load(f)
-            # print(f"✅ PathManager: Config loaded from {self.config_path}")
-        except Exception as e:
-            print(f"❌ PathManager: Error loading config: {e}")
+        # Determine file type
+        suffix = self.config_path.suffix.lower()
+        
+        if suffix in (".yaml", ".yml"):
+            if not yaml:
+                return  # Silently skip if yaml not available
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    self.config = yaml.safe_load(f) or {}
+            except Exception as e:
+                print(f"❌ PathManager: Error loading YAML config: {e}")
+        elif suffix == ".toml":
+            if not tomllib:
+                print("❌ PathManager Error: No TOML parser found (tomllib, tomli, or toml required).")
+                return
+            try:
+                with open(self.config_path, "r" if hasattr(tomllib, "load") and tomllib.__name__ == "toml" else "rb") as f:
+                    self.config = tomllib.load(f)
+            except Exception as e:
+                print(f"❌ PathManager: Error loading config: {e}")
 
     def resolve_path(self, path_str: str, context_vars: Dict[str, str] = None) -> Path:
         """

@@ -28,6 +28,7 @@ from cli.commands import database as db_cmd
 from cli.commands import config as config_cmd
 from cli.commands import scan as scan_cmd
 from cli.commands import queue as queue_cmd
+from cli.commands import worker as worker_cmd
 
 # Import version
 try:
@@ -135,6 +136,21 @@ def _show_detailed_help():
     console.print(queue_table)
     console.print()
     
+    # Worker commands
+    console.print("[bold]Background Worker (worker):[/bold]  [dim]Document processing daemon[/dim]")
+    worker_table = Table(show_header=False, box=None, padding=(0, 2))
+    worker_table.add_column("Command", style="magenta")
+    worker_table.add_column("Description")
+    
+    worker_table.add_row("worker status", "Show worker status")
+    worker_table.add_row("worker start", "Start worker daemon")
+    worker_table.add_row("worker start -f", "Run in foreground")
+    worker_table.add_row("worker stop", "Stop worker daemon")
+    worker_table.add_row("worker restart", "Restart worker")
+    worker_table.add_row("worker run-once", "Process one task")
+    console.print(worker_table)
+    console.print()
+    
     # Options
     console.print("[bold]Options:[/bold]")
     console.print("  [dim]-d, --debug[/dim]    Enable verbose logging")
@@ -168,6 +184,7 @@ app.add_typer(db_cmd.app, name="db", help="LanceDB vector database")
 app.add_typer(config_cmd.app, name="config", help="Configuration management")
 app.add_typer(scan_cmd.app, name="scan", help="Filesystem scanning")
 app.add_typer(queue_cmd.app, name="queue", help="Task queue management")
+app.add_typer(worker_cmd.app, name="worker", help="Background worker control")
 
 
 @app.command()

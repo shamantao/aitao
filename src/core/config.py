@@ -128,13 +128,6 @@ class ConfigManager:
                     break
             
             if not self.config_path:
-                # Try to fallback to config.toml temporarily (V1 compatibility)
-                toml_path = Path("config/config.toml")
-                if toml_path.exists():
-                    self.logger.warning(
-                        "config.yaml not found, but config.toml exists",
-                        metadata={"note": "V2 requires config.yaml"}
-                    )
                 raise ConfigError(
                     f"Configuration file not found. Searched: {[str(p) for p in search_paths]}"
                 )
