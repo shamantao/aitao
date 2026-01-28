@@ -13,7 +13,7 @@
 |--------|--------|--------------|-------|---------|
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
-| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 287 | v2.2.11 → |
+| Sprint 2: Recherche | 🔄 In Progress | US-011 → US-015 | 315 | v2.2.11 → |
 
 ---
 
@@ -320,7 +320,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 **Estimation:** 2 points  
 **Dépendances:** Aucune  
-**Commit:** Tag: v2.2.13 - Date: 2026-01-28
+**Commit:** Tag: v2.2.12b - Date: 2026-01-28
 
 ---
 
@@ -328,22 +328,23 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ### Epic 5: Search API [MUST]
 
-#### US-013: Créer API REST FastAPI [MUST] 📋
+#### US-013: Créer API REST FastAPI [MUST] ✅ DONE
 **En tant que** développeur  
 **Je veux** une API REST pour accéder à AItao  
 **Afin de** intégrer avec Continue/Wave/Custom UI
 
 **Critères d'acceptation:**
-- [ ] FastAPI app dans `src/api/main.py`
-- [ ] Endpoints: `/api/search`, `/api/ingest`, `/api/health`, `/api/stats`
-- [ ] CORS configuré (`config.yaml` → `api.cors_origins`)
-- [ ] Port configurable (défaut: 5000)
-- [ ] Documentation OpenAPI auto-générée (`/docs`)
-- [ ] Logging des requêtes
-- [ ] Tests unitaires + intégration
+- [x] FastAPI app dans `src/api/main.py`
+- [x] Endpoints: `/api/search`, `/api/ingest`, `/api/health`, `/api/stats`
+- [x] CORS configuré (`config.yaml` → `api.cors_origins`)
+- [x] Port configurable (défaut: 5000)
+- [x] Documentation OpenAPI auto-générée (`/docs`)
+- [x] Logging des requêtes
+- [x] Tests unitaires + intégration: 28 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-003 (ConfigManager), US-002 (Logger)
+**Dépendances:** US-003 (ConfigManager), US-002 (Logger)  
+**Commit:** Tag: v2.2.13 - Date: 2026-01-28
 
 ---
 

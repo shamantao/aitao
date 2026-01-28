@@ -840,12 +840,13 @@ categories:
 - **No web search:** Removed from V2 scope (focus on local docs)
 
 ### Future Enhancements (V3+)
-- **Multi-platform:** Linux, Windows support
-- **Email indexing:** IMAP/MBOX integration
-- **Encryption:** At-rest encryption for sensitive docs
+- create a universal connector that accept all module to communicate with api very simply (in/out resquests with specify query)
 - **Fine-tuning:** Use corrections to improve categorization model
 - **Audio/Video:** Transcription support
 - **Image generation:** Local image generation models
+- **Multi-platform:** Linux, Windows support
+- **Email indexing:** IMAP/MBOX integration
+- **Encryption:** At-rest encryption for sensitive docs
 
 ---
 
