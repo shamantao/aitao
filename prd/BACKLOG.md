@@ -10,42 +10,44 @@
 
 ### Epic 1: Core Architecture ✅
 
-#### US-001: Créer le PathManager [MUST] 🔄
+#### US-001: Créer le PathManager [MUST] ✅ DONE
 **En tant que** développeur  
 **Je veux** un gestionnaire centralisé de chemins  
 **Afin de** ne jamais hard-coder des chemins absolus dans le code
 
 **Critères d'acceptation:**
-- [ ] Classe `PathManager` dans `src/core/pathmanager.py`
-- [ ] Méthodes: `get_storage_root()`, `get_models_dir()`, `get_logs_dir()`, `get_queue_dir()`, `get_cache_dir()`
-- [ ] Lit les chemins depuis `config.yaml`
-- [ ] Crée les répertoires s'ils n'existent pas
-- [ ] Tests unitaires pour tous les chemins
+- [x] Classe `PathManager` dans `src/core/pathmanager.py`
+- [x] Méthodes: `get_storage_root()`, `get_models_dir()`, `get_logs_dir()`, `get_queue_dir()`, `get_cache_dir()`
+- [x] Lit les chemins depuis `config.yaml` (actuellement config.toml)
+- [x] Crée les répertoires s'ils n'existent pas
+- [x] Tests unitaires pour tous les chemins (12 tests passent)
 
 **Estimation:** 2 points  
-**Dépendances:** Aucune
+**Dépendances:** Aucune  
+**Commit:** `1a11c18` - Date: 2026-01-28
 
 ---
 
-#### US-002: Créer le Logger [MUST] 🔄
+#### US-002: Créer le Logger [MUST] ✅ DONE
 **En tant que** développeur  
 **Je veux** un logger structuré en JSON  
 **Afin de** faciliter le debugging et le monitoring
 
 **Critères d'acceptation:**
-- [ ] Classe `Logger` dans `src/core/logger.py`
-- [ ] Format JSON avec timestamp, level, module, message, metadata
-- [ ] Rotation des logs (100MB max par fichier)
-- [ ] Logs séparés par module (indexer.log, ocr.log, api.log)
-- [ ] Niveaux: DEBUG, INFO, WARNING, ERROR, CRITICAL
-- [ ] Tests unitaires
+- [x] Classe `Logger` dans `src/core/logger.py`
+- [x] Format JSON avec timestamp, level, module, message, metadata
+- [x] Rotation des logs (100MB max par fichier)
+- [x] Logs séparés par module (indexer.log, ocr.log, api.log)
+- [x] Niveaux: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- [x] Tests unitaires (14 tests passent)
 
 **Estimation:** 3 points  
-**Dépendances:** US-001 (PathManager)
+**Dépendances:** US-001 (PathManager)  
+**Commit:** `3e6781c` - Date: 2026-01-28
 
 ---
 
-#### US-003: Créer le ConfigManager [MUST] 🔄
+#### US-003: Créer le ConfigManager [MUST] 🔄 IN PROGRESS
 **En tant que** développeur  
 **Je veux** un gestionnaire de configuration centralisé  
 **Afin de** charger et valider `config.yaml`
