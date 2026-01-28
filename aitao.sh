@@ -44,5 +44,7 @@ if [ ! -x "$PYTHON" ]; then
 fi
 
 # --- Delegate to Python CLI ---
+# Pass original working directory for file path resolution
+export AITAO_ORIG_PWD="$(pwd)"
 cd "$SRC_DIR"
 exec "$PYTHON" -m cli "$@"

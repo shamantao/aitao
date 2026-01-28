@@ -27,6 +27,7 @@ from cli.commands import meilisearch as ms_cmd
 from cli.commands import database as db_cmd
 from cli.commands import config as config_cmd
 from cli.commands import scan as scan_cmd
+from cli.commands import queue as queue_cmd
 
 # Import version
 try:
@@ -119,6 +120,21 @@ def _show_detailed_help():
     console.print(scan_table)
     console.print()
     
+    # Queue commands
+    console.print("[bold]Task Queue (queue):[/bold]  [dim]Document processing queue[/dim]")
+    queue_table = Table(show_header=False, box=None, padding=(0, 2))
+    queue_table.add_column("Command", style="green")
+    queue_table.add_column("Description")
+    
+    queue_table.add_row("queue status", "Show queue statistics")
+    queue_table.add_row("queue list", "List tasks in queue")
+    queue_table.add_row("queue list --pending", "Show only pending tasks")
+    queue_table.add_row("queue add <file>", "Add file to queue")
+    queue_table.add_row("queue retry", "Retry failed tasks")
+    queue_table.add_row("queue clear", "Clear completed tasks")
+    console.print(queue_table)
+    console.print()
+    
     # Options
     console.print("[bold]Options:[/bold]")
     console.print("  [dim]-d, --debug[/dim]    Enable verbose logging")
@@ -151,6 +167,7 @@ app.add_typer(ms_cmd.app, name="ms", help="Meilisearch management")
 app.add_typer(db_cmd.app, name="db", help="LanceDB vector database")
 app.add_typer(config_cmd.app, name="config", help="Configuration management")
 app.add_typer(scan_cmd.app, name="scan", help="Filesystem scanning")
+app.add_typer(queue_cmd.app, name="queue", help="Task queue management")
 
 
 @app.command()
