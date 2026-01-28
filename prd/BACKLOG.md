@@ -111,7 +111,7 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ### Epic 2: Base de données [MUST]
 
-#### US-006: Intégrer LanceDB [MUST] ✅ COMPLETED
+#### US-006: Intégrer LanceDB [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** un index vectoriel local  
 **Afin de** faire de la recherche sémantique
@@ -125,11 +125,12 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 - [x] Tests unitaires: 26 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-001, US-003
+**Dépendances:** US-001, US-003  
+**Commit:** `2afeb47` - Tag: v2.1.6 - Date: 2026-01-28
 
 ---
 
-#### US-007: Intégrer Meilisearch [MUST] ✅ COMPLETED
+#### US-007: Intégrer Meilisearch [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** un moteur de recherche full-text  
 **Afin de** faire de la recherche rapide avec filtres
@@ -140,10 +141,35 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 - [x] Création index `aitao_documents` avec filtres: date, path, category, language
 - [x] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
 - [x] Gestion des erreurs (connexion, index missing)
-- [x] Tests unitaires: 26 tests passent
+- [x] Tests unitaires: 25 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-001, US-003
+**Dépendances:** US-001, US-003  
+**Commit:** `ab03007` - Tag: v2.1.7 - Date: 2026-01-28
+
+---
+
+#### US-007b: Refactoring CLI modulaire [MUST] ✅ DONE
+**En tant que** développeur  
+**Je veux** un CLI Python modulaire avec Typer  
+**Afin de** faciliter la maintenance et l'extension
+
+**Critères d'acceptation:**
+- [x] Package `src/cli/` avec architecture modulaire
+- [x] Framework Typer + Rich pour l'interface
+- [x] Commandes: status, version, test
+- [x] Groupe `ms`: status, start, stop, restart, upgrade, rebuild
+- [x] Groupe `db`: status, stats, clear, search
+- [x] Groupe `config`: show, validate, edit
+- [x] Helpers Rich (spinners, tables, status lines)
+- [x] Mode quiet par défaut (AITAO_QUIET), --debug pour verbose
+- [x] Aide détaillée avec toutes les sous-commandes
+- [x] `aitao.sh` simplifié (~45 lignes, façade bash)
+- [x] Tests unitaires: 9 tests CLI
+
+**Estimation:** 5 points  
+**Dépendances:** US-006, US-007  
+**Commit:** `1cc4cf2` - Tag: v2.1.8 - Date: 2026-01-28
 
 ---
 

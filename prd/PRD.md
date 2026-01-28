@@ -1,11 +1,28 @@
 # Product Requirements Document (PRD)
 # AI Tao 2.0 - Local-First Search & Translation Engine
 
-**Version:** 2.0  
+**Version:** 2.1.8  
 **Date:** January 28, 2026  
-**Status:** Active  
+**Status:** Active - Sprint 1 in progress  
 **Author:** shamantao (AI Tao Project)  
 **Branch:** `pdr/v2-remodular`
+
+---
+
+## Current Progress
+
+| Sprint | Status | Version | Tests |
+|--------|--------|---------|-------|
+| Sprint 0: Foundation | ✅ Complete | v2.0.5 | 45 |
+| Sprint 1: Search | 🔄 In Progress | v2.1.8 | 105 |
+
+### Completed Components
+- ✅ PathManager, Logger, ConfigManager (Core)
+- ✅ LanceDB Client (Vector Search, 26 tests)
+- ✅ Meilisearch Client (Full-text, 25 tests)
+- ✅ CLI Typer/Rich (9 tests)
+
+### Current: US-008 Scanner Filesystem
 
 ---
 
