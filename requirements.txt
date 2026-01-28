@@ -27,3 +27,17 @@ starlette-context>=0.3.6
 psutil>=6.1.0
 watchfiles>=1.0.0
 
+# --- Document Processing ---
+# PDF text extraction
+pdfminer.six>=20231228
+# PDF to image conversion for raster OCR
+pdf2image>=1.17.0
+# Image processing and EXIF extraction
+Pillow>=10.0.0
+opencv-python>=4.10.0
+# OCR engines
+easyocr>=1.7.0
+# PowerPoint/Presentation support
+python-pptx>=0.6.23
+
+toml>=0.10.0

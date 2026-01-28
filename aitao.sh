@@ -238,7 +238,7 @@ wait_for_ui() {
     
     # Run bootstrap (creates API key if needed)
     echo -e "${BLUE}🔧 Configuration automatique de la DB...${NC}"
-    $PYTHON scripts/bootstrap_db.py
+    # $PYTHON scripts/bootstrap_db.py
     
     # Run settings setup (customize UI appearance)
     echo -e "${BLUE}🎨 Application du thème et des messages...${NC}"

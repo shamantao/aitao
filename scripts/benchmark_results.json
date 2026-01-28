@@ -1,0 +1,127 @@
+{
+  "benchmark_date": "2026-01-27",
+  "files_tested": 5,
+  "easyocr": {
+    "load_time_sec": 0,
+    "avg_process_time_sec": 26.432589411735535,
+    "success_count": 2,
+    "results": [
+      {
+        "file": "/Users/phil/Downloads/_Volumes/Adobe Scan 28 sept. 2025.pdf",
+        "filename": "Adobe Scan 28 sept. 2025.pdf",
+        "tool": "easyocr",
+        "success": false,
+        "error": "Could not find a backend to open `/Users/phil/Downloads/_Volumes/Adobe Scan 28 sept. 2025.pdf`` with iomode `r`."
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/Formulaire de sortie.pdf",
+        "filename": "Formulaire de sortie.pdf",
+        "tool": "easyocr",
+        "success": false,
+        "error": "Could not find a backend to open `/Users/phil/Downloads/_Volumes/Formulaire de sortie.pdf`` with iomode `r`."
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/僑外II.pdf",
+        "filename": "僑外II.pdf",
+        "tool": "easyocr",
+        "success": false,
+        "error": "Could not find a backend to open `/Users/phil/Downloads/_Volumes/僑外II.pdf`` with iomode `r`."
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/img/594771262836835204.jpg",
+        "filename": "594771262836835204.jpg",
+        "tool": "easyocr",
+        "load_time": 0,
+        "process_time_sec": 25.770915746688843,
+        "char_count": 773,
+        "word_count": 161,
+        "text_sample": "3k ;\n#EAJRRI#} 671Z;6 @E@WEWER-Aew 5 5R28E We6#420 L [_R-3L81210R4= 3nm R#emzm 0282 #aLEDA220ex Wa EAJAGEz Wwip]_Awwrerr#AJ2v #Ew12w1R5 0J32#*012 #fh0#Hi:115 # 1 A 9 9 ( 2*3 ) AMIO: 00-12: 10 #Mhae: 0",
+        "full_text": "3k ;\n#EAJRRI#} 671Z;6 @E@WEWER-Aew 5 5R28E We6#420 L [_R-3L81210R4= 3nm R#emzm 0282 #aLEDA220ex Wa EAJAGEz Wwip]_Awwrerr#AJ2v #Ew12w1R5 0J32#*012 #fh0#Hi:115 # 1 A 9 9 ( 2*3 ) AMIO: 00-12: 10 #Mhae: 0# Pj #fh*8 Az#BH JLr} 10 : OO-10: 20 xR#f] %2 #Gibi 10 : 20-0:30 404m *#0 B :#4# Rr] (J4m 10:30-10: 40 #RRR#M:J {L% +  10 :40-10:50 Jm #Mf j4+6 #SE\n1. #XE##MC 2. #1AJ  #m#R:h@ #H#T 5 #030\n10:50-11:20 M+##\n11:20-12:00 -7-*\n12:00-12: 10 Jje#f\nXRA 12:30 # , & FI ( # #63 _ 4 ij\n12:10-12:30 Ht #\nEStm: X : #4m-m#M ( m 6 - 8 } A%1 ) 'iA#KAB sh`R+JA A] 5 * Aj ' #2 WXT  + ho#k 2 1 ' #J#Rt4ziA{#0at . 2d##lw} #M#R#*k042##\"R/%Ak# \"1@ JBH] #RE#1#, +##tHA ; ##0#R@## ##mE0%'##204 B 4. % i#lf : #BA##+th ' tizit Wl + m * 5.A #mAH : @#ib # F # 414 RBETTE Ee hu 6## #3Jac 4 1RE Ateh # E",
+        "success": true
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/img/596509779968131314.jpg",
+        "filename": "596509779968131314.jpg",
+        "tool": "easyocr",
+        "load_time": 0,
+        "process_time_sec": 27.094263076782227,
+        "char_count": 1874,
+        "word_count": 391,
+        "text_sample": "#PF0+EERBR'#M#mRB 114 #4#_#M3+RM#~ EFj2 * M#I) = #4#Ts 113 # ] A 16 8 ( #7 #@RB#A#th # #bh /2 jL%hR@9JiE € BR ARAR #X A # #3b MTE . JnHR aiieh S#teBBr a# # 16 ## 11B#4m#rkmR#turR Br Mrar # Te5e 4Av # ",
+        "full_text": "#PF0+EERBR'#M#mRB 114 #4#_#M3+RM#~ EFj2 * M#I) = #4#Ts 113 # ] A 16 8 ( #7 #@RB#A#th # #bh /2 jL%hR@9JiE € BR ARAR #X A # #3b MTE . JnHR aiieh S#teBBr a# # 16 ## 11B#4m#rkmR#turR Br Mrar # Te5e 4Av # 44# 3 Hse R ar Mar t 424+4 Rarast @ RshoztmX , ah#it ## , 0z44m88~8R ' #rM4##T jR#4:## t#T#@RB#m###+b A 1*RE;rnsE k Br AR Ar#X # #% J #+1 : 421l4*iin [ %E (7 @#M0 0 ) , #B#mkmnttne yus##*MhisBx E# ' 6#*t# 9#z#m 42#A *# moJRI 9 *R#%0 # ]de##nu €EZ MAAR T Rho JEAR # A &z14 #T##mi\nJJE ME ` AJ#B ` iiB#RBJi : 4(E)A##$ #fo%4 & RRB#EEzhabamet : MIMH B # : 115/2/23(_ )~115/6/30( =) , # 85 R ( $oB F %#h ###URBRMA ) . I4###E#W Bx 16:00-16:30 16: 00-17:00 16:00-17:30 16:00-18:00 # # 8 H #Jo S 1 4 # 0.5 ,,04 1 ,B} 1.5 +0+ 2 , 84 01#~ 6# 20 I 35 j 55 j 70 7 1X EN Bff hode # # 85 R*20 j 85 R *35 j 85 R *55 j 85 R*70 I 404 50 7 #m =1700 Z =2975Z =4675 Z =5950 Z 4+84 30 7c fWAF $FKARF . #6eh # & E2 #ml30 32uEzxH1sh4 ( 108 # 9 A 2 8 1 109 # 9 A 1 8 #42*8)e @T 2#%P### (20#) 3 #\"ETMAR##Jma #txgin 650 %, 7 ' % ##1,8P64+4 10 #€1 E# e4m#4# (2#164404 ,BenjaL#c#bmzRhz %2) #0+n #Z#*@xrexi##,######h##s#A #B@# ' #Rm#et-sz #z\"ysekr* Rreeihyli5. ~~xm % @ #- 028s17 ###w+0RBR#m#mRB 1144+524m%RmMw8h3042010 70858  HES : Je #%4k : XkX#: 344#m0 &5 De#z*'Tshohojeikm }zt €h? afaRmz ( 1 F # $ 48) Dmts- ho(#ao:##F5i4 sut+ R*#.2 ) 1 ` # 9##ho8#R} # F: ##3e*0*@x# # ' #R####Mel#SLI MA # #6 @ # #km#et-s#i#zz#4 '##k 41344\n54 kEE RuHh\n#hjo # F\n#902(16.00-16:30_ 4902(16:00-17:00) RR#DM 4902(16:00-17:30) 4902(16:00-18:00)\n01700 z 02975 7 04675 7 05950 7\n#mo33414 [#MXWer#F: (T:mTH) 8i3 42011Mim\n+4\n#M 3%\n45 %ilei*(F _#4 ' J8jW Bh #e4+#E BA x 44 , #4 1 A 23 A A#T#BA > 4403. %5 Hi % * Bf D-#4 DJAAF##(E 'AFh#r##) D4 $ A4AF ##(E 4Ff#E4#3) Oxa 108.09_02 3 109_09_0L ##)zmS(RP pf4} 30 #w F) Dxs(108_09_02 4 109_09_0L #tzmezarrp #P4} , %0 %%18 B lb # . X0kki# 115 #_LA_19_8 (_)mmr#pze##&q , 3il LE% ##*##",
+        "success": true
+      }
+    ]
+  },
+  "qwen": {
+    "load_time_sec": 3.758491039276123,
+    "avg_process_time_sec": 0.53739333152771,
+    "success_count": 5,
+    "results": [
+      {
+        "file": "/Users/phil/Downloads/_Volumes/Adobe Scan 28 sept. 2025.pdf",
+        "filename": "Adobe Scan 28 sept. 2025.pdf",
+        "tool": "qwen",
+        "load_time": 3.758491039276123,
+        "process_time_sec": 0.6999492645263672,
+        "char_count": 61,
+        "word_count": 11,
+        "text_sample": "The image appears to be blank, containing no text or content.",
+        "full_text": "The image appears to be blank, containing no text or content.",
+        "success": true
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/Formulaire de sortie.pdf",
+        "filename": "Formulaire de sortie.pdf",
+        "tool": "qwen",
+        "load_time": 0,
+        "process_time_sec": 0.32619214057922363,
+        "char_count": 61,
+        "word_count": 11,
+        "text_sample": "The image appears to be blank, containing no text or content.",
+        "full_text": "The image appears to be blank, containing no text or content.",
+        "success": true
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/僑外II.pdf",
+        "filename": "僑外II.pdf",
+        "tool": "qwen",
+        "load_time": 0,
+        "process_time_sec": 0.5155136585235596,
+        "char_count": 101,
+        "word_count": 18,
+        "text_sample": "The image appears to be blank, containing no text or content. Therefore, there is no text to extract.",
+        "full_text": "The image appears to be blank, containing no text or content. Therefore, there is no text to extract.",
+        "success": true
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/img/594771262836835204.jpg",
+        "filename": "594771262836835204.jpg",
+        "tool": "qwen",
+        "load_time": 0,
+        "process_time_sec": 0.5278058052062988,
+        "char_count": 101,
+        "word_count": 18,
+        "text_sample": "The image appears to be blank, containing no text or content. Therefore, there is no text to extract.",
+        "full_text": "The image appears to be blank, containing no text or content. Therefore, there is no text to extract.",
+        "success": true
+      },
+      {
+        "file": "/Users/phil/Downloads/_Volumes/img/596509779968131314.jpg",
+        "filename": "596509779968131314.jpg",
+        "tool": "qwen",
+        "load_time": 0,
+        "process_time_sec": 0.6175057888031006,
+        "char_count": 101,
+        "word_count": 18,
+        "text_sample": "The image appears to be blank, containing no text or content. Therefore, there is no text to extract.",
+        "full_text": "The image appears to be blank, containing no text or content. Therefore, there is no text to extract.",
+        "success": true
+      }
+    ]
+  },
+  "comparison": {
+    "qwen_slower_factor": 0.020330710819013373,
+    "recommendation": "Manual evaluation required for quality assessment"
+  }
+}

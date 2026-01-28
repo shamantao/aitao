@@ -1,0 +1,38 @@
+# Python 3.14 Stable Dependencies (Jan 27, 2026)
+# Tested and verified on Python 3.14 with macOS ARM64
+
+# Core ML/Vector
+torch==2.4.1
+sentence-transformers==2.7.0
+lancedb==0.8.2
+
+# OCR
+easyocr==1.7.1
+opencv-python==4.10.1.26
+
+# PDF Processing
+pdf2image==1.17.1
+pdfminer.six==20240706
+pypdf==4.2.0
+
+# Office Documents
+python-pptx==0.6.23
+
+# Image Processing
+Pillow==10.2.0
+
+# File Monitoring
+watchfiles==1.0.1
+
+# Configuration
+toml==0.10.2
+
+# Inference
+llama-cpp-python==0.2.87
+
+# Optional: Web Search
+duckduckgo-search==3.9.7
+
+# Note: Some packages may require specific wheel versions on ARM64
+# If installation fails, try:
+# pip install --force-reinstall --no-cache-dir -r requirements-stable.txt

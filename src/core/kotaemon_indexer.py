@@ -13,6 +13,12 @@ Notes:
 - Gracefully degrades if dependencies missing.
 """
 from __future__ import annotations
+try:
+    from src.core.warnings_config import setup_warnings
+    setup_warnings()
+except ImportError:
+    from core.warnings_config import setup_warnings
+    setup_warnings()
 
 import os
 import tempfile
@@ -77,6 +83,19 @@ try:  # image encoding
     BASE64_AVAILABLE = True
 except Exception:
     BASE64_AVAILABLE = False
+
+try:  # EXIF metadata extraction
+    from PIL import Image
+    from PIL.ExifTags import TAGS
+    PIL_AVAILABLE = True
+except Exception:
+    PIL_AVAILABLE = False
+
+try:  # PowerPoint/Presentation support
+    from pptx import Presentation
+    PPTX_AVAILABLE = True
+except Exception:
+    PPTX_AVAILABLE = False
 
 
 class AITaoIndexer:
@@ -178,10 +197,22 @@ class AITaoIndexer:
                 if suffix in {".txt", ".md", ".html", ".json", ".csv", ".log"}:
                     content = self._read_text_file(fp)
                     ocr_used = "none"
+                    metadata = {}
                 elif suffix == ".pdf":
                     content, ocr_used = self._extract_pdf(fp)
+                    metadata = {}
                 elif suffix in {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}:
                     content, ocr_used = self._ocr_image(fp)
+                    metadata = self._extract_exif(fp)  # Extract EXIF data
+                elif suffix in {".pptx", ".ppt"}:
+                    content, ocr_used = self._extract_presentation(fp)
+                    metadata = {}
+                elif suffix in {".7z", ".zip", ".tar", ".gz", ".rar"}:
+                    # Archive files: just index filename and basic info, don't extract
+                    content = f"Archive file: {fp.name}"
+                    ocr_used = "none"
+                    metadata = {"archive_type": suffix, "is_archive": True}
+                    logger.info(f"📦 Archive detected: {fp.name} (not extracting)")
                 else:
                     logger.debug(f"⏭️ Unsupported extension: {fp}")
                     continue
@@ -201,6 +232,9 @@ class AITaoIndexer:
                     "embedding": embedding,
                     "size_bytes": fp.stat().st_size,
                     "ocr_engine": ocr_used,
+                                    "exif_data": metadata.get("exif", ""),
+                                    "gps_info": metadata.get("gps", ""),
+                                    "is_archive": metadata.get("is_archive", False),
                 }
                 documents.append(doc)
                 count += 1
@@ -239,6 +273,85 @@ class AITaoIndexer:
         with open(fp, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
+    def _extract_exif(self, fp: Path) -> dict:
+        """Extract EXIF metadata from image files.
+        
+        Returns:
+            Dictionary with 'exif' (metadata string) and 'gps' (GPS info if available)
+        """
+        if not PIL_AVAILABLE:
+            return {}
+        
+        try:
+            image = Image.open(fp)
+            exif_data = image._getexif()
+            
+            if not exif_data:
+                return {}
+            
+            exif_dict = {}
+            gps_info = {}
+            
+            for tag_id, value in exif_data.items():
+                tag_name = TAGS.get(tag_id, tag_id)
+                
+                # Extract GPS coordinates if available
+                if tag_name == "GPSInfo":
+                    gps_info = str(value)
+                
+                # Store readable EXIF data
+                exif_dict[tag_name] = str(value)[:100]  # Limit length
+            
+            # Format EXIF as searchable string
+            exif_str = " | ".join([f"{k}: {v}" for k, v in exif_dict.items()])
+            
+            logger.debug(f"📸 EXIF extracted from {fp.name}: {len(exif_dict)} tags")
+            
+            return {
+                "exif": exif_str[:500],  # Limit to 500 chars for embedding
+                "gps": gps_info
+            }
+            
+        except Exception as e:
+            logger.debug(f"EXIF extraction failed for {fp}: {e}")
+            return {}
+    
+    def _extract_presentation(self, fp: Path) -> Tuple[str, str]:
+        """Extract text from PowerPoint/Presentation files (.pptx, .ppt).
+        
+        Returns:
+            (text_content, extraction_method)
+        """
+        if not PPTX_AVAILABLE:
+            logger.warning(f"python-pptx not available, cannot extract {fp}")
+            self.failed_tracker.add_failed_file(str(fp), "python-pptx not installed", "missing_dependency")
+            return "", "none"
+        
+        try:
+            prs = Presentation(str(fp))
+            text_parts = []
+            
+            for slide_num, slide in enumerate(prs.slides, start=1):
+                slide_text = []
+                
+                # Extract text from all shapes
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text:
+                        slide_text.append(shape.text)
+                
+                if slide_text:
+                    text_parts.append(f"[Slide {slide_num}]\n" + "\n".join(slide_text))
+            
+            content = "\n\n".join(text_parts)
+            logger.info(f"📊 Extracted {len(prs.slides)} slides from {fp.name}")
+            
+            return content, "pptx"
+            
+        except Exception as e:
+            logger.error(f"Failed to extract presentation {fp}: {e}")
+            self.failed_tracker.add_failed_file(str(fp), str(e), "pptx_error")
+            return "", "none"
+
     def _extract_pdf(self, fp: Path) -> Tuple[str, str]:
         """Extract text from PDF using pdfminer; placeholder for raster OCR."""
         if PDF_EXTRACT_AVAILABLE:
@@ -271,9 +384,10 @@ class AITaoIndexer:
         """Lazily instantiate EasyOCR reader."""
         if self.ocr_reader is None and EASY_AVAILABLE:
             try:
-                self.ocr_reader = easyocr.Reader(["en", "fr", "zh-cn", "zh-tw"], gpu=False)
+                self.ocr_reader = easyocr.Reader(["en"], gpu=False)
+                logger.info("DEBUG RELOAD: EasyOCR initialized with ['en']")
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"EasyOCR init failed: {e}")
+                logger.warning(f"DEBUG RELOAD: EasyOCR init failed: {e}")
                 self.ocr_reader = None
 
     def _ocr_image(self, fp: Path) -> Tuple[str, str]:
@@ -392,7 +506,12 @@ class AITaoIndexer:
             return ""
 
     def _choose_engine(self, fp: Path) -> str:
-        """Decide which OCR engine to use for an image based on config and table detection."""
+        """Decide which OCR engine to use for an image based on config and table detection.
+        
+        Returns:
+            "qwen" if table detection succeeds OR config forces it
+            "easyocr" otherwise (fast, simple text)
+        """
         mode = self.ocr_config.get("engine", "auto").lower()
         if mode in {"easyocr", "qwen"}:
             return mode
@@ -401,6 +520,8 @@ class AITaoIndexer:
         if CV_AVAILABLE:
             try:
                 has_table = self._detect_table(fp)
+                if has_table:
+                    logger.debug(f"Table detected in {fp.name} → Using Qwen-VL")
             except Exception as e:  # noqa: BLE001
                 logger.debug(f"Table detection failed {fp}: {e}")
 
@@ -450,13 +571,32 @@ class AITaoIndexer:
         intersections_count = len(inter_cnt)
 
         cfg = self.ocr_config
-        if (
-            rel_area >= cfg.get("table_area_min", 0.15)
-            and intersections_count >= cfg.get("min_intersections", 4)
-            and density >= cfg.get("min_line_density", 0.0005)
-        ):
-            return True
-        return False
+        
+        # Use more lenient thresholds (at least 2 out of 3 conditions must be true)
+        # This makes table detection more practical for real-world documents
+        threshold_rel_area = cfg.get("table_area_min", 0.05)  # Lowered from 0.15
+        threshold_intersections = cfg.get("min_intersections", 2)  # Lowered from 4
+        threshold_density = cfg.get("min_line_density", 0.0002)  # Lowered from 0.0005
+        
+        conditions_met = sum([
+            rel_area >= threshold_rel_area,
+            intersections_count >= threshold_intersections,
+            density >= threshold_density,
+        ])
+        
+        # Require at least 2 out of 3 conditions (more flexible than ALL 3)
+        has_table = conditions_met >= 2
+        
+        if has_table:
+            logger.debug(
+                f"Table stats for {fp.name}: "
+                f"area={rel_area:.3f} (>={threshold_rel_area}), "
+                f"intersections={intersections_count} (>={threshold_intersections}), "
+                f"density={density:.5f} (>={threshold_density}) "
+                f"→ {conditions_met}/3 conditions met"
+            )
+        
+        return has_table
 
     def _ensure_schema(self) -> None:
         """Ensure LanceDB table has required columns; add ocr_engine if missing."""

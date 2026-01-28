@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Date:** January 22, 2026  
 **Status:** Draft  
-**Author:** Philippe (AI Tao Project)
+**Author:** shamantao (AI Tao Project)
 
 ---
 

@@ -165,7 +165,170 @@ The following critical bugs were blocking Phase 1 and are now FIXED:
 - AITAO-012: Audio Transcription (Whisper alternative)
 - AITAO-007.6: External App Integration Guide
 
-### Phase 2 Active Stories
+### Phase 2 Active Stories - TEST VOLUME VALIDATION (Jan 27, 2026)
+
+**Context:** Test volume `/Users/phil/Downloads/_Volumes` contains 250 files (603.3 MB) - see `_sources/20260127_Volumes-DIRAnalyzed.txt`
+- 113 .md files (45%)
+- 68 .pdf files (27%)
+- 43 .json files (17%)
+- 10 .jpg files (4%)
+- Others: .pptx, .ppt, .7z, .zip, .txt, .bin
+
+**Sprint Goal:** Complete end-to-end validation with real test data - indexing + RAG search + UI query
+
+---
+
+#### AITAO-013: Configure & Index Test Volume (_Volumes)
+**Priority:** 🔥 CRITICAL  
+**Status:** 📋 TO DO  
+**Estimation:** 3 points  
+**Assignee:** TBD  
+**Sprint:** Phase 2 - Week 1
+
+**User Story:**  
+As a project manager, I want to scan and index the test volume `/Users/phil/Downloads/_Volumes` (250 files, 603 MB) so that I can validate the entire RAG pipeline with real data.
+
+**Acceptance Criteria:**
+- [ ] Update `config/config.toml`: Add `/Users/phil/Downloads/_Volumes` to `include_paths`
+- [ ] Run `./aitao.sh check scan` - should list _Volumes path
+- [ ] Run indexing: `./aitao.sh start` → SyncAgent should process all 250 files
+- [ ] Verify logs show: "Indexed 250 files from _Volumes" (or similar)
+- [ ] Check failed files: `python scripts/manage_failed_files.py stats` - should be <10% failure rate
+- [ ] Verify file type support:
+  - ✅ .md (113 files) - text extraction
+  - ✅ .pdf (68 files) - text + OCR if scanned
+  - ✅ .json (43 files) - structured data
+  - ✅ .jpg (10 files) - OCR with EasyOCR/Qwen-VL
+  - ⚠️ .pptx/.ppt (3 files) - may need python-pptx library
+  - ⚠️ .7z/.zip (3 files) - should skip or extract?
+  - ⚠️ .bin (1 file) - should skip
+
+**Technical Tasks:**
+1. Edit `config/config.toml` - add path to include_paths
+2. Verify file type handlers in `src/core/kotaemon_indexer.py`
+3. Add .pptx/.ppt support if missing (python-pptx library)
+4. Decide archive handling strategy (.7z/.zip): skip or extract contents?
+5. Run indexing with verbose logging
+6. Monitor logs: `tail -f $storage_root/logs/sync_agent.log`
+7. Validate document count in LanceDB
+
+**Definition of Done:**
+- [ ] All supported files indexed (md, pdf, json, jpg, txt)
+- [ ] Unsupported files logged in failed_files.json with reason
+- [ ] No crashes during indexing
+- [ ] Logs show completion: "Indexing complete: X/250 files"
+
+---
+
+#### AITAO-014: Validate RAG Search with Test Data
+**Priority:** 🔥 CRITICAL  
+**Status:** 📋 TO DO  
+**Estimation:** 2 points  
+**Depends on:** AITAO-013  
+**Sprint:** Phase 2 - Week 1
+
+**User Story:**  
+As a project manager, I want to verify that the RAG system correctly retrieves information from the indexed test volume so that I can trust the search results.
+
+**Acceptance Criteria:**
+- [ ] RAG Server running: `curl http://localhost:8200/health` returns OK
+- [ ] Check document count: `curl http://localhost:8200/v1/rag/stats/default` shows ~200+ docs
+- [ ] Test search queries (at least 5):
+  1. Search for content from .md files → should return relevant excerpts
+  2. Search for content from .pdf files → should return PDF text
+  3. Search for JSON structure → should return JSON content
+  4. Search for image content (if OCR worked) → should return OCR text
+  5. Mixed query → should return results from multiple file types
+- [ ] Verify similarity scores: all results should have score > 0.5
+- [ ] Verify metadata: each result should include filename, path, type
+- [ ] Test pagination: limit=5 should return exactly 5 results
+
+**Test Commands:**
+```bash
+# Health check
+curl http://localhost:8200/health
+
+# Stats
+curl http://localhost:8200/v1/rag/stats/default | jq
+
+# Search query
+curl -X POST http://localhost:8200/v1/rag/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "your search term", "limit": 10}' | jq
+```
+
+**Expected Results:**
+```json
+{
+  "documents": [
+    {
+      "content": "...",
+      "metadata": {
+        "filename": "example.md",
+        "path": "/Users/phil/Downloads/_Volumes/...",
+        "type": "markdown"
+      },
+      "similarity": 0.85
+    }
+  ],
+  "total": 10
+}
+```
+
+**Definition of Done:**
+- [ ] All 5 test queries return relevant results
+- [ ] Document count matches indexed files (±10%)
+- [ ] Metadata is complete and accurate
+- [ ] Response time < 3 seconds for 1000+ docs
+
+---
+
+#### AITAO-015: Setup Query Interface (AnythingLLM or CLI)
+**Priority:** 🔥 CRITICAL  
+**Status:** 📋 TO DO  
+**Estimation:** 3 points  
+**Depends on:** AITAO-013, AITAO-014  
+**Sprint:** Phase 2 - Week 1
+
+**User Story:**  
+As a project manager, I want a user-friendly interface to ask questions about the test volume files so that I can interact with the RAG system naturally.
+
+**Acceptance Criteria:**
+- [ ] **Option A: AnythingLLM UI** (Recommended)
+  - [ ] Docker container running: `docker ps | grep anythingllm`
+  - [ ] UI accessible: http://localhost:3001
+  - [ ] Workspace "_Volumes" created and linked to test folder
+  - [ ] Can ask questions like: "What topics are covered in the markdown files?"
+  - [ ] Responses cite source documents with file names
+
+- [ ] **Option B: CLI Query Tool** (Fallback)
+  - [ ] Create `scripts/query_rag.py` - CLI interface
+  - [ ] Usage: `python scripts/query_rag.py "What is in the PDFs?"`
+  - [ ] Output: formatted results with sources and scores
+
+**Test Scenarios:**
+1. **General query:** "Summarize the content of this volume"
+   - Should return overview mentioning main topics
+   
+2. **Specific file query:** "What is in the JSON files?"
+   - Should identify JSON content structure
+   
+3. **Content search:** "Find information about [specific topic from test files]"
+   - Should return relevant excerpts with sources
+   
+4. **Multi-file synthesis:** "Compare information across PDF and markdown files"
+   - Should synthesize from multiple sources
+
+**Technical Implementation:**
+- **If AnythingLLM:** Use existing setup, create workspace via SyncAgent
+- **If CLI:** Create simple Python script using RAG Server API
+
+**Definition of Done:**
+- [ ] Interface accessible (web or CLI)
+- [ ] Can submit natural language queries
+- [ ] Responses include source citations
+- [ ] Response time < 5 seconds per query
+- [ ] User can easily understand results
 
 ---
 
