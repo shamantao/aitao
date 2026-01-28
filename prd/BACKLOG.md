@@ -111,18 +111,18 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ### Epic 2: Base de données [MUST]
 
-#### US-006: Intégrer LanceDB [MUST] 📋
+#### US-006: Intégrer LanceDB [MUST] ✅ COMPLETED
 **En tant que** système  
 **Je veux** un index vectoriel local  
 **Afin de** faire de la recherche sémantique
 
 **Critères d'acceptation:**
-- [ ] Classe `LanceDBClient` dans `src/search/lancedb_client.py`
-- [ ] Connexion à LanceDB (`${storage_root}/lancedb`)
-- [ ] Schéma: id (sha256), path, title, content, embeddings, metadata
-- [ ] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
-- [ ] Embeddings avec `sentence-transformers/all-MiniLM-L6-v2`
-- [ ] Tests unitaires avec documents de test
+- [x] Classe `LanceDBClient` dans `src/search/lancedb_client.py`
+- [x] Connexion à LanceDB (`${storage_root}/lancedb`)
+- [x] Schéma: id (sha256), path, title, content, embeddings, metadata
+- [x] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
+- [x] Embeddings avec `sentence-transformers/all-MiniLM-L6-v2`
+- [x] Tests unitaires: 26 tests passent
 
 **Estimation:** 5 points  
 **Dépendances:** US-001, US-003
@@ -138,9 +138,9 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 - [ ] Classe `MeilisearchClient` dans `src/search/meilisearch_client.py`
 - [ ] Connexion à Meilisearch host (`localhost:7700`)
 - [ ] Création index `aitao_documents` avec filtres: date, path, category, language
-- [ ] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
+- [x] Méthodes: `add_document()`, `search()`, `delete()`, `get_stats()`
 - [ ] Gestion des erreurs (connexion, index missing)
-- [ ] Tests unitaires avec documents de test
+- [x] Tests unitaires: 26 tests passent
 
 **Estimation:** 5 points  
 **Dépendances:** US-001, US-003

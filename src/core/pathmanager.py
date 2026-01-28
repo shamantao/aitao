@@ -66,11 +66,21 @@ class AitaoPathManager(GenericPathManager):
         self._create_structure()
 
     def _create_structure(self):
-        """Creates the required folder hierarchy."""
+        """Creates the required folder hierarchy for AItao V2."""
         storage = self.system_paths["storage_root"]
         storage.mkdir(parents=True, exist_ok=True)
+        
+        # V2 structure
         (storage / "lancedb").mkdir(exist_ok=True)
+        (storage / "queue").mkdir(exist_ok=True)
+        (storage / "cache").mkdir(exist_ok=True)
+        (storage / "cache" / "ocr").mkdir(exist_ok=True)
+        (storage / "cache" / "translations").mkdir(exist_ok=True)
+        (storage / "corrections").mkdir(exist_ok=True)
+        
+        # Legacy (keep for now)
         (storage / "history").mkdir(exist_ok=True)
+        
         self.system_paths["logs_dir"].mkdir(parents=True, exist_ok=True)
 
     # --- Project Specific Accessors ---
@@ -90,6 +100,30 @@ class AitaoPathManager(GenericPathManager):
 
     def get_models_dir(self) -> Path:
         return self.system_paths["models_dir"]
+
+    def get_queue_dir(self) -> Path:
+        """Get queue directory for task management."""
+        return self.system_paths["storage_root"] / "queue"
+
+    def get_cache_dir(self, cache_type: str = None) -> Path:
+        """
+        Get cache directory.
+        
+        Args:
+            cache_type: Optional subdirectory ('ocr', 'translations'). 
+                       If None, returns base cache dir.
+        
+        Returns:
+            Path to cache directory
+        """
+        base_cache = self.system_paths["storage_root"] / "cache"
+        if cache_type:
+            return base_cache / cache_type
+        return base_cache
+
+    def get_corrections_dir(self) -> Path:
+        """Get corrections directory for user feedback."""
+        return self.system_paths["storage_root"] / "corrections"
 
     def get_indexing_config(self) -> Dict[str, List[str]]:
         """Specific logic to parse indexing arrays."""
