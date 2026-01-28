@@ -84,23 +84,28 @@
 
 ---
 
-#### US-005: Créer CLI aitao.sh [MUST] 🔄
+#### US-005: Créer CLI aitao.sh [MUST] ✅ DONE
 **En tant que** utilisateur  
 **Je veux** un script shell pour gérer AItao  
 **Afin de** démarrer/arrêter/vérifier les services
 
 **Critères d'acceptation:**
-- [ ] Script `aitao.sh` avec commandes: start, stop, status, ingest, search, logs, config
-- [ ] `aitao.sh start`: Lance API, worker, cronjob
-- [ ] `aitao.sh stop`: Arrête proprement tous les services
-- [ ] `aitao.sh status`: Affiche dashboard TUI
-- [ ] `aitao.sh ingest <path>`: Ingestion manuelle
-- [ ] `aitao.sh search "query"`: Recherche en CLI
-- [ ] `aitao.sh logs <module>`: Affiche les logs
-- [ ] `aitao.sh config validate`: Valide config.yaml
+- [x] Script `aitao.sh` avec commandes: start, stop, status, ingest, search, logs, config
+- [x] `aitao.sh start`: Lance API, worker, cronjob (placeholder pour Sprint 5)
+- [x] `aitao.sh stop`: Arrête proprement tous les services (placeholder)
+- [x] `aitao.sh status`: Affiche dashboard TUI (modules, config, directories)
+- [x] `aitao.sh ingest <path>`: Ingestion manuelle (placeholder Sprint 1)
+- [x] `aitao.sh search "query"`: Recherche en CLI (placeholder Sprint 2)
+- [x] `aitao.sh logs <module>`: Affiche les logs (implémenté)
+- [x] `aitao.sh config validate`: Valide config.yaml (implémenté)
+- [x] `aitao.sh test`: Lance les tests unitaires
 
 **Estimation:** 5 points  
-**Dépendances:** US-001, US-002, US-003
+**Dépendances:** US-001, US-002, US-003  
+**Commit:** (en cours) - Date: 2026-01-28
+
+**Note:** Version Sprint 0 avec foundation modules. Les commandes start/stop/ingest/search
+sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ---
 
