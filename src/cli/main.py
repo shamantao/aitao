@@ -26,6 +26,7 @@ from cli.commands import status as status_cmd
 from cli.commands import meilisearch as ms_cmd
 from cli.commands import database as db_cmd
 from cli.commands import config as config_cmd
+from cli.commands import scan as scan_cmd
 
 # Import version
 try:
@@ -104,6 +105,20 @@ def _show_detailed_help():
     console.print(cfg_table)
     console.print()
     
+    # Scan commands
+    console.print("[bold]Filesystem Scan (scan):[/bold]  [dim]Document discovery[/dim]")
+    scan_table = Table(show_header=False, box=None, padding=(0, 2))
+    scan_table.add_column("Command", style="cyan")
+    scan_table.add_column("Description")
+    
+    scan_table.add_row("scan run", "Scan for new/modified files")
+    scan_table.add_row("scan run --dry-run", "Preview without saving state")
+    scan_table.add_row("scan paths", "Show configured scan paths")
+    scan_table.add_row("scan status", "Show scanner state")
+    scan_table.add_row("scan clear", "Reset state (force full rescan)")
+    console.print(scan_table)
+    console.print()
+    
     # Options
     console.print("[bold]Options:[/bold]")
     console.print("  [dim]-d, --debug[/dim]    Enable verbose logging")
@@ -114,6 +129,7 @@ def _show_detailed_help():
     # Examples
     console.print("[bold]Examples:[/bold]")
     console.print("  [dim]./aitao.sh status[/dim]              # Quick health check")
+    console.print("  [dim]./aitao.sh scan run[/dim]            # Scan for new documents")
     console.print("  [dim]./aitao.sh ms upgrade[/dim]          # Update Meilisearch")
     console.print("  [dim]./aitao.sh db search \"tao\"[/dim]     # Test semantic search")
     console.print("  [dim]./aitao.sh --debug status[/dim]      # Verbose output")
@@ -134,6 +150,7 @@ app = typer.Typer(
 app.add_typer(ms_cmd.app, name="ms", help="Meilisearch management")
 app.add_typer(db_cmd.app, name="db", help="LanceDB vector database")
 app.add_typer(config_cmd.app, name="config", help="Configuration management")
+app.add_typer(scan_cmd.app, name="scan", help="Filesystem scanning")
 
 
 @app.command()

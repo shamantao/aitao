@@ -177,23 +177,26 @@ sont des placeholders qui seront implémentées dans les sprints suivants.
 
 ### Epic 3: Filesystem Scanning [MUST]
 
-#### US-008: Scanner filesystem [MUST] 📋
+#### US-008: Scanner filesystem [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** scanner les volumes configurés  
 **Afin de** détecter les nouveaux fichiers
 
 **Critères d'acceptation:**
-- [ ] Classe `FilesystemScanner` dans `src/indexation/scanner.py`
-- [ ] Lit `config.yaml` → `paths.test_volumes` / `paths.prod_volumes`
-- [ ] Parcourt récursivement les volumes
-- [ ] Skip patterns: `.*`, `__pycache__`, `node_modules`, `.git`
-- [ ] Filtre par extensions supportées (config.yaml)
-- [ ] Compare mtime + SHA256 pour détecter modifications
-- [ ] Retourne liste de fichiers nouveaux/modifiés
-- [ ] Tests unitaires avec filesystem de test
+- [x] Classe `FilesystemScanner` dans `src/indexation/scanner.py`
+- [x] Lit `config.yaml` → `indexing.include_paths`
+- [x] Parcourt récursivement les volumes
+- [x] Skip patterns: `.*`, `__pycache__`, `node_modules`, `.git`
+- [x] Filtre par extensions supportées (28 types)
+- [x] Compare mtime + SHA256 pour détecter modifications
+- [x] Retourne liste de fichiers nouveaux/modifiés/supprimés
+- [x] State persistence (scanner_state.json)
+- [x] CLI: scan run, scan paths, scan status, scan clear
+- [x] Tests unitaires: 22 tests passent
 
 **Estimation:** 5 points  
-**Dépendances:** US-003 (ConfigManager)
+**Dépendances:** US-003 (ConfigManager)  
+**Commit:** `aaecffa` - Tag: v2.1.9 - Date: 2026-01-28
 
 ---
 
