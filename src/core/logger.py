@@ -150,9 +150,22 @@ def get_logger(
         >>> logger = get_logger("indexer")
         >>> logger.info("Processing started", metadata={"files": 10})
         >>> logger.error("Failed to index", metadata={"file": "doc.pdf", "error": "timeout"})
+    
+    Environment variables:
+        AITAO_LOG_LEVEL: Override log level (DEBUG, INFO, WARNING, ERROR)
+        AITAO_QUIET: If set, disable console logging (logs still go to file)
     """
+    import os
+    
+    # Check for environment overrides
+    env_level = os.environ.get("AITAO_LOG_LEVEL", "").upper()
+    if env_level in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+        level = getattr(logging, env_level)
+    
+    quiet_mode = os.environ.get("AITAO_QUIET", "").lower() in ("1", "true", "yes")
+    
     # Return cached logger if exists
-    cache_key = f"{name}:{log_filename}:{level}"
+    cache_key = f"{name}:{log_filename}:{level}:{quiet_mode}"
     if cache_key in _loggers:
         return _loggers[cache_key]
     
@@ -191,10 +204,11 @@ def get_logger(
         file_handler.setFormatter(JSONFormatter())
         logger.addHandler(file_handler)
         
-        # Console handler with human-readable format
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(HumanReadableFormatter())
-        logger.addHandler(console_handler)
+        # Console handler with human-readable format (unless quiet mode)
+        if not quiet_mode:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setFormatter(HumanReadableFormatter())
+            logger.addHandler(console_handler)
     
     # Wrap in StructuredLogger and cache
     structured_logger = StructuredLogger(logger)

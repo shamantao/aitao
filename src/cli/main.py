@@ -79,14 +79,26 @@ def test(
 def main(
     ctx: typer.Context,
     debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug output"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress log output"),
 ):
     """
     AItao V2 - Document Search & Translation Engine
     
     Local-first, privacy-focused document management.
     """
+    import os
+    
+    # Set quiet mode by default in CLI (cleaner output with spinners)
+    if not debug:
+        os.environ["AITAO_QUIET"] = "1"
+    
+    if quiet:
+        os.environ["AITAO_QUIET"] = "1"
+    
     if debug:
         import logging
+        os.environ.pop("AITAO_QUIET", None)  # Unset quiet in debug mode
+        os.environ["AITAO_LOG_LEVEL"] = "DEBUG"
         logging.basicConfig(level=logging.DEBUG)
         ctx.obj = {"debug": True}
 

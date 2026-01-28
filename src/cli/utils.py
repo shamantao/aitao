@@ -6,9 +6,13 @@ Provides helpers for:
 - Progress bars and spinners
 - Status indicators
 - Error formatting
+- Project path resolution
 """
 
+import os
+from pathlib import Path
 from typing import Optional
+from contextlib import contextmanager
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -90,3 +94,31 @@ def confirm(message: str, default: bool = False) -> bool:
     if not response:
         return default
     return response in ("y", "yes", "oui", "o")
+
+
+def get_project_root() -> Path:
+    """
+    Get the AItao project root directory.
+    
+    Returns the parent of src/ regardless of where CLI is run from.
+    """
+    # cli/utils.py -> cli -> src -> project_root
+    return Path(__file__).parent.parent.parent.resolve()
+
+
+def get_config_path() -> Path:
+    """Get the absolute path to config.yaml."""
+    return get_project_root() / "config" / "config.yaml"
+
+
+@contextmanager
+def spinner(message: str):
+    """
+    Show a spinner during long operations.
+    
+    Usage:
+        with spinner("Loading model..."):
+            model = load_heavy_model()
+    """
+    with console.status(f"[bold blue]{message}[/bold blue]", spinner="dots"):
+        yield

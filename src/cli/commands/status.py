@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from cli.utils import (
     console, print_header, success, error, warning, info,
-    status_line, create_table
+    status_line, create_table, get_config_path, spinner
 )
 
 
@@ -65,18 +65,20 @@ def _show_config_status():
     console.print("[bold]Configuration[/bold]")
     try:
         from core.config import ConfigManager
-        config = ConfigManager("config/config.yaml")
-        status_line("Config file", "config/config.yaml")
-        status_line("Storage root", config.get("paths.storage_root", "Not set"))
+        config_path = get_config_path()
+        config = ConfigManager(str(config_path))
+        status_line("Config file", str(config_path.relative_to(config_path.parent.parent)))
         
-        # Check directories exist
-        from core.pathmanager import PathManager
-        pm = PathManager(config)
-        logs_dir = pm.get_logs_dir()
-        if logs_dir.exists():
-            status_line("Logs directory", str(logs_dir))
+        storage_root = config.get("paths.storage_root", "Not set")
+        status_line("Storage root", storage_root)
+        
+        # Quick check if storage exists
+        from pathlib import Path
+        storage_path = Path(storage_root).expanduser()
+        if storage_path.exists():
+            status_line("Storage exists", "Yes")
         else:
-            status_line("Logs directory", "Missing", ok=False)
+            status_line("Storage exists", "No (will be created)", ok=False)
             
     except FileNotFoundError:
         status_line("Config file", "Not found", ok=False)
@@ -91,7 +93,8 @@ def _show_meilisearch_status():
         from search.meilisearch_client import MeilisearchClient
         
         # Try to connect
-        client = MeilisearchClient()
+        with spinner("Connecting to Meilisearch..."):
+            client = MeilisearchClient()
         
         if client.is_healthy():
             status_line("Server", "Running")
@@ -116,7 +119,8 @@ def _show_lancedb_status():
     try:
         from search.lancedb_client import LanceDBClient
         
-        client = LanceDBClient()
+        with spinner("Loading embedding model..."):
+            client = LanceDBClient()
         stats = client.get_stats()
         
         status_line("Database", str(client.db_path))
