@@ -1,0 +1,188 @@
+# =============================================================================
+# AItao V2 Configuration Template
+# =============================================================================
+#
+# Copy this file to config.yaml and customize for your environment:
+#   cp config/config.yaml.template config/config.yaml
+#
+# Then edit config.yaml with your actual paths and preferences.
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Paths Configuration
+# -----------------------------------------------------------------------------
+paths:
+  # Root directory for all AItao data
+  storage_root: "${HOME}/.aitao/data"
+  
+  # Directory containing GGUF model files
+  models_dir: "${HOME}/.aitao/models"
+  
+  # Logs directory
+  logs_dir: "${storage_root}/logs"
+  
+  # Queue directory for pending processing
+  queue_dir: "${storage_root}/queue"
+  
+  # Cache directory for OCR/translation results
+  cache_dir: "${storage_root}/cache"
+  
+  # Corrections directory for manual fixes
+  corrections_dir: "${storage_root}/corrections"
+  
+  # LanceDB vector database directory
+  vector_db_dir: "${storage_root}/lancedb"
+
+# -----------------------------------------------------------------------------
+# Indexing Configuration
+# -----------------------------------------------------------------------------
+indexing:
+  enabled: true
+  interval_minutes: 60
+  
+  # Add your document directories here
+  include_paths:
+    - "${HOME}/Documents"
+    # - "/path/to/other/documents"
+  
+  exclude_dirs:
+    - "__pycache__"
+    - ".git"
+    - ".venv"
+    - "node_modules"
+  
+  exclude_files:
+    - ".DS_Store"
+    - "package-lock.json"
+  
+  exclude_extensions:
+    - ".lock"
+    - ".log"
+    - ".tmp"
+
+# -----------------------------------------------------------------------------
+# OCR Configuration
+# -----------------------------------------------------------------------------
+ocr:
+  provider: "auto"
+  languages:
+    - "fr"
+    - "en"
+  confidence_threshold: 0.7
+  
+  router:
+    table_area_min: 0.05
+    min_intersections: 2
+    min_line_density: 0.0002
+  
+  paddleocr:
+    use_gpu: false
+    use_angle_cls: true
+    det_db_thresh: 0.3
+  
+  qwen_vl:
+    # Download model from: https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct-GGUF
+    model_path: "${HOME}/.aitao/models/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    n_gpu_layers: 0
+    context_size: 4096
+    max_tokens: 2048
+
+# -----------------------------------------------------------------------------
+# Translation Configuration
+# -----------------------------------------------------------------------------
+translation:
+  provider: "mbart50"
+  source_lang: "fr"
+  target_lang: "zh_TW"
+  score_translations: true
+  min_confidence: 0.6
+  
+  mbart50:
+    model_name: "facebook/mbart-large-50-many-to-many-mmt"
+    use_gpu: false
+    batch_size: 8
+
+# -----------------------------------------------------------------------------
+# Search Configuration
+# -----------------------------------------------------------------------------
+search:
+  meilisearch:
+    url: "http://localhost:7700"
+    api_key: ""  # Leave empty for development
+    index_name: "aitao_documents"
+    
+    searchable_attributes:
+      - "title"
+      - "content"
+      - "category"
+    
+    displayed_attributes:
+      - "id"
+      - "title"
+      - "file_path"
+      - "category"
+    
+    filterable_attributes:
+      - "category"
+      - "language"
+      - "created_at"
+  
+  lancedb:
+    embedding_model: "BAAI/bge-m3"
+    table_name: "aitao_embeddings"
+    dimension: 1024
+    top_k: 20
+
+# -----------------------------------------------------------------------------
+# Categories Configuration
+# -----------------------------------------------------------------------------
+categories:
+  enabled: true
+  labels:
+    - "administration"
+    - "comptabilite"
+    - "juridique"
+    - "technique"
+    - "personnel"
+    - "commercial"
+    - "autre"
+  default: "autre"
+
+# -----------------------------------------------------------------------------
+# API Configuration
+# -----------------------------------------------------------------------------
+api:
+  host: "127.0.0.1"  # Use "0.0.0.0" to expose to network
+  port: 8200
+  
+  cors_enabled: true
+  cors_origins:
+    - "*"
+  
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+  
+  auth:
+    enabled: false
+    api_key: ""
+
+# -----------------------------------------------------------------------------
+# Resources Configuration
+# -----------------------------------------------------------------------------
+resources:
+  max_workers: 4
+  batch_size: 10
+  max_file_size_mb: 100
+  memory_limit_mb: 2048
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  max_file_size_mb: 100
+  backup_count: 5
+  format: "json"
+  console_enabled: true

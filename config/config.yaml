@@ -1,0 +1,323 @@
+# =============================================================================
+# AItao V2 Configuration File
+# =============================================================================
+# 
+# This file configures all aspects of AItao's behavior.
+# Edit this file to customize paths, indexing, OCR, translation, search, etc.
+#
+# Environment variables:
+#   Use ${VAR_NAME} syntax to reference environment variables
+#   Example: ${HOME}/aitao will expand to /Users/username/aitao
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Paths Configuration
+# -----------------------------------------------------------------------------
+# Define where AItao stores data, logs, models, and temporary files
+paths:
+  # Root directory for all AItao data
+  # Default: ${HOME}/.aitao/data
+  storage_root: "${HOME}/Downloads/_sources/aitao"
+  
+  # Directory containing GGUF model files
+  # Default: ${HOME}/.aitao/models
+  models_dir: "${HOME}/Downloads/_sources/AI-models"
+  
+  # Logs directory (supports $storage_root variable)
+  # Default: ${storage_root}/logs
+  logs_dir: "${storage_root}/logs"
+  
+  # Queue directory for pending document processing
+  # Default: ${storage_root}/queue
+  queue_dir: "${storage_root}/queue"
+  
+  # Cache directory for OCR and translation results
+  # Default: ${storage_root}/cache
+  cache_dir: "${storage_root}/cache"
+  
+  # Corrections directory for manual OCR/translation fixes
+  # Default: ${storage_root}/corrections
+  corrections_dir: "${storage_root}/corrections"
+  
+  # LanceDB vector database directory
+  # Default: ${storage_root}/lancedb
+  vector_db_dir: "${storage_root}/lancedb"
+
+# -----------------------------------------------------------------------------
+# Indexing Configuration
+# -----------------------------------------------------------------------------
+# Configure document scanning and indexing behavior
+indexing:
+  # Enable automatic periodic indexing
+  enabled: true
+  
+  # Interval between automatic scans (in minutes)
+  # Default: 60 (1 hour)
+  interval_minutes: 60
+  
+  # Paths to include in indexing (absolute paths)
+  # Add all directories you want to make searchable
+  include_paths:
+    - "${HOME}/Downloads/_Volumes/"
+    - "${HOME}/Documents/"
+  
+  # Directories to exclude from indexing
+  exclude_dirs:
+    - "__pycache__"
+    - ".git"
+    - ".venv"
+    - "venv"
+    - "env"
+    - ".env"
+    - "node_modules"
+    - ".ds_store"
+    - "dist"
+    - "build"
+    - "target"
+    - "site-packages"
+    - ".idea"
+    - ".vscode"
+  
+  # Files to exclude from indexing
+  exclude_files:
+    - ".DS_Store"
+    - "package-lock.json"
+    - "yarn.lock"
+    - "Thumbs.db"
+  
+  # File extensions to exclude
+  exclude_extensions:
+    - ".lock"
+    - ".log"
+    - ".tmp"
+    - ".swp"
+    - ".cache"
+
+# -----------------------------------------------------------------------------
+# OCR Configuration
+# -----------------------------------------------------------------------------
+# Configure optical character recognition for images and PDFs
+ocr:
+  # OCR provider selection
+  # Options: "auto" (smart routing), "paddleocr" (fast), "qwen-vl" (best quality)
+  provider: "auto"
+  
+  # Languages to recognize (ISO 639-1 codes)
+  # PaddleOCR: fr, en, zh, ja, ko, etc.
+  languages:
+    - "fr"
+    - "en"
+    - "zh"
+  
+  # Confidence threshold for OCR results (0.0 - 1.0)
+  # Results below this confidence will be flagged for review
+  confidence_threshold: 0.7
+  
+  # Smart router configuration (when provider = "auto")
+  router:
+    # Table detection thresholds (requires 2 of 3 conditions)
+    table_area_min: 0.05        # Min 5% of image should be table grid
+    min_intersections: 2         # Min 2 grid intersections detected
+    min_line_density: 0.0002    # Min line coverage density
+  
+  # PaddleOCR specific settings
+  paddleocr:
+    use_gpu: false              # Set to true if CUDA available
+    use_angle_cls: true         # Enable text orientation detection
+    det_db_thresh: 0.3          # Text detection threshold
+  
+  # Qwen-VL specific settings
+  qwen_vl:
+    # Path to Qwen2.5-VL GGUF model file
+    model_path: "${HOME}/Downloads/_sources/AI-models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    
+    # GPU layers to offload (0 = CPU only, -1 = auto)
+    n_gpu_layers: 0
+    
+    # Context size for vision model
+    context_size: 4096
+    
+    # Max tokens to generate per image
+    max_tokens: 2048
+
+# -----------------------------------------------------------------------------
+# Translation Configuration
+# -----------------------------------------------------------------------------
+# Configure automatic translation (French ↔ Traditional Chinese)
+translation:
+  # Translation provider
+  # Options: "mbart50", "nllb", "ollama"
+  provider: "mbart50"
+  
+  # Default source language
+  source_lang: "fr"
+  
+  # Default target language (Traditional Chinese)
+  target_lang: "zh_TW"
+  
+  # Enable confidence scoring
+  score_translations: true
+  
+  # Minimum confidence score (0.0 - 1.0)
+  min_confidence: 0.6
+  
+  # mBART50 specific settings
+  mbart50:
+    model_name: "facebook/mbart-large-50-many-to-many-mmt"
+    use_gpu: false
+    batch_size: 8
+  
+  # NLLB specific settings (alternative)
+  nllb:
+    model_name: "facebook/nllb-200-distilled-600M"
+    use_gpu: false
+    batch_size: 8
+
+# -----------------------------------------------------------------------------
+# Search Configuration
+# -----------------------------------------------------------------------------
+# Configure hybrid search (Meilisearch + LanceDB)
+search:
+  # Meilisearch configuration (keyword/fuzzy search)
+  meilisearch:
+    # Meilisearch server URL
+    url: "http://localhost:7700"
+    
+    # API key (empty for development, required in production)
+    api_key: ""
+    
+    # Index name for documents
+    index_name: "aitao_documents"
+    
+    # Searchable attributes (in order of importance)
+    searchable_attributes:
+      - "title"
+      - "content"
+      - "category"
+      - "tags"
+    
+    # Attributes to display in results
+    displayed_attributes:
+      - "id"
+      - "title"
+      - "file_path"
+      - "category"
+      - "language"
+      - "created_at"
+      - "updated_at"
+    
+    # Filterable attributes for advanced queries
+    filterable_attributes:
+      - "category"
+      - "language"
+      - "created_at"
+      - "file_type"
+  
+  # LanceDB configuration (semantic/vector search)
+  lancedb:
+    # Embedding model for semantic search
+    # Options: "BAAI/bge-m3" (multilingual), "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    embedding_model: "BAAI/bge-m3"
+    
+    # Table name in LanceDB
+    table_name: "aitao_embeddings"
+    
+    # Embedding dimension (depends on model)
+    # bge-m3: 1024, mpnet: 768
+    dimension: 1024
+    
+    # Number of results to return
+    top_k: 20
+
+# -----------------------------------------------------------------------------
+# Categories Configuration
+# -----------------------------------------------------------------------------
+# Define document categories for organization
+categories:
+  # Enable automatic categorization
+  enabled: true
+  
+  # Available categories
+  labels:
+    - "administration"
+    - "comptabilite"
+    - "juridique"
+    - "technique"
+    - "personnel"
+    - "commercial"
+    - "medical"
+    - "education"
+    - "autre"
+  
+  # Default category for uncategorized documents
+  default: "autre"
+
+# -----------------------------------------------------------------------------
+# API Configuration
+# -----------------------------------------------------------------------------
+# Configure the REST API server
+api:
+  # Host to bind to (0.0.0.0 = all interfaces, 127.0.0.1 = localhost only)
+  host: "0.0.0.0"
+  
+  # Port for API server
+  port: 8200
+  
+  # Enable CORS (for web clients)
+  cors_enabled: true
+  
+  # Allowed CORS origins (* = all, or list specific domains)
+  cors_origins:
+    - "*"
+  
+  # API rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+  
+  # Authentication (optional)
+  auth:
+    enabled: false
+    api_key: ""
+
+# -----------------------------------------------------------------------------
+# Resources Configuration
+# -----------------------------------------------------------------------------
+# Configure system resources and performance
+resources:
+  # Maximum number of concurrent workers for parallel processing
+  # Default: 4 (adjust based on CPU cores)
+  max_workers: 4
+  
+  # Batch size for document processing
+  # Default: 10
+  batch_size: 10
+  
+  # Maximum file size to process (in MB)
+  # Default: 100
+  max_file_size_mb: 100
+  
+  # Memory limit for OCR/Translation (in MB)
+  # Default: 2048 (2GB)
+  memory_limit_mb: 2048
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+# Configure structured logging
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  
+  # Maximum log file size (in MB) before rotation
+  max_file_size_mb: 100
+  
+  # Number of backup log files to keep
+  backup_count: 5
+  
+  # Log format: "json" (structured) or "text" (human-readable)
+  format: "json"
+  
+  # Enable console output (in addition to file)
+  console_enabled: true

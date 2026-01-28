@@ -47,38 +47,40 @@
 
 ---
 
-#### US-003: Créer le ConfigManager [MUST] 🔄 IN PROGRESS
+#### US-003: Créer le ConfigManager [MUST] ✅ DONE
 **En tant que** développeur  
 **Je veux** un gestionnaire de configuration centralisé  
 **Afin de** charger et valider `config.yaml`
 
 **Critères d'acceptation:**
-- [ ] Classe `ConfigManager` dans `src/core/config.py`
-- [ ] Charge `config.yaml` avec validation de schéma
-- [ ] Fournit des valeurs par défaut
-- [ ] Hot-reload sur modification du fichier
-- [ ] Méthodes: `get(key)`, `get_section(name)`, `reload()`
-- [ ] Tests unitaires avec fixtures
+- [x] Classe `ConfigManager` dans `src/core/config.py`
+- [x] Charge `config.yaml` avec validation de schéma
+- [x] Fournit des valeurs par défaut
+- [x] Hot-reload sur modification du fichier
+- [x] Méthodes: `get(key)`, `get_section(name)`, `reload()`
+- [x] Tests unitaires avec fixtures (19 tests passent)
 
 **Estimation:** 3 points  
-**Dépendances:** US-001 (PathManager)
+**Dépendances:** US-001 (PathManager)  
+**Commit:** `e0fbb01` - Date: 2026-01-28
 
 ---
 
-#### US-004: Créer config.yaml [MUST] 📋
+#### US-004: Créer config.yaml [MUST] ✅ DONE
 **En tant que** utilisateur  
 **Je veux** un fichier de configuration unique  
 **Afin de** configurer tous les aspects d'AItao
 
 **Critères d'acceptation:**
-- [ ] Fichier `config/config.yaml` avec schema complet (voir PRD FR-002)
-- [ ] Sections: paths, indexing, ocr, translation, search, categories, api, resources, logging
-- [ ] Variables d'environnement supportées (ex: `${HOME}`)
-- [ ] Documentation inline (commentaires YAML)
-- [ ] Fichier template `config.yaml.template` pour installation
+- [x] Fichier `config/config.yaml` avec schema complet (voir PRD FR-002)
+- [x] Sections: paths, indexing, ocr, translation, search, categories, api, resources, logging
+- [x] Variables d'environnement supportées (ex: `${HOME}`)
+- [x] Documentation inline (commentaires YAML)
+- [x] Fichier template `config.yaml.template` pour installation
 
 **Estimation:** 2 points  
-**Dépendances:** Aucune
+**Dépendances:** Aucune  
+**Commit:** (en cours) - Date: 2026-01-28
 
 ---
 
