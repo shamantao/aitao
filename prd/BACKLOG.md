@@ -3,7 +3,7 @@
 **Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.21.2 (Sprint Q&A In Progress 🔍)
+**Version actuelle:** 2.3.21.4 (Sprint Q&A In Progress 🔍)
 
 ---
 
@@ -607,16 +607,24 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-### QA-004: Documentation help CLI [SHOULD]
+### QA-004: Documentation help CLI [SHOULD] ✅ DONE
 **Contexte:** L'aide CLI affiche des commandes complètes
 
-**À documenter:**
-- [ ] Ajouter exemples d'utilisation dans README
-- [ ] Clarifier différence: `ms stop` vs `./aitao.sh stop` (n'existe pas)
-- [ ] Documenter toutes les commands de `worker` (start, stop, status, restart)
+**Résolution:**
+- ✅ README.md entièrement réécrit pour utilisateur non-technique
+- ✅ Explications: Pourquoi AItao (gratuit, privé, écologique)
+- ✅ Installation étape par étape complète
+- ✅ Toutes les commandes CLI documentées avec exemples
+- ✅ Endpoints API pour Continue, AnythingLLM, Open WebUI
+- ✅ Troubleshooting section
+- ✅ Types de fichiers supportés
+
+**Fichiers modifiés:**
+- README.md (RÉÉCRIT - ~400 lignes orientées utilisateur)
 
 **Estimation:** 2 points  
-**Status:** ⏳ À faire
+**Status:** ✅ COMPLÉTÉ  
+**Version:** 2.3.21.4
 
 ---
 
@@ -664,7 +672,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - ✅ QA-001: Commandes start/stop/restart ajoutées
 - ✅ QA-002: Variables config.yaml corrigées
 - ✅ QA-003: Tests E2E + Fix lifecycle (CRITIQUE)
-- ⏳ QA-004: Documentation CLI
+- ✅ QA-004: Documentation utilisateur README.md
 - ⏳ QA-005: Validation schema config.yaml
 - ⏳ QA-006: Nettoyage legacy V1
 
