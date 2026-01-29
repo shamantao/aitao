@@ -15,10 +15,21 @@ from .ollama_client import (
     OllamaModelNotFound,
 )
 
+from .rag_engine import (
+    RAGEngine,
+    RAGResult,
+    ContextDocument,
+)
+
 __all__ = [
+    # Ollama Client
     "OllamaClient",
     "OllamaModel",
     "OllamaChatMessage",
     "OllamaConnectionError",
     "OllamaModelNotFound",
+    # RAG Engine
+    "RAGEngine",
+    "RAGResult",
+    "ContextDocument",
 ]

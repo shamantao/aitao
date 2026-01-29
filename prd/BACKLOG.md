@@ -3,7 +3,7 @@
 **Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.16 (Sprint 3 US-016 Complete)
+**Version actuelle:** 2.3.17 (Sprint 3 US-017 Complete)
 
 ---
 
@@ -14,7 +14,7 @@
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
-| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 389 | v2.3.16 |
+| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 410 | v2.3.16 → v2.3.17 |
 | Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
 | Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
 | Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
@@ -415,21 +415,22 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-017: Créer RAGEngine [MUST] 📋
+#### US-017: Créer RAGEngine [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** enrichir les prompts avec du contexte documentaire  
 **Afin de** fournir des réponses plus pertinentes au LLM
 
 **Critères d'acceptation:**
-- [ ] Classe `RAGEngine` dans `src/llm/rag_engine.py`
-- [ ] Méthodes: `search_context()`, `enrich_prompt()`
-- [ ] Workflow: user prompt → search (LanceDB+Meilisearch) → enrich → return
-- [ ] Config: max_context_docs, context_max_tokens (`config.yaml`)
-- [ ] Retourne: enriched_prompt, context_docs (pour affichage)
-- [ ] Tests unitaires (12 tests)
+- [x] Classe `RAGEngine` dans `src/llm/rag_engine.py`
+- [x] Méthodes: `search_context()`, `enrich_prompt()`, `enrich_messages()`
+- [x] Workflow: user prompt → search (LanceDB+Meilisearch) → enrich → return
+- [x] Config: max_context_docs, context_max_tokens (`config.toml` section [rag])
+- [x] Retourne: enriched_prompt, context_docs (pour affichage)
+- [x] Tests unitaires (21 tests)
 
 **Estimation:** 3 points  
-**Dépendances:** US-014 (HybridSearch), US-016 (OllamaClient)
+**Dépendances:** US-014 (HybridSearch), US-016 (OllamaClient)  
+**Commit:** Tag: v2.3.17 - Date: 2026-01-29
 
 ---
 
