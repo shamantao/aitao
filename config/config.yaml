@@ -230,6 +230,11 @@ search:
     # Number of results to return
     top_k: 20
     
+    # Minimum similarity score (0.0 - 1.0) to include in results
+    # Documents with score below this threshold are filtered out
+    # Recommended: 0.5 (50%) for balanced results, 0.6+ for higher precision
+    min_score: 0.5
+    
     # Offline mode: skip HuggingFace API checks (use cached model only)
     # Set to true to avoid network requests on each startup
     offline_mode: true

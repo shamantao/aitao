@@ -337,7 +337,7 @@ class LanceDBClient:
         limit: int = 10,
         filter_category: Optional[str] = None,
         filter_language: Optional[str] = None,
-        min_score: float = 0.0,
+        min_score: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
         Search documents using semantic similarity.
@@ -347,7 +347,8 @@ class LanceDBClient:
             limit: Maximum number of results
             filter_category: Filter by category (optional)
             filter_language: Filter by language (optional)
-            min_score: Minimum similarity score (0.0 - 1.0)
+            min_score: Minimum similarity score (0.0 - 1.0).
+                      If None, uses config value (search.lancedb.min_score)
         
         Returns:
             List of matching documents with scores
@@ -357,6 +358,13 @@ class LanceDBClient:
             >>> for doc in results:
             ...     print(f"{doc['title']} - Score: {doc['_score']:.2f}")
         """
+        # Get min_score from config if not specified
+        if min_score is None:
+            if self._config:
+                min_score = self._config.get("search.lancedb.min_score", 0.0)
+            else:
+                min_score = 0.0
+        
         # Generate query embedding (allow empty to return zero vector for safety)
         query_embedding = self._embed_text(query, allow_empty=True)
         
