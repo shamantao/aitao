@@ -58,20 +58,21 @@ def print_header(title: str, subtitle: Optional[str] = None) -> None:
     console.print(Panel(text, expand=False))
 
 
-def create_table(title: str, columns: list[tuple[str, str]]) -> Table:
+def create_table(title: str, columns: list[tuple[str, str]] = None) -> Table:
     """
     Create a styled table.
     
     Args:
         title: Table title
-        columns: List of (name, justify) tuples
+        columns: Optional list of (name, justify) tuples. If None, use add_column() later.
     
     Returns:
         Rich Table object
     """
     table = Table(title=title, show_header=True, header_style="bold cyan")
-    for name, justify in columns:
-        table.add_column(name, justify=justify)
+    if columns:
+        for name, justify in columns:
+            table.add_column(name, justify=justify)
     return table
 
 

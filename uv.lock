@@ -19,7 +19,7 @@ wheels = [
 
 [[package]]
 name = "aitao"
-version = "2.3.21.5"
+version = "2.3.21.6"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

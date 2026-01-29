@@ -254,8 +254,16 @@ def main(
     """
     if ctx.invoked_subcommand is None:
         if query:
-            # Direct search
-            search_run(query=query, limit=10, mode="hybrid")
+            # Direct search (pass None explicitly for filter values)
+            search_run(
+                query=query, 
+                limit=10, 
+                mode="hybrid",
+                category=None,
+                language=None,
+                path_contains=None,
+                verbose=False,
+            )
         else:
             # Show help
             console.print(ctx.get_help())

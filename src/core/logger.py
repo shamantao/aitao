@@ -65,7 +65,15 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
         
-        return json.dumps(log_data, ensure_ascii=False)
+        return json.dumps(log_data, ensure_ascii=False, default=self._json_safe)
+
+
+    def _json_safe(self, obj):
+        """Convert non-serializable objects to strings for JSON logging."""
+        try:
+            return str(obj)
+        except Exception:
+            return f"<{type(obj).__name__}>"
 
 
 class HumanReadableFormatter(logging.Formatter):
