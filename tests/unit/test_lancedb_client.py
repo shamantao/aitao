@@ -141,15 +141,15 @@ class TestLanceDBClientCRUD:
         assert len(doc_id) == 64  # SHA256 hex
     
     def test_add_document_with_empty_content(self, client):
-        """Test adding a document with empty content."""
-        doc_id = client.add_document(
-            path="/docs/empty.txt",
-            title="Empty Document",
-            content="",
-        )
+        """Test that adding a document with empty content raises ValueError."""
+        import pytest
         
-        # Should still work, with zero vector
-        assert doc_id is not None
+        with pytest.raises(ValueError, match="Cannot index document with empty content"):
+            client.add_document(
+                path="/docs/empty.txt",
+                title="Empty Document",
+                content="",
+            )
     
     def test_get_document(self, client):
         """Test retrieving a document by ID."""
@@ -424,9 +424,15 @@ class TestLanceDBClientEmbedding:
         assert all(isinstance(v, float) for v in embedding)
     
     def test_embed_empty_text(self, client):
-        """Test embedding for empty text returns zero vector."""
-        embedding = client._embed_text("")
+        """Test embedding for empty text raises ValueError by default."""
+        import pytest
         
+        # Default behavior: raise ValueError
+        with pytest.raises(ValueError, match="Cannot embed empty text"):
+            client._embed_text("")
+        
+        # With allow_empty=True, returns zero vector
+        embedding = client._embed_text("", allow_empty=True)
         assert len(embedding) == 384
         assert all(v == 0.0 for v in embedding)
     

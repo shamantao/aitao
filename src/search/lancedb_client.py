@@ -209,11 +209,27 @@ class LanceDBClient:
         """Generate unique ID from file path using SHA256."""
         return hashlib.sha256(path.encode()).hexdigest()
     
-    def _embed_text(self, text: str) -> List[float]:
-        """Generate embedding vector for text."""
+    def _embed_text(self, text: str, allow_empty: bool = False) -> List[float]:
+        """
+        Generate embedding vector for text.
+        
+        Args:
+            text: Text to embed
+            allow_empty: If True, return zero vector for empty text.
+                         If False (default), raise ValueError.
+        
+        Returns:
+            List of floats representing the embedding vector.
+        
+        Raises:
+            ValueError: If text is empty and allow_empty is False.
+        """
         if not text or not text.strip():
-            # Return zero vector for empty text
-            return [0.0] * self.dimension
+            if allow_empty:
+                # Return zero vector for empty text (query case)
+                return [0.0] * self.dimension
+            else:
+                raise ValueError("Cannot embed empty text - document has no content")
         
         embedding = self._embedding_model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
@@ -246,12 +262,23 @@ class LanceDBClient:
             Document ID (SHA256 of path)
         
         Raises:
+            ValueError: If content is empty or whitespace only
             LanceDBError: If add operation fails
         """
+        # Validate content - reject empty documents
+        if not content or not content.strip():
+            self.logger.warning(
+                "Skipping empty document",
+                metadata={"path": path, "title": title}
+            )
+            raise ValueError(
+                f"Cannot index document with empty content: {title}"
+            )
+        
         doc_id = self._generate_id(path)
         now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         
-        # Generate embedding
+        # Generate embedding (will also validate content)
         embedding = self._embed_text(content)
         
         # Prepare document record
@@ -330,8 +357,8 @@ class LanceDBClient:
             >>> for doc in results:
             ...     print(f"{doc['title']} - Score: {doc['_score']:.2f}")
         """
-        # Generate query embedding
-        query_embedding = self._embed_text(query)
+        # Generate query embedding (allow empty to return zero vector for safety)
+        query_embedding = self._embed_text(query, allow_empty=True)
         
         try:
             table = self.db.open_table(self.table_name)
@@ -340,7 +367,7 @@ class LanceDBClient:
             search_query = table.search(
                 query_embedding,
                 vector_column_name="vector"
-            ).limit(limit)
+            ).limit(limit * 2)  # Over-fetch to account for empty content filtering
             
             # Apply filters
             filters = []
@@ -358,17 +385,22 @@ class LanceDBClient:
             # Format results
             formatted = []
             for row in results:
+                # Skip documents with empty content (legacy data protection)
+                content = row.get("content", "")
+                if not content or not content.strip():
+                    continue
+                
                 # LanceDB returns distance, convert to similarity score
                 # Assuming L2 distance, smaller is better
                 distance = row.get("_distance", 0)
                 score = 1.0 / (1.0 + distance)  # Convert to 0-1 range
                 
-                if score >= min_score:
+                if score >= min_score and len(formatted) < limit:
                     formatted.append({
                         "id": row.get("id"),
                         "path": row.get("path"),
                         "title": row.get("title"),
-                        "content": row.get("content", "")[:500],  # Preview
+                        "content": content[:500],  # Preview
                         "category": row.get("category"),
                         "language": row.get("language"),
                         "file_type": row.get("file_type"),

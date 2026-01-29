@@ -342,6 +342,10 @@ class DocumentIndexer:
                 )
                 lancedb_ok = True
                 self.logger.debug(f"LanceDB indexed: {path.name}")
+            except ValueError as e:
+                # Empty content - skip indexing but don't treat as error
+                errors.append(f"LanceDB: {e}")
+                self.logger.warning(f"Skipping LanceDB for {path}: {e}")
             except LanceDBError as e:
                 errors.append(f"LanceDB: {e}")
                 self.logger.error(f"LanceDB indexing failed for {path}: {e}")
