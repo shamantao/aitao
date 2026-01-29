@@ -18,6 +18,9 @@
 
 **Need an AI that actually knows YOUR stuff?** Unlike generic AI assistants, AItao **indexes your personal documents** - PDFs, Word files, text files, code, and more. When you ask a question, AItao searches through YOUR files to give you contextual, relevant answers.
 
+AItao uses the power of your own computer.
+It's sometimes a little slower than an online AI,
+but in return you gain: a reduced environmental impact, privacy, and freedom.
 ---
 
 ## What Can AItao Do?

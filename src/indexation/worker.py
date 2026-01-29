@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.config import ConfigManager
 from core.logger import get_logger
 from indexation.queue import TaskQueue, Task, TaskStatus
+from indexation.indexer import DocumentIndexer
 
 
 def _get_logger():
@@ -158,10 +159,12 @@ class BackgroundWorker:
     
     def _default_handler(self, task: Task) -> bool:
         """
-        Default task handler (placeholder).
+        Default task handler that indexes documents.
         
-        In production, this will be replaced by DocumentIndexer.
-        For now, it just logs and returns success.
+        Calls DocumentIndexer to:
+        1. Extract text from the file
+        2. Generate embeddings
+        3. Index in LanceDB + Meilisearch
         
         Args:
             task: Task to process
@@ -170,16 +173,48 @@ class BackgroundWorker:
             True if successful, False otherwise
         """
         _get_logger().info(
-            f"Processing task (default handler)",
+            f"Processing task",
             metadata={
                 "task_id": task.id,
                 "file_path": task.file_path,
                 "task_type": task.task_type
             }
         )
-        # Simulate processing
-        time.sleep(0.1)
-        return True
+        
+        try:
+            # Create indexer and index the document
+            indexer = DocumentIndexer()
+            result = indexer.index_file(task.file_path)
+            
+            if result.success:
+                _get_logger().info(
+                    f"Document indexed successfully",
+                    metadata={
+                        "task_id": task.id,
+                        "doc_id": result.doc_id,
+                        "word_count": result.word_count
+                    }
+                )
+                return True
+            else:
+                _get_logger().error(
+                    f"Document indexing failed",
+                    metadata={
+                        "task_id": task.id,
+                        "error": result.error_message
+                    }
+                )
+                return False
+                
+        except Exception as e:
+            _get_logger().error(
+                f"Exception during indexing",
+                metadata={
+                    "task_id": task.id,
+                    "error": str(e)
+                }
+            )
+            return False
     
     def _handle_shutdown(self, signum, frame):
         """Handle shutdown signal."""

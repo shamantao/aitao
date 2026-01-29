@@ -176,8 +176,11 @@ class ConfigManager:
                 # Merge with defaults
                 self._config = self._merge_with_defaults(raw_config)
                 
-                # Expand environment variables
+                # Expand environment variables ($HOME, $USER, etc.)
                 self._config = self._expand_env_vars(self._config)
+                
+                # Expand internal variables (${storage_root}, etc.)
+                self._config = self._expand_internal_vars(self._config)
                 
                 # Validate final config
                 self._validate_config()
@@ -301,6 +304,34 @@ class ConfigManager:
             return os.path.expandvars(config)
         else:
             return config
+
+    def _expand_internal_vars(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Expand internal config variables like ${storage_root}.
+        
+        These are variables defined within the config file itself,
+        not shell environment variables.
+        """
+        # First, resolve the storage_root (it may contain $HOME)
+        storage_root = config.get("paths", {}).get("storage_root", "")
+        if storage_root:
+            storage_root = os.path.expandvars(storage_root)
+            storage_root = os.path.expanduser(storage_root)
+        
+        def replace_vars(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {k: replace_vars(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [replace_vars(item) for item in value]
+            elif isinstance(value, str):
+                # Replace ${storage_root} with the resolved value
+                if "${storage_root}" in value:
+                    return value.replace("${storage_root}", storage_root)
+                return value
+            else:
+                return value
+        
+        return replace_vars(config)
     
     def _validate_raw_config(self, config: Dict[str, Any]) -> None:
         """

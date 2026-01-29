@@ -3,7 +3,7 @@
 **Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.21.4 (Sprint Q&A In Progress 🔍)
+**Version actuelle:** 2.3.21.5 (Sprint Q&A In Progress 🔍)
 
 ---
 
