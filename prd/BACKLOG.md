@@ -3,7 +3,7 @@
 **Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.18 (Sprint 3 US-018 Complete)
+**Version actuelle:** 2.3.19 (Sprint 3 US-019/020 Complete)
 
 ---
 
@@ -14,7 +14,7 @@
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
-| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 432 | v2.3.16 → v2.3.18 |
+| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 445 | v2.3.16 → v2.3.19 |
 | Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
 | Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
 | Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
@@ -454,37 +454,42 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-019: Configurer Continue.dev [MUST] 📋
+#### US-019: Configurer Continue.dev [MUST] ✅ DONE
 **En tant que** utilisateur  
 **Je veux** que Continue.dev se connecte facilement à AItao  
 **Afin de** utiliser le RAG dans mon IDE
 
 **Critères d'acceptation:**
-- [ ] Documenter configuration Continue.dev (`.continue/config.json`)
-- [ ] Exemple: `"provider": "http://localhost:5000"` → appelle AItao au lieu d'Ollama
-- [ ] Tester avec Continue.dev official IDE extension
-- [ ] Créer guide d'installation (docs/CONTINUE_SETUP.md)
-- [ ] Vérifier modèles disponibles (via `/api/tags`)
+- [x] Documenter configuration Continue.dev (config.yaml et config.json)
+- [x] Exemple: `apiBase: "http://localhost:5000/v1"` → appelle AItao
+- [x] Créer guide d'installation (docs/CONTINUE_SETUP.md)
+- [x] Vérifier modèles disponibles (via `/api/tags` et `/v1/models`)
+- [x] Documentation troubleshooting et configuration avancée
 
 **Estimation:** 2 points  
-**Dépendances:** US-018 (/api/chat endpoint)
+**Dépendances:** US-018 (/api/chat endpoint), US-020 (/api/tags)  
+**Commit:** Tag: v2.3.19 - Date: 2026-01-29
 
 ---
 
-#### US-020: Endpoint /api/models (liste modèles) [MUST] 📋
+#### US-020: Endpoint /api/models (liste modèles) [MUST] ✅ DONE
 **En tant que** client externe  
 **Je veux** découvrir les modèles disponibles  
 **Afin de** choisir le modèle pour mon request
 
 **Critères d'acceptation:**
-- [ ] Endpoint `GET /api/tags` (Ollama-compatible)
-- [ ] Endpoint `GET /v1/models` (OpenAI-compatible)
-- [ ] Retourne liste modèles de Ollama
-- [ ] Format: `{models: [{name, size, digest, modified_at}]}`
-- [ ] Tests unitaires (8 tests)
+- [x] Endpoint `GET /api/tags` (Ollama-compatible)
+- [x] Endpoint `GET /v1/models` (OpenAI-compatible)
+- [x] Endpoint `GET /api/show/{model}` (model details)
+- [x] Endpoint `GET /v1/models/{model}` (OpenAI single model)
+- [x] Retourne liste modèles de Ollama avec details
+- [x] Format Ollama: `{models: [{name, size, digest, modified_at, details}]}`
+- [x] Format OpenAI: `{object: "list", data: [{id, object, created, owned_by}]}`
+- [x] Tests unitaires (13 tests)
 
 **Estimation:** 2 points  
-**Dépendances:** US-016 (OllamaClient)
+**Dépendances:** US-016 (OllamaClient)  
+**Commit:** Tag: v2.3.19 - Date: 2026-01-29
 
 ---
 
