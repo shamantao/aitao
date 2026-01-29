@@ -37,8 +37,8 @@ class TestRootLifecycleCommands:
         
         assert result.exit_code == 0
         assert "Starting all AItao services" in result.stdout
-        # Should call both services
-        assert mock_run.call_count == 2
+        # Should call Meilisearch (Worker module not yet implemented)
+        assert mock_run.call_count == 1
     
     @patch("cli.commands.lifecycle._run_command")
     def test_stop_command(self, mock_run):
@@ -49,8 +49,8 @@ class TestRootLifecycleCommands:
         
         assert result.exit_code == 0
         assert "Stopping all AItao services" in result.stdout
-        # Should call both services (Worker first, then Meilisearch)
-        assert mock_run.call_count == 2
+        # Should call Meilisearch (Worker module not yet implemented)
+        assert mock_run.call_count == 1
     
     @patch("cli.commands.lifecycle._run_command")
     @patch("time.sleep")  # Mock sleep to speed up test
@@ -116,34 +116,28 @@ class TestServiceCommands:
     """Test individual service management via lifecycle."""
     
     @patch("cli.commands.lifecycle._run_command")
-    def test_start_order(self, mock_run):
-        """Test that services are started in correct order."""
+    def test_start_meilisearch(self, mock_run):
+        """Test that Meilisearch is started."""
         mock_run.return_value = True
         
         result = runner.invoke(app, ["start"])
         
-        # Should start Meilisearch first, then Worker
+        # Should start Meilisearch
         calls = mock_run.call_args_list
-        assert len(calls) >= 2
-        # First call: Meilisearch
+        assert len(calls) >= 1
         assert "Meilisearch" in str(calls[0])
-        # Second call: Worker
-        assert "Worker" in str(calls[1])
     
     @patch("cli.commands.lifecycle._run_command")
-    def test_stop_order(self, mock_run):
-        """Test that services are stopped in correct order (reverse of start)."""
+    def test_stop_meilisearch(self, mock_run):
+        """Test that Meilisearch is stopped."""
         mock_run.return_value = True
         
         result = runner.invoke(app, ["stop"])
         
-        # Should stop Worker first (it may be processing), then Meilisearch
+        # Should stop Meilisearch
         calls = mock_run.call_args_list
-        assert len(calls) >= 2
-        # First call: Worker
-        assert "Worker" in str(calls[0])
-        # Second call: Meilisearch
-        assert "Meilisearch" in str(calls[1])
+        assert len(calls) >= 1
+        assert "Meilisearch" in str(calls[0])
 
 
 class TestVerboseOutput:
@@ -178,7 +172,6 @@ class TestCommandHelp:
         assert result.exit_code == 0
         assert "Start all AItao services" in result.stdout
         assert "Meilisearch" in result.stdout
-        assert "Worker" in result.stdout
     
     def test_stop_help(self):
         """Test stop command help."""

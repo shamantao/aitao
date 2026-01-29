@@ -42,12 +42,17 @@ def _read_version_from_pyproject() -> str:
 
 
 def _get_version() -> str:
-    """Get version from metadata or pyproject.toml."""
+    """Get version from pyproject.toml (single source of truth)."""
+    # Always read from pyproject.toml first (single source of truth)
+    version = _read_version_from_pyproject()
+    if version != "0.0.0":
+        return version
+    
+    # Fallback to installed metadata if pyproject.toml not found
     try:
         return metadata_version("aitao")
     except PackageNotFoundError:
-        # Fallback: read directly from pyproject.toml
-        return _read_version_from_pyproject()
+        return "0.0.0"
 
 
 __version__ = _get_version()

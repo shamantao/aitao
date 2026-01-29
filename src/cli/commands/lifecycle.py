@@ -45,7 +45,7 @@ def _run_command(name: str, command: list, timeout: int = 30) -> bool:
     """
     try:
         with Live(
-            Spinner("dots", text=f"[cyan]{name}[/cyan]...", console=console),
+            Spinner("dots", text=f"[cyan]{name}[/cyan]..."),
             console=console,
             transient=True,
         ):
@@ -118,13 +118,8 @@ def start(verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose o
     ):
         all_success = False
     
-    # Start Worker
-    if not _run_command(
-        "Background Worker",
-        [sys.executable, "-m", "src.cli.worker", "start"],
-        timeout=30
-    ):
-        all_success = False
+    # Note: Background Worker module doesn't exist yet
+    # Skipping for now - to be implemented in future sprint
     
     console.print()
     
@@ -154,14 +149,6 @@ def stop(verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose ou
     
     all_success = True
     
-    # Stop Worker first (it may be processing)
-    if not _run_command(
-        "Background Worker",
-        [sys.executable, "-m", "src.cli.worker", "stop"],
-        timeout=30
-    ):
-        all_success = False
-    
     # Stop Meilisearch
     if not _run_command(
         "Meilisearch",
@@ -169,6 +156,9 @@ def stop(verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose ou
         timeout=30
     ):
         all_success = False
+    
+    # Note: Background Worker module doesn't exist yet
+    # Skipping for now - to be implemented in future sprint
     
     console.print()
     
@@ -194,29 +184,25 @@ def restart(verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose
     info("Restarting all AItao services...")
     console.print()
     
-    # Stop
-    stop_cmd = [sys.executable, "-m", "cli", "lifecycle", "stop"]
+    # Stop services
     try:
-        subprocess.run(stop_cmd, capture_output=True, timeout=60)
-    except Exception:
-        pass  # Continue anyway
+        stop(verbose=verbose)
+    except typer.Exit:
+        # Ignore exit code from stop, continue to start
+        pass
+    except Exception as e:
+        warning(f"Error stopping services: {e}")
     
-    # Wait
+    # Wait for services to fully stop
     info("Waiting for services to fully stop...")
     time.sleep(3)
     console.print()
     
-    # Start
-    start_cmd = [sys.executable, "-m", "cli", "lifecycle", "start"]
+    # Start services
     try:
-        result = subprocess.run(start_cmd, capture_output=True, timeout=60)
-        if result.returncode == 0:
-            success("Services restarted ✓")
-        else:
-            error("Failed to restart services")
-            raise typer.Exit(1)
+        start(verbose=verbose)
     except Exception as e:
-        error(f"Error restarting: {e}")
+        error(f"Error restarting services: {e}")
         raise typer.Exit(1)
 
 
