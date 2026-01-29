@@ -14,7 +14,7 @@
 #   ./aitao.sh config show
 #
 # =============================================================================
-clear
+#clear
 set -euo pipefail
 
 # --- Configuration ---

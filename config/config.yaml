@@ -54,7 +54,7 @@ indexing:
   
   # Interval between automatic scans (in minutes)
   # Default: 60 (1 hour)
-  interval_minutes: 60
+  interval_minutes: 10
   
   # Paths to include in indexing (absolute paths)
   # Add all directories you want to make searchable

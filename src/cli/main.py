@@ -32,6 +32,7 @@ from cli.commands import worker as worker_cmd
 from cli.commands import extract as extract_cmd
 from cli.commands import index as index_cmd
 from cli.commands import search as search_cmd
+from cli.commands import lifecycle as lifecycle_cmd
 
 # Import version
 try:
@@ -206,6 +207,7 @@ app.add_typer(worker_cmd.app, name="worker", help="Background worker control")
 app.add_typer(extract_cmd.app, name="extract", help="Text extraction from documents")
 app.add_typer(index_cmd.app, name="index", help="Document indexing pipeline")
 app.add_typer(search_cmd.app, name="search", help="Hybrid document search")
+app.add_typer(lifecycle_cmd.app, name="lifecycle", help="Service lifecycle (start/stop/restart)")
 
 
 @app.command()
@@ -231,6 +233,39 @@ def test(
     cmd = ["pytest", "tests/unit/", "-v" if verbose else "-q"]
     result = subprocess.run(cmd, cwd=src_path.parent)
     raise typer.Exit(result.returncode)
+
+
+@app.command()
+def start(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+):
+    """Start all AItao services (Meilisearch, Worker).
+    
+    Shortcut for: ./aitao.sh lifecycle start
+    """
+    lifecycle_cmd.start(verbose=verbose)
+
+
+@app.command()
+def stop(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+):
+    """Stop all AItao services (Worker, Meilisearch).
+    
+    Shortcut for: ./aitao.sh lifecycle stop
+    """
+    lifecycle_cmd.stop(verbose=verbose)
+
+
+@app.command()
+def restart(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+):
+    """Restart all AItao services.
+    
+    Shortcut for: ./aitao.sh lifecycle restart
+    """
+    lifecycle_cmd.restart(verbose=verbose)
 
 
 @app.callback(invoke_without_command=True)

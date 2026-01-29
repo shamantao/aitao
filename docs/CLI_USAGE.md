@@ -2,10 +2,22 @@
 
 ## Quick Reference
 
-### System Status
+### System Status & Management
 ```bash
 ./aitao.sh status      # Show overall system health
 ./aitao.sh version     # Show version information
+```
+
+### Start/Stop/Restart ALL Services ⭐ (User-Friendly)
+```bash
+./aitao.sh start       # Start all services (Meilisearch, Worker)
+./aitao.sh stop        # Stop all services
+./aitao.sh restart     # Restart all services
+
+# These are shortcuts for:
+./aitao.sh lifecycle start
+./aitao.sh lifecycle stop
+./aitao.sh lifecycle restart
 ```
 
 ### Meilisearch (Full-text Search)
@@ -89,14 +101,31 @@ python -m src.cli.chat --no-context
 ./aitao.sh test                 # Run all unit tests
 ```
 
-## Common Workflows
+## Workflows
+
+### Quick Start Services (NEW! 🌟)
+```bash
+# Start everything at once
+./aitao.sh start
+
+# Check status
+./aitao.sh status
+
+# Stop everything when done
+./aitao.sh stop
+```
 
 ### Start Fresh Services
 ```bash
-# Stop Meilisearch
+# Simple way (NEW!) - Start all services at once
+./aitao.sh start
+
+# Or if you prefer to manage individually:
+
+# Stop Meilisearch only
 ./aitao.sh ms stop
 
-# Start Meilisearch
+# Start Meilisearch only
 ./aitao.sh ms start
 
 # Check status
@@ -139,14 +168,14 @@ python -m src.cli.chat --no-context
 ## Tips
 
 ### ✅ DO:
-- Use `ms stop` and `ms start` (not `stop`/`start` alone)
+- Use `./aitao.sh start` and `./aitao.sh stop` for all services (easiest!)
+- Use `ms stop` and `ms start` for Meilisearch only
 - Use `worker stop` for background daemon
 - Check `status` first to diagnose issues
 - Use `-f` (foreground) flag for debugging
 
 ### ❌ DON'T:
-- Don't use `./aitao.sh stop` (incorrect syntax)
-- Don't forget the sub-command group (`ms`, `db`, `worker`, etc.)
+- Don't use `./aitao.sh stop` alone anymore (use `./aitao.sh stop` for all! ✨)
 - Don't assume services are running without checking `status`
 
 ## Environment Variables

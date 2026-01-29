@@ -523,19 +523,31 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 **Résolution:**
 - ✅ Diagnostic: Les commandes doivent être `ms stop`, `ms start`, pas `stop`, `start`
-- 📝 À faire: Documenter l'utilisation correcte dans README
-- 📝 À faire: Considérer ajouter des aliases racine pour `start`/`stop` si souhaité
+- ✅ **AMÉLIORATION:** Créé commandes `start`, `stop`, `restart` au niveau racine!
+- ✅ Documentation mise à jour dans docs/CLI_USAGE.md
+- ✅ Créé 15 tests pour les nouvelles commandes (tous passent!)
 
-**Commandes correctes:**
+**Commandes correctes (AVANT):**
 ```bash
-./aitao.sh ms status   # Vérifier statut Meilisearch
-./aitao.sh ms stop     # Arrêter Meilisearch
-./aitao.sh ms start    # Démarrer Meilisearch
-./aitao.sh status      # État général du système
+./aitao.sh ms stop     # Meilisearch uniquement
+./aitao.sh ms start    # Meilisearch uniquement
 ```
 
-**Estimation:** 1 point  
-**Status:** 🔍 In Progress
+**Commandes correctes (MAINTENANT - Plus simple!):**
+```bash
+./aitao.sh start       # 🌟 Démarre TOUS les services
+./aitao.sh stop        # 🌟 Arrête TOUS les services  
+./aitao.sh restart     # 🌟 Redémarre TOUS les services
+```
+
+**Fichiers créés/modifiés:**
+- src/cli/commands/lifecycle.py (NEW - 207 lignes)
+- tests/test_lifecycle_commands.py (NEW - 15 tests)
+- src/cli/main.py (UPDATED - added start/stop/restart commands)
+- docs/CLI_USAGE.md (UPDATED - new section for user-friendly commands)
+
+**Estimation:** 2 points  
+**Status:** ✅ COMPLÉTÉ
 
 ---
 
