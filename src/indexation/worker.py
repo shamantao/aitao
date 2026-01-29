@@ -201,7 +201,7 @@ class BackgroundWorker:
                     f"Document indexing failed",
                     metadata={
                         "task_id": task.id,
-                        "error": result.error_message
+                        "error": result.error
                     }
                 )
                 return False

@@ -20,10 +20,10 @@ from sentence_transformers import SentenceTransformer
 
 try:
     from src.core.logger import get_logger
-    from src.core.config import ConfigManager
+    from src.core.config import ConfigManager, get_config
 except ImportError:
     from core.logger import get_logger
-    from core.config import ConfigManager
+    from core.config import ConfigManager, get_config
 
 
 class LanceDBError(Exception):
@@ -69,19 +69,19 @@ class LanceDBClient:
             table_name: Name of documents table. Default: "aitao_embeddings"
             embedding_model: Sentence-transformers model name. 
                            Default: "BAAI/bge-m3" or from config
-            config: ConfigManager instance. If None, creates new one.
+            config: ConfigManager instance. If None, uses global singleton.
         
         Raises:
             LanceDBError: If initialization fails
         """
         self.logger = get_logger("lancedb")
         
-        # Load configuration
+        # Load configuration (use global singleton for consistent paths)
         try:
             if config:
                 self._config = config
             else:
-                self._config = ConfigManager("config/config.yaml")
+                self._config = get_config()
         except Exception:
             # Fallback if config not available
             self._config = None
@@ -90,9 +90,18 @@ class LanceDBClient:
         if db_path:
             self.db_path = Path(db_path)
         elif self._config:
-            self.db_path = Path(self._config.get("paths.vector_db_dir", "data/lancedb"))
+            vector_db_dir = self._config.get("paths.vector_db_dir")
+            if vector_db_dir:
+                self.db_path = Path(vector_db_dir)
+            else:
+                # Fallback to storage_root/lancedb if vector_db_dir not set
+                storage_root = self._config.get("paths.storage_root")
+                if storage_root:
+                    self.db_path = Path(storage_root) / "lancedb"
+                else:
+                    raise LanceDBError("No vector_db_dir or storage_root configured")
         else:
-            self.db_path = Path("data/lancedb")
+            raise LanceDBError("No configuration available for LanceDB path")
         
         self.table_name = table_name or (
             self._config.get("search.lancedb.table_name", "aitao_embeddings")

@@ -29,7 +29,7 @@ from dataclasses import dataclass, field, asdict
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.config import ConfigManager
+from core.config import ConfigManager, get_config
 from core.logger import get_logger
 
 
@@ -130,26 +130,32 @@ class TaskQueue:
             config_path: Path to config.yaml
             queue_file: Custom path to queue file
         """
-        # Load configuration
+        # Load configuration (use global singleton for consistent paths)
         if config_path:
             self.config = ConfigManager(config_path)
         else:
-            project_root = Path(__file__).parent.parent.parent
-            config_file = project_root / "config" / "config.yaml"
-            if config_file.exists():
-                self.config = ConfigManager(str(config_file))
-            else:
+            try:
+                self.config = get_config()
+            except Exception:
                 self.config = None
         
         # Determine queue file location
         if queue_file:
             self.queue_file = Path(queue_file)
         elif self.config:
-            queue_dir = self.config.get("paths.queue_dir", "data/queue")
-            queue_path = Path(os.path.expandvars(queue_dir)).expanduser()
+            queue_dir = self.config.get("paths.queue_dir")
+            if queue_dir:
+                queue_path = Path(os.path.expandvars(queue_dir)).expanduser()
+            else:
+                # Fallback to storage_root/queue if queue_dir not set
+                storage_root = self.config.get("paths.storage_root")
+                if storage_root:
+                    queue_path = Path(storage_root) / "queue"
+                else:
+                    raise ValueError("No queue_dir or storage_root configured")
             self.queue_file = queue_path / "tasks.json"
         else:
-            self.queue_file = Path("data/queue/tasks.json")
+            raise ValueError("No configuration available for queue path")
         
         # Ensure directory exists
         self.queue_file.parent.mkdir(parents=True, exist_ok=True)

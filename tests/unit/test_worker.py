@@ -17,6 +17,8 @@ import pytest
 from pathlib import Path
 from datetime import datetime
 from unittest.mock import patch, MagicMock, PropertyMock
+from dataclasses import dataclass
+from typing import Optional
 
 # Import test subjects
 import sys
@@ -28,6 +30,19 @@ from indexation.worker import (
     WorkerStats
 )
 from indexation.queue import TaskQueue, Task, TaskStatus
+
+
+# Mock IndexResult for tests
+@dataclass
+class MockIndexResult:
+    """Mock IndexResult for testing."""
+    path: str = "/test/doc.txt"
+    doc_id: str = "test-doc-id"
+    success: bool = True
+    lancedb_indexed: bool = True
+    meilisearch_indexed: bool = True
+    error: Optional[str] = None
+    word_count: int = 100
 
 
 # ==============================================================================
@@ -158,27 +173,69 @@ class TestWorkerInit:
 class TestTaskProcessing:
     """Tests for task processing."""
     
-    def test_default_handler_succeeds(self, worker, sample_task):
-        """Test default handler processes task successfully."""
-        result = worker._default_handler(sample_task)
+    @patch('indexation.worker.DocumentIndexer')
+    def test_default_handler_succeeds(self, mock_indexer_class, worker, sample_task):
+        """Test default handler processes task successfully when file exists."""
+        # Mock the indexer to return success with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True, word_count=50)
+        mock_indexer_class.return_value = mock_indexer
         
-        assert result is True
+        # Create a temp file for the task
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
+            f.write(b"test content")
+            temp_path = f.name
+        
+        try:
+            sample_task.file_path = temp_path
+            result = worker._default_handler(sample_task)
+            assert result is True
+        finally:
+            os.unlink(temp_path)
     
-    def test_process_task_updates_queue(self, worker, temp_queue, sample_task):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_process_task_updates_queue(self, mock_indexer_class, worker, temp_queue, sample_task):
         """Test that processing updates task status in queue."""
-        worker._process_task(sample_task)
+        # Mock the indexer to return success with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
         
-        updated = temp_queue.get_task(sample_task.id)
-        assert updated.status == TaskStatus.COMPLETED.value
+        # Create a temp file for the task
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
+            f.write(b"test content")
+            sample_task.file_path = f.name
+        
+        try:
+            worker._process_task(sample_task)
+            
+            updated = temp_queue.get_task(sample_task.id)
+            assert updated.status == TaskStatus.COMPLETED.value
+        finally:
+            os.unlink(sample_task.file_path)
     
-    def test_process_task_increments_stats(self, worker, sample_task):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_process_task_increments_stats(self, mock_indexer_class, worker, sample_task):
         """Test that processing increments stats."""
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
         assert worker.stats.tasks_processed == 0
         
-        worker._process_task(sample_task)
+        # Create a temp file for the task
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
+            f.write(b"test content")
+            sample_task.file_path = f.name
         
-        assert worker.stats.tasks_processed == 1
-        assert worker.stats.tasks_failed == 0
+        try:
+            worker._process_task(sample_task)
+            
+            assert worker.stats.tasks_processed == 1
+            assert worker.stats.tasks_failed == 0
+        finally:
+            os.unlink(sample_task.file_path)
     
     def test_process_task_handles_failure(self, worker, temp_queue, sample_task):
         """Test that failed tasks are handled correctly."""
@@ -228,14 +285,28 @@ class TestTaskProcessing:
         
         assert worker.stats.consecutive_errors == 3
     
-    def test_success_resets_consecutive_errors(self, worker, temp_queue):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_success_resets_consecutive_errors(self, mock_indexer_class, worker, temp_queue):
         """Test that success resets consecutive error count."""
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
         worker.stats.consecutive_errors = 3
         
-        task = temp_queue.add_task("/test/doc.pdf")
-        worker._process_task(task)
+        # Create a temp file for the task
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
+            f.write(b"test content")
+            temp_path = f.name
         
-        assert worker.stats.consecutive_errors == 0
+        try:
+            task = temp_queue.add_task(temp_path)
+            worker._process_task(task)
+            
+            assert worker.stats.consecutive_errors == 0
+        finally:
+            os.unlink(temp_path)
 
 
 # ==============================================================================
@@ -251,8 +322,19 @@ class TestPollAndProcess:
         
         assert result is False
     
-    def test_poll_processes_task(self, worker, temp_queue, sample_task):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_poll_processes_task(self, mock_indexer_class, worker, temp_queue, temp_dir):
         """Test polling processes pending task."""
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
+        # Create a real temp file
+        test_file = temp_dir / "test_doc.txt"
+        test_file.write_text("test content")
+        temp_queue.add_task(str(test_file), task_type="index")
+        
         result = worker._poll_and_process()
         
         assert result is True
@@ -277,10 +359,21 @@ class TestPollAndProcess:
         assert worker.stats.is_paused is True
         assert "CPU" in worker.stats.pause_reason
     
+    @patch('indexation.worker.DocumentIndexer')
     @patch('indexation.worker.psutil.cpu_percent')
-    def test_poll_processes_normal_cpu(self, mock_cpu, worker, sample_task):
+    def test_poll_processes_normal_cpu(self, mock_cpu, mock_indexer_class, worker, temp_queue, temp_dir):
         """Test that poll processes when CPU is normal."""
         mock_cpu.return_value = 30.0  # Below threshold
+        
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
+        # Create a real temp file
+        test_file = temp_dir / "test_doc.txt"
+        test_file.write_text("test content")
+        temp_queue.add_task(str(test_file), task_type="index")
         
         result = worker._poll_and_process()
         
@@ -397,17 +490,40 @@ class TestRunOnce:
         
         assert result is False
     
-    def test_run_once_processes_task(self, worker, sample_task):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_run_once_processes_task(self, mock_indexer_class, worker, temp_queue, temp_dir):
         """Test run_once processes a single task."""
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
+        # Create a real temp file
+        test_file = temp_dir / "test_doc.txt"
+        test_file.write_text("test content")
+        temp_queue.add_task(str(test_file), task_type="index")
+        
         result = worker.run_once()
         
         assert result is True
         assert worker.stats.tasks_processed == 1
     
-    def test_run_once_does_not_loop(self, worker, temp_queue):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_run_once_does_not_loop(self, mock_indexer_class, worker, temp_queue, temp_dir):
         """Test run_once only processes one task."""
-        temp_queue.add_task("/test/doc1.pdf")
-        temp_queue.add_task("/test/doc2.pdf")
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
+        # Create real temp files
+        test_file1 = temp_dir / "doc1.txt"
+        test_file1.write_text("test content 1")
+        test_file2 = temp_dir / "doc2.txt"
+        test_file2.write_text("test content 2")
+        
+        temp_queue.add_task(str(test_file1))
+        temp_queue.add_task(str(test_file2))
         
         worker.run_once()
         
@@ -455,14 +571,25 @@ class TestGetStats:
         assert "tasks_processed" in stats
         assert "is_running" in stats
     
-    def test_get_stats_reflects_state(self, worker, sample_task):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_get_stats_reflects_state(self, mock_indexer_class, worker, temp_queue, temp_dir):
         """Test get_stats reflects worker state."""
-        worker._process_task(sample_task)
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
+        # Create a real temp file
+        test_file = temp_dir / "test_doc.txt"
+        test_file.write_text("test content")
+        task = temp_queue.add_task(str(test_file), task_type="index")
+        
+        worker._process_task(task)
         
         stats = worker.get_stats()
         
         assert stats["tasks_processed"] == 1
-        assert stats["last_task_id"] == sample_task.id
+        assert stats["last_task_id"] == task.id
 
 
 # ==============================================================================
@@ -483,10 +610,19 @@ class TestEdgeCases:
         assert result is False
         assert worker.stats.tasks_failed == 1
     
-    def test_multiple_tasks_sequential(self, worker, temp_queue):
+    @patch('indexation.worker.DocumentIndexer')
+    def test_multiple_tasks_sequential(self, mock_indexer_class, worker, temp_queue, temp_dir):
         """Test processing multiple tasks sequentially."""
+        # Mock the indexer with proper IndexResult
+        mock_indexer = MagicMock()
+        mock_indexer.index_file.return_value = MockIndexResult(success=True)
+        mock_indexer_class.return_value = mock_indexer
+        
+        # Create real temp files
         for i in range(5):
-            temp_queue.add_task(f"/test/doc{i}.pdf")
+            test_file = temp_dir / f"doc{i}.txt"
+            test_file.write_text(f"test content {i}")
+            temp_queue.add_task(str(test_file))
         
         for _ in range(5):
             worker.run_once()

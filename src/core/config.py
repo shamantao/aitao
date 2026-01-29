@@ -113,13 +113,24 @@ class ConfigManager:
         if config_path:
             self.config_path = Path(config_path)
         else:
-            # Search in standard locations
-            search_paths = [
+            # Find project root by looking for marker files
+            project_root = self._find_project_root()
+            
+            # Search in standard locations (relative to project root first)
+            search_paths = []
+            if project_root:
+                search_paths.extend([
+                    project_root / "config" / "config.yaml",
+                    project_root / "config" / "config.yml",
+                    project_root / "config.yaml",
+                ])
+            # Also check relative paths (for backward compatibility)
+            search_paths.extend([
                 Path("config/config.yaml"),
                 Path("config/config.yml"),
                 Path("config.yaml"),
                 Path.home() / ".aitao" / "config.yaml",
-            ]
+            ])
             
             self.config_path = None
             for path in search_paths:
@@ -142,6 +153,35 @@ class ConfigManager:
                 "sections": list(self._config.keys())
             }
         )
+    
+    def _find_project_root(self) -> Optional[Path]:
+        """
+        Find the project root directory by looking for marker files.
+        
+        Searches upward from this file's location for:
+        - aitao.sh (main project marker)
+        - pyproject.toml (Python project marker)
+        - requirements.txt (alternative marker)
+        
+        Returns:
+            Path to project root, or None if not found
+        """
+        # Start from this file's directory
+        current = Path(__file__).resolve().parent
+        
+        markers = ["aitao.sh", "pyproject.toml", "requirements.txt"]
+        
+        # Walk up the directory tree
+        for _ in range(10):  # Max 10 levels up
+            for marker in markers:
+                if (current / marker).exists():
+                    return current
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        
+        return None
     
     def reload(self) -> None:
         """
