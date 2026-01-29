@@ -15,6 +15,7 @@
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
 | Sprint 3: RAG & LLM | ✅ Complete | US-016 → US-021 | 461 | v2.3.16 → v2.3.20 |
+| **Sprint Fantôme: Vérifications** | 🔍 In Progress | QA-001 → QA-005 | - | v2.3.20 |
 | Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
 | Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
 | Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
@@ -511,6 +512,93 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 **Estimation:** 3 points  
 **Dépendances:** US-018 (/api/chat), US-017 (RAGEngine)  
 **Commit:** Tag: v2.3.20 - Date: 2026-01-29
+
+---
+
+## 🔍 Sprint Fantôme: Vérifications & Fixes (1 semaine - Jan 29 2026)
+
+### QA-001: Vérifier CLI aitao.sh commands [MUST]
+**Problème:** Commande `./aitao.sh stop` échoue avec "No such command 'stop'"  
+**Contexte:** `stop` n'est qu'une sous-commande de `ms` (Meilisearch), pas une commande racine
+
+**Résolution:**
+- ✅ Diagnostic: Les commandes doivent être `ms stop`, `ms start`, pas `stop`, `start`
+- 📝 À faire: Documenter l'utilisation correcte dans README
+- 📝 À faire: Considérer ajouter des aliases racine pour `start`/`stop` si souhaité
+
+**Commandes correctes:**
+```bash
+./aitao.sh ms status   # Vérifier statut Meilisearch
+./aitao.sh ms stop     # Arrêter Meilisearch
+./aitao.sh ms start    # Démarrer Meilisearch
+./aitao.sh status      # État général du système
+```
+
+**Estimation:** 1 point  
+**Status:** 🔍 In Progress
+
+---
+
+### QA-002: Vérifier config.yaml variable substitution [MUST]
+**Problème (FIXÉ):** `${storage_root}` était créé littéralement au lieu d'être substitué
+
+**Résolution:**
+- ✅ Fix: `resolve_path()` dans `src/core/lib/path_manager.py` supporte now `${VAR}` syntax
+- ✅ Fix: Section `system` renommée en `paths` dans `src/core/pathmanager.py`
+- ✅ Cleanup: Suppression des fichiers mal nommés du git
+- ✅ Commit: Commits a44fa78 + d99ea11
+
+**Status:** ✅ Complété
+
+---
+
+### QA-003: Tester démarrage services après fixes [SHOULD]
+**Objectif:** Vérifier que tous les services démarrent correctement
+
+**Tests à faire:**
+- [ ] `./aitao.sh status` → Affiche état système
+- [ ] `./aitao.sh ms status` → Meilisearch OK
+- [ ] `./aitao.sh db status` → LanceDB OK
+- [ ] `./aitao.sh worker status` → Worker running
+- [ ] Paths corrects: `$STORAGE_ROOT` non littéral
+
+**Estimation:** 2 points  
+**Status:** ⏳ À faire
+
+---
+
+### QA-004: Documentation help CLI [SHOULD]
+**Contexte:** L'aide CLI affiche des commandes complètes
+
+**À documenter:**
+- [ ] Ajouter exemples d'utilisation dans README
+- [ ] Clarifier différence: `ms stop` vs `./aitao.sh stop` (n'existe pas)
+- [ ] Documenter toutes les commands de `worker` (start, stop, status, restart)
+
+**Estimation:** 2 points  
+**Status:** ⏳ À faire
+
+---
+
+### QA-005: Vérifier structure fichiers config [SHOULD]
+**Context:** Vérifier que config.yaml est bien structuré et documenté
+
+**Checklist:**
+- [x] Sections présentes: `paths`, `indexing`, `ocr`, `api`, `logging` etc.
+- [x] Variables d'environnement: `${HOME}`, `${storage_root}` fonctionnent
+- [ ] Validation schema YAML
+- [ ] Exemple de `config.yaml.template` actualisé
+
+**Estimation:** 1 point  
+**Status:** 📋 Partiellement fait
+
+---
+
+**Sprint Fantôme Résumé:**
+- Diagnostic: CLI commands structure issue (documentation)
+- Fixes: Path variable substitution (committed)
+- Cleanup: Bad files removed (committed)
+- Remaining: Service testing, docs, schema validation
 
 ---
 
