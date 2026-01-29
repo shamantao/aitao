@@ -116,25 +116,34 @@ class GenericPathManager:
         """
         Resolves a path string into an absolute Path object.
         Supports:
+        - Environment variable substitution ($VAR or ${VAR})
         - Tilde expansion (~/...)
-        - Variable substitution ($var or ${var}) using provided context_vars
+        - Custom variable substitution via context_vars
         """
         if not path_str:
             return Path(".")
 
         expanded_str = path_str
         
-        # 1. Substitute variables if context provided
+        # 1. Substitute environment variables first ($HOME, $USER, etc.)
+        # Pattern: $VAR or ${VAR}
+        env_pattern = re.compile(r'\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)')
+        def replace_env(match):
+            var_name = match.group(1) or match.group(2)
+            return os.environ.get(var_name, match.group(0))  # Keep original if not found
+        expanded_str = env_pattern.sub(replace_env, expanded_str)
+        
+        # 2. Substitute custom variables if context provided (takes precedence over env)
         if context_vars:
             for key, val in context_vars.items():
                 if val:
                     pattern = re.compile(re.escape(f"${key}") + r"|" + re.escape(f"${{{key}}}") )
                     expanded_str = pattern.sub(str(val), expanded_str)
 
-        # 2. Expand User (~)
+        # 3. Expand User (~)
         expanded_str = os.path.expanduser(expanded_str)
         
-        # 3. Resolve absolute
+        # 4. Resolve absolute
         return Path(expanded_str).resolve()
 
     def get_config_value(self, section: str, key: str, default: Any = None) -> Any:

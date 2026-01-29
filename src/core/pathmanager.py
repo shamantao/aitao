@@ -33,34 +33,35 @@ class AitaoPathManager(GenericPathManager):
     def _apply_aitao_config(self):
         """
         Reads loaded configuration and updates specific system paths.
-        Implements the logic for $storage_root substitution.
+        Implements the logic for variable substitution (${HOME}, ${storage_root}, etc).
         """
-        # --- Storage Root ---
-        raw_storage = self.get_config_value("system", "storage_root")
+        # --- Storage Root (resolved first, no dependencies) ---
+        raw_storage = self.get_config_value("paths", "storage_root")
         if raw_storage:
             self.system_paths["storage_root"] = self.resolve_path(raw_storage)
-            
-        # --- Models Dir ---
-        raw_models = self.get_config_value("models", "models_dir")
+        
+        # --- Models Dir (resolved first, no dependencies) ---
+        raw_models = self.get_config_value("paths", "models_dir")
         if raw_models:
-             self.system_paths["models_dir"] = self.resolve_path(raw_models)
+            self.system_paths["models_dir"] = self.resolve_path(raw_models)
 
-        # --- Logs Dir (with substitution) ---
-        raw_logs = self.get_config_value("system", "logs_path")
+        # --- Logs Dir (with substitution of $storage_root) ---
+        raw_logs = self.get_config_value("paths", "logs_dir")
         if raw_logs:
-            # We explicitly define the allowed variable context for Aitao
+            # Context contains the already-resolved storage_root value
             context = {
                 "storage_root": str(self.system_paths["storage_root"])
             }
             p = self.resolve_path(raw_logs, context_vars=context)
             
-            # Logic: If after resolution it is still relative, anchor it to storage_root (Project Rule)
+            # If after resolution it is still relative, anchor it to storage_root
             if not p.is_absolute():
                 self.system_paths["logs_dir"] = self.system_paths["storage_root"] / p
             else:
                 self.system_paths["logs_dir"] = p
         else:
-             self.system_paths["logs_dir"] = self.system_paths["storage_root"] / "logs"
+            # Default: logs inside storage_root
+            self.system_paths["logs_dir"] = self.system_paths["storage_root"] / "logs"
 
         # 4. Create Directory Structure
         self._create_structure()
