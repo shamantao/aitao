@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD)
 # AI Tao 2.0 - Local-First Search & Translation Engine
 
-**Version:** 2.1.8  
+**Version:** 2.2.15  
 **Date:** January 28, 2026  
-**Status:** Active - Sprint 1 in progress  
+**Status:** Active - Sprint 3 RAG/LLM starting  
 **Author:** shamantao (AI Tao Project)  
 **Branch:** `pdr/v2-remodular`
 
@@ -13,16 +13,21 @@
 
 | Sprint | Status | Version | Tests |
 |--------|--------|---------|-------|
-| Sprint 0: Foundation | ✅ Complete | v2.0.5 | 45 |
-| Sprint 1: Search | 🔄 In Progress | v2.1.8 | 105 |
+| Sprint 0: Foundation | ✅ Complete | v2.0.5 → v2.1.8 | 85 |
+| Sprint 1: Indexation | ✅ Complete | v2.1.9 → v2.1.11 | 218 |
+| Sprint 2: Recherche | ✅ Complete | v2.2.11 → v2.2.15 | 370 |
+| Sprint 3: RAG & LLM | 🔄 Starting | v2.3.x | - |
 
 ### Completed Components
 - ✅ PathManager, Logger, ConfigManager (Core)
 - ✅ LanceDB Client (Vector Search, 26 tests)
 - ✅ Meilisearch Client (Full-text, 25 tests)
 - ✅ CLI Typer/Rich (9 tests)
+- ✅ Filesystem Scanner + Queue + Worker (113 tests)
+- ✅ TextExtractor + DocumentIndexer (69 tests)
+- ✅ FastAPI + HybridSearch + Health (83 tests)
 
-### Current: US-008 Scanner Filesystem
+### Current: Sprint 3 - RAG & LLM Integration (Ollama)
 
 ---
 
@@ -53,6 +58,7 @@ Create a **privacy-first knowledge retrieval system** that empowers users to fin
 5. **💰 Zero Cost**: All models and tools are free and open-source (no API keys)
 6. **🎯 Accuracy**: Translation and OCR quality prioritized over speed for critical documents
 7. **🔄 Reversibility**: All decisions must be revertable—users can correct categorizations, swap models, change storage
+8. **🔌 Interoperability**: AItao exposes standard APIs (Ollama/OpenAI-compatible) so any external tool can connect without code changes
 
 ---
 
@@ -166,35 +172,52 @@ aitao ingest /path/to/document.pdf --ocr qwen-vl --priority high
 ---
 
 #### UC-006: RAG Integration (Continue/Wave/Custom UI) 🚀
-**External App Request:**
+**Architecture:**
+AItao acts as a **RAG Hub** - external applications (AnythingLLM, Continue.dev, Open WebUI, etc.) connect to AItao instead of directly to Ollama. AItao enriches queries with relevant document context before forwarding to the LLM.
+
+```
+Client → AItao API (port 5000) → RAG Enrichment → Ollama (port 11434)
+                                       ↓
+                              LanceDB + Meilisearch
+```
+
+**Chat Request (Ollama-compatible):**
+```json
+POST /api/chat
+{
+  "model": "qwen2.5-coder:7b",
+  "messages": [
+    {"role": "user", "content": "Where is the Germany trip doc?"}
+  ],
+  "stream": true
+}
+```
+
+**AItao Processing:**
+1. Receive user prompt
+2. Search RAG (LanceDB + Meilisearch) for relevant context
+3. Enrich prompt with document snippets
+4. Forward to Ollama
+5. Store prompt + response in ChatHistory (indexed for future search)
+6. Stream response back to client
+
+**Search Request (unchanged):**
 ```json
 POST /api/search
 {
-  "query": "Where is the Germany trip doc?",
+  "query": "Germany trip June 2025",
   "filters": {"date_after": "2025-01-01"},
   "limit": 5
 }
 ```
 
-**System Response:**
-```json
-{
-  "results": [
-    {
-      "path": "/path/to/doc.pdf",
-      "summary": "Trip to Germany...",
-      "score": 0.95,
-      "date": "2025-06-10"
-    }
-  ],
-  "query_time_ms": 234
-}
-```
-
 **Requirements:**
-- FastAPI REST endpoint (port 5000)
-- OpenAPI schema
-- Shared LanceDB/Meilisearch (no duplication)
+- **Ollama-compatible API**: `/api/chat`, `/api/generate`, `/api/tags` (list models)
+- **OpenAI-compatible API**: `/v1/chat/completions`, `/v1/models`
+- AItao as transparent proxy (clients configure `http://localhost:5000` as their LLM endpoint)
+- Shared RAG (LanceDB + Meilisearch) for all models
+- ChatHistory indexed for future search ("What did I ask about Germany last week?")
+- User file requests = **HIGH priority** in queue (vs auto-scan = NORMAL)
 
 ---
 
@@ -642,7 +665,7 @@ categories:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/search` | POST | Hybrid search (Meilisearch + LanceDB) |
-| `/api/ingest` | POST | Manual file ingestion |
+| `/api/ingest` | POST | Manual file ingestion (priority: HIGH) |
 | `/api/translate` | POST | Translate document on-demand |
 | `/api/categories` | GET | List categories |
 | `/api/categories/{id}` | PUT | Update category for document |
@@ -650,9 +673,28 @@ categories:
 | `/api/health` | GET | Service health check |
 | `/api/stats` | GET | Indexing stats (total docs, by category, by language) |
 
+**LLM/Chat Endpoints (Ollama-compatible):**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/chat` | POST | Chat with RAG context (streaming SSE) |
+| `/api/generate` | POST | Text generation (non-chat) |
+| `/api/tags` | GET | List available models (from Ollama) |
+| `/api/embeddings` | POST | Generate embeddings |
+
+**LLM/Chat Endpoints (OpenAI-compatible):**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/chat/completions` | POST | OpenAI-compatible chat |
+| `/v1/models` | GET | List available models |
+| `/v1/embeddings` | POST | Generate embeddings |
+
 **Shared RAG Access:**
-- Continue/Wave/Custom UI connect to same API (port 5000)
+- Any LLM client can connect to AItao (port 5000) instead of Ollama directly
+- AItao enriches prompts with RAG context before forwarding to Ollama
 - LanceDB/Meilisearch shared (no data duplication)
+- ChatHistory stored and indexed for future search
 - JWT auth for security (optional, V2+)
 
 **OpenAPI Schema:**
@@ -697,6 +739,108 @@ categories:
 
 ---
 
+### FR-010: LLM Backend & Interoperability 🚀 NEW
+
+**Architecture Principle:**
+AItao uses **Ollama** as the LLM backend to ensure maximum interoperability with third-party applications. Ollama is the de-facto standard for local LLM serving, supported by AnythingLLM, Continue.dev, Open WebUI, LangChain, and many others.
+
+**Why Ollama (not llama.cpp server):**
+
+| Feature | llama.cpp server | Ollama |
+|---------|------------------|--------|
+| Multi-model support | ❌ 1 per instance | ✅ Native |
+| Hot-swap models | ❌ Restart required | ✅ On-the-fly |
+| Model discovery API | ❌ No `/api/tags` | ✅ Full support |
+| Third-party app support | ⚠️ Limited | ✅ Universal |
+| Installation | ⚠️ Manual compile | ✅ `brew install ollama` |
+| Memory management | ⚠️ Manual | ✅ Automatic |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        External Clients                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ AnythingLLM  │  │ Continue.dev │  │  Open WebUI  │  CLI Chat     │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │        │
+│         │                 │                 │               │        │
+│         └─────────────────┴─────────────────┴───────────────┘        │
+│                                   │                                  │
+│                    Configure: http://localhost:5000                  │
+│                    (NOT http://localhost:11434)                      │
+│                                   │                                  │
+│                                   ▼                                  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    AItao API (Port 5000)                       │  │
+│  │                    ══════════════════════                       │  │
+│  │  Endpoints (Ollama-compatible):                                │  │
+│  │    /api/chat, /api/generate, /api/tags, /api/embeddings        │  │
+│  │  Endpoints (OpenAI-compatible):                                 │  │
+│  │    /v1/chat/completions, /v1/models, /v1/embeddings            │  │
+│  │                                                                 │  │
+│  │  RAG Pipeline:                                                  │  │
+│  │    1. Receive prompt                                            │  │
+│  │    2. Search context (LanceDB + Meilisearch)                   │  │
+│  │    3. Enrich prompt with relevant documents                    │  │
+│  │    4. Forward to Ollama                                         │  │
+│  │    5. Store prompt+response in ChatHistory                     │  │
+│  │    6. Stream response to client                                │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                   │                                  │
+│                                   ▼                                  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    Ollama (Port 11434)                         │  │
+│  │  Models: qwen2.5-coder:7b, llama3.1:8b, qwen2-vl:7b           │  │
+│  │  (managed via `ollama pull` or `ollama create`)                │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    AItao Storage                               │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │  │
+│  │  │  LanceDB    │  │ Meilisearch │  │ ChatHistory │             │  │
+│  │  │  (vectors)  │  │ (full-text) │  │ (indexed)   │             │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘             │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Configuration (`config.yaml`):**
+```yaml
+llm:
+  backend: "ollama"                    # ollama (recommended) or llamacpp
+  ollama:
+    host: "http://localhost:11434"     # Ollama server
+    default_model: "qwen2.5-coder:7b"  # Default for chat
+    models:                            # Models to ensure are available
+      - "qwen2.5-coder:7b"
+      - "llama3.1:8b"
+      - "qwen2-vl:7b"
+  rag:
+    enabled: true
+    max_context_docs: 5                # Max documents to include in context
+    context_max_tokens: 2000           # Max tokens for RAG context
+    system_prompt: "config/system_prompt.txt"
+  chat_history:
+    enabled: true
+    index_conversations: true          # Index prompts/responses for search
+    retention_days: 365                # Keep history for 1 year
+```
+
+**Service Management:**
+```bash
+./aitao.sh start    # Starts: Ollama (if not running) + API + Worker
+./aitao.sh stop     # Stops: API + Worker (Ollama continues for other apps)
+./aitao.sh status   # Shows: Ollama status, models loaded, AItao services
+```
+
+**Key Behaviors:**
+1. **Transparent Proxy**: Clients configure AItao as their "Ollama endpoint" - they don't know the difference
+2. **RAG Enrichment**: Every chat request is enriched with relevant document context
+3. **ChatHistory Indexing**: All prompts and responses are stored and indexed for future search
+4. **Priority Ingestion**: Files requested by user during chat = HIGH priority in queue
+5. **Multi-Model**: Ollama manages model loading/unloading automatically
+
+---
+
 ## 4. Non-Functional Requirements
 
 ### NFR-001: Platform Support
@@ -738,6 +882,13 @@ categories:
 - **Centralized logging:** All modules use shared Logger
 - **Open-source only:** No proprietary dependencies
 
+### NFR-007: LLM Interoperability 📌 NEW
+- **Ollama as LLM backend:** Standard API for maximum compatibility
+- **API Compatibility:** Expose both Ollama-compatible and OpenAI-compatible endpoints
+- **Zero-code integration:** Third-party apps (AnythingLLM, Continue.dev, Open WebUI) connect via `config.yaml` only
+- **Model discovery:** `/api/tags` and `/v1/models` endpoints list all available models
+- **Transparent proxy:** Clients don't need to know about RAG enrichment
+
 ---
 
 ## 5. Technology Stack
@@ -745,16 +896,20 @@ categories:
 ### Core
 - **Language:** Python 3.13+
 - **Dependency Manager:** `uv` (Astral)
-- **Inference Engine:** `llama-cpp-python` (GGUF models)
+- **LLM Backend:** Ollama (multi-model, OpenAI-compatible API)
 - **Vector DB:** LanceDB
 - **Full-text Search:** Meilisearch (host instance)
 - **API Framework:** FastAPI
 - **Config:** YAML (`config.yaml`)
 
-### Models (Pre-downloaded)
-- **LLM:** Qwen-2.5-Coder 7B (code/translation), Llama 3.1 8B (general)
-- **Vision:** Qwen-VL 7B + mmproj (OCR, table extraction)
-- **Embeddings:** sentence-transformers/all-MiniLM-L6-v2
+### Models (via Ollama)
+- **LLM:** `qwen2.5-coder:7b` (code/translation), `llama3.1:8b` (general)
+- **Vision:** `qwen2-vl:7b` (OCR, table extraction)
+- **Embeddings:** sentence-transformers/all-MiniLM-L6-v2 (local, not via Ollama)
+
+### GGUF Models (legacy, for direct llama-cpp use)
+- Located in `_sources/AI-models/`
+- Can be imported to Ollama via `ollama create`
 
 ### Tools
 - **OCR:** AppleScript (macOS native), Qwen-VL (complex)
@@ -767,40 +922,50 @@ categories:
 
 ## 6. Development Phases
 
-### Phase 1: Foundation (Current - Feb 2026) ✅🔄
+### Phase 1: Foundation (Jan 2026) ✅ Complete
 - ✅ Directory structure
 - ✅ Config.yaml schema
-- 🔄 PathManager, Logger, ConfigManager
-- 🔄 CLI (`aitao.sh`) - start/stop/status
-- 📋 Meilisearch integration
-- 📋 LanceDB integration
+- ✅ PathManager, Logger, ConfigManager
+- ✅ CLI (`aitao.sh`) - start/stop/status
+- ✅ Meilisearch integration
+- ✅ LanceDB integration
 
-### Phase 2: Search (Feb-Mar 2026) 🚀
-- 📋 Hybrid search (Meilisearch + LanceDB)
-- 📋 FastAPI REST endpoints
-- 📋 Filesystem scanner + queue system
-- 📋 Background worker
-- 📋 Direct text indexing (txt, md, docx, pdf)
+### Phase 2: Indexation & Search (Jan 2026) ✅ Complete
+- ✅ Filesystem scanner + queue system
+- ✅ Background worker
+- ✅ Direct text indexing (txt, md, docx, pdf)
+- ✅ Hybrid search (Meilisearch + LanceDB)
+- ✅ FastAPI REST endpoints
+- ✅ Health endpoint
 
-### Phase 3: OCR (Mar-Apr 2026) 🔄
+### Phase 3: RAG & LLM (Feb 2026) 🔄 Current
+- 📋 Ollama integration (OllamaClient)
+- 📋 RAG Engine (search + enrich prompt)
+- 📋 Chat endpoint `/api/chat` (Ollama-compatible)
+- 📋 OpenAI-compatible endpoints (`/v1/chat/completions`)
+- 📋 ChatHistory storage + indexing
+- 📋 CLI chat command
+- 📋 Continue.dev / AnythingLLM configuration guide
+
+### Phase 4: OCR (Mar-Apr 2026) 📋
 - 📋 OCR router (detect tables)
 - 📋 AppleScript OCR integration
 - ✅ Qwen-VL OCR (already tested)
 - 📋 Table extraction (JSON output)
 - 📋 OCR cache system
 
-### Phase 4: Translation (Apr-May 2026) 📋
+### Phase 5: Translation (Apr-May 2026) 📋
 - 📋 Translation pipeline (zh-TW → fr/en)
 - 📋 Action extraction (deadlines, entities)
 - 📋 Translation cache
 - 📋 Prompt engineering for accuracy
 
-### Phase 5: Categorization (May-Jun 2026) 📋
+### Phase 6: Categorization (May-Jun 2026) 📋
 - 📋 Auto-categorization (LLM-based)
 - 📋 Category correction UI/API
 - 📋 Feedback loop (corrections.json)
 
-### Phase 6: Polish (Jun-Jul 2026) 🔮
+### Phase 7: Polish (Jun-Jul 2026) 🔮
 - 📋 Dashboard (TUI)
 - 📋 EXIF extraction (images)
 - 📋 System load monitoring
@@ -839,8 +1004,13 @@ categories:
 - **No collaborative features:** Single-user system
 - **No web search:** Removed from V2 scope (focus on local docs)
 
+### V2 Scope (Interoperability) ✅ NEW
+- ✅ **Universal LLM API:** Ollama-compatible + OpenAI-compatible endpoints
+- ✅ **Zero-code integration:** Third-party apps connect via config only
+- ✅ **RAG Hub:** AItao enriches all LLM queries with document context
+- ✅ **ChatHistory indexing:** Search past conversations
+
 ### Future Enhancements (V3+)
-- create a universal connector that accept all module to communicate with api very simply (in/out resquests with specify query)
 - **Fine-tuning:** Use corrections to improve categorization model
 - **Audio/Video:** Transcription support
 - **Image generation:** Local image generation models

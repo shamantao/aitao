@@ -40,6 +40,40 @@ def pytest_sessionstart(session):
     print("   This is normal - the model loads once for all tests.")
     print("=" * 70 + "\n")
 
+
+# =============================================================================
+# LOGGER CLEANUP (Prevent test pollution)
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def cleanup_loggers():
+    """
+    Clean up logger cache and handlers after each test.
+    
+    This prevents state pollution between tests that use get_logger().
+    Without this, loggers accumulate handlers and the cache persists
+    across tests, causing intermittent failures when run as a suite.
+    """
+    import logging
+    
+    yield  # Run the test
+    
+    # Clean up after test
+    try:
+        from src.core import logger as logger_module
+        # Clear the module-level logger cache
+        if hasattr(logger_module, '_loggers'):
+            logger_module._loggers.clear()
+    except ImportError:
+        pass
+    
+    # Also clean up any test loggers from Python's logging
+    for name in list(logging.Logger.manager.loggerDict.keys()):
+        if name.startswith(('test_', 'cached_', 'module', 'fallback', 'indexer')):
+            logger = logging.getLogger(name)
+            logger.handlers.clear()
+
+
 @pytest.fixture(scope="session")
 def embedding_model():
     """

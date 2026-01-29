@@ -143,7 +143,24 @@ class TestHealthEndpoint:
         assert data["services"]["api"]["status"] == "healthy"
     
     def test_health_degraded_when_service_down(self, client):
-        """Test health returns 'degraded' when a service is down."""
+        """Test health returns 'degraded' when ONE service is down."""
+        # Mock LanceDB to fail (but Meilisearch is OK)
+        mock_lancedb_module.LanceDBClient.side_effect = Exception("Connection failed")
+        
+        # Mock Meilisearch to be connected (healthy)
+        mock_meili_instance = MagicMock()
+        mock_meili_instance.is_connected.return_value = True
+        mock_meili_instance.get_stats.return_value = {"numberOfDocuments": 100}
+        mock_meilisearch_module.MeilisearchClient = MagicMock(return_value=mock_meili_instance)
+        
+        response = client.get("/api/health")
+        data = response.json()
+        
+        # With one service down, status should be 'degraded'
+        assert data["status"] == "degraded"
+    
+    def test_health_down_when_all_critical_services_down(self, client):
+        """Test health returns 'down' when ALL critical services are down."""
         # Mock LanceDB to fail
         mock_lancedb_module.LanceDBClient.side_effect = Exception("Connection failed")
         
@@ -155,7 +172,8 @@ class TestHealthEndpoint:
         response = client.get("/api/health")
         data = response.json()
         
-        assert data["status"] == "degraded"
+        # With both critical services down, status should be 'down'
+        assert data["status"] == "down"
 
 
 # ============================================================================

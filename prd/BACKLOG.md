@@ -1,9 +1,9 @@
 # AItao V2.0 - Backlog Agile
 
-**Date:** January 28, 2026  
+**Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.2.14 (Sprint 2 en cours)
+**Version actuelle:** 2.3.16 (Sprint 3 US-016 Complete)
 
 ---
 
@@ -14,6 +14,11 @@
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
+| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 389 | v2.3.16 |
+| Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
+| Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
+| Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
+| Sprint 7: Dashboard & Polish | 📋 Pending | US-033 → US-037 | - | v2.7.x |
 
 ---
 
@@ -387,11 +392,123 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-## Sprint 4: OCR & Extraction (3 semaines - Mars-Avr 2026)
+## Sprint 3: RAG & LLM + Ollama (2 semaines - Fév 2026) 🚀
+
+### Epic 5b: LLM Backend & RAG [MUST]
+
+#### US-016: Créer OllamaClient [MUST] ✅ DONE
+**En tant que** système  
+**Je veux** un client pour interagir avec Ollama  
+**Afin de** faire des inférences LLM avec les modèles disponibles
+
+**Critères d'acceptation:**
+- [x] Classe `OllamaClient` dans `src/llm/ollama_client.py`
+- [x] Méthodes: `list_models()`, `chat()`, `generate()`, `embeddings()`
+- [x] Connexion à Ollama (`config.yaml` → `llm.ollama.host`)
+- [x] Gestion erreurs (Ollama not running, model not found)
+- [x] Streaming support (SSE)
+- [x] Tests unitaires (18 tests)
+
+**Estimation:** 3 points  
+**Dépendances:** US-003 (ConfigManager)  
+**Commit:** Tag: v2.3.16 - Date: 2026-01-29
+
+---
+
+#### US-017: Créer RAGEngine [MUST] 📋
+**En tant que** système  
+**Je veux** enrichir les prompts avec du contexte documentaire  
+**Afin de** fournir des réponses plus pertinentes au LLM
+
+**Critères d'acceptation:**
+- [ ] Classe `RAGEngine` dans `src/llm/rag_engine.py`
+- [ ] Méthodes: `search_context()`, `enrich_prompt()`
+- [ ] Workflow: user prompt → search (LanceDB+Meilisearch) → enrich → return
+- [ ] Config: max_context_docs, context_max_tokens (`config.yaml`)
+- [ ] Retourne: enriched_prompt, context_docs (pour affichage)
+- [ ] Tests unitaires (12 tests)
+
+**Estimation:** 3 points  
+**Dépendances:** US-014 (HybridSearch), US-016 (OllamaClient)
+
+---
+
+#### US-018: Endpoint /api/chat (RAG + Ollama) [MUST] 📋
+**En tant que** utilisateur (via Continue.dev, AnythingLLM, etc.)  
+**Je veux** un endpoint chat compatible Ollama et OpenAI  
+**Afin de** parler avec le LLM enrichi par RAG
+
+**Critères d'acceptation:**
+- [ ] Endpoint `POST /api/chat` (Ollama-compatible format)
+- [ ] Endpoint `POST /v1/chat/completions` (OpenAI-compatible format)
+- [ ] Requête: `{model, messages, stream, ...}`
+- [ ] Workflow: receive prompt → RAG enrichment → forward to Ollama → stream response
+- [ ] Store prompt+response in ChatHistory (indexed)
+- [ ] Streaming SSE support
+- [ ] Tests unitaires (18 tests)
+
+**Estimation:** 5 points  
+**Dépendances:** US-016 (OllamaClient), US-017 (RAGEngine)
+
+---
+
+#### US-019: Configurer Continue.dev [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** que Continue.dev se connecte facilement à AItao  
+**Afin de** utiliser le RAG dans mon IDE
+
+**Critères d'acceptation:**
+- [ ] Documenter configuration Continue.dev (`.continue/config.json`)
+- [ ] Exemple: `"provider": "http://localhost:5000"` → appelle AItao au lieu d'Ollama
+- [ ] Tester avec Continue.dev official IDE extension
+- [ ] Créer guide d'installation (docs/CONTINUE_SETUP.md)
+- [ ] Vérifier modèles disponibles (via `/api/tags`)
+
+**Estimation:** 2 points  
+**Dépendances:** US-018 (/api/chat endpoint)
+
+---
+
+#### US-020: Endpoint /api/models (liste modèles) [MUST] 📋
+**En tant que** client externe  
+**Je veux** découvrir les modèles disponibles  
+**Afin de** choisir le modèle pour mon request
+
+**Critères d'acceptation:**
+- [ ] Endpoint `GET /api/tags` (Ollama-compatible)
+- [ ] Endpoint `GET /v1/models` (OpenAI-compatible)
+- [ ] Retourne liste modèles de Ollama
+- [ ] Format: `{models: [{name, size, digest, modified_at}]}`
+- [ ] Tests unitaires (8 tests)
+
+**Estimation:** 2 points  
+**Dépendances:** US-016 (OllamaClient)
+
+---
+
+#### US-021: CLI chat interactif [SHOULD] 📋
+**En tant que** utilisateur  
+**Je veux** discuter avec le LLM en CLI  
+**Afin de** tester rapidement sans interface externe
+
+**Critères d'acceptation:**
+- [ ] Commande: `./aitao.sh chat`
+- [ ] Interactive mode: user types → AItao searches RAG → LLM responds
+- [ ] Show context documents used (for debugging)
+- [ ] Multi-turn conversation (memory)
+- [ ] Save conversation to history file
+- [ ] Tests unitaires (10 tests)
+
+**Estimation:** 3 points  
+**Dépendances:** US-018 (/api/chat), US-017 (RAGEngine)
+
+---
+
+## Sprint 4: OCR & Extraction (3 semaines - Mar-Apr 2026)
 
 ### Epic 6: OCR Pipeline [MUST]
 
-#### US-016: Détecter tableaux dans PDF/images [SHOULD] 📋
+#### US-022: Détecter tableaux dans PDF/images [SHOULD] 📋
 **En tant que** système  
 **Je veux** détecter la présence de tableaux  
 **Afin de** router vers le bon OCR
@@ -408,7 +525,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-017: Intégrer AppleScript OCR [MUST] 📋
+#### US-023: Intégrer AppleScript OCR [MUST] 📋
 **En tant que** système  
 **Je veux** utiliser l'OCR natif macOS  
 **Afin d'** OCRer rapidement les documents simples
@@ -427,7 +544,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-018: Intégrer Qwen-VL OCR [MUST] 🔄
+#### US-024: Intégrer Qwen-VL OCR [MUST] 🔄
 **En tant que** système  
 **Je veux** utiliser Qwen-VL pour les documents complexes  
 **Afin d'** extraire texte + tableaux avec précision
@@ -447,7 +564,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-019: Créer OCR Router [MUST] 📋
+#### US-025: Créer OCR Router [MUST] 📋
 **En tant que** système  
 **Je veux** un router qui choisit le bon OCR  
 **Afin d'** optimiser vitesse/qualité
@@ -463,13 +580,13 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - [ ] Tests avec divers documents
 
 **Estimation:** 5 points  
-**Dépendances:** US-016, US-017, US-018
+**Dépendances:** US-022, US-023, US-024
 
 ---
 
 ### Epic 7: Extraction EXIF [SHOULD]
 
-#### US-020: Extraire métadonnées EXIF des images [SHOULD] 📋
+#### US-026: Extraire métadonnées EXIF des images [SHOULD] 📋
 **En tant que** système  
 **Je veux** extraire les EXIF des images  
 **Afin d'** enrichir l'indexation
@@ -490,7 +607,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ### Epic 8: Translation Pipeline [MUST]
 
-#### US-021: Créer pipeline de traduction [MUST] 📋
+#### US-027: Créer pipeline de traduction [MUST] 📋
 **En tant que** utilisateur  
 **Je veux** traduire des documents chinois  
 **Afin de** les comprendre en français/anglais
@@ -509,7 +626,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-022: Extraire actions/deadlines [MUST] 📋
+#### US-028: Extraire actions/deadlines [MUST] 📋
 **En tant que** utilisateur  
 **Je veux** extraire les échéances d'un document  
 **Afin de** connaître mes tâches et deadlines
@@ -527,7 +644,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-023: API endpoint /api/translate [MUST] 📋
+#### US-029: API endpoint /api/translate [MUST] 📋
 **En tant que** utilisateur  
 **Je veux** traduire un document via API  
 **Afin de** l'intégrer dans mon workflow
@@ -540,7 +657,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - [ ] Tests unitaires + intégration
 
 **Estimation:** 3 points  
-**Dépendances:** US-021, US-022, US-013 (API)
+**Dépendances:** US-027, US-028, US-013 (API)
 
 ---
 
@@ -548,7 +665,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ### Epic 9: Category Management [SHOULD]
 
-#### US-024: Auto-catégoriser documents [SHOULD] 📋
+#### US-030: Auto-catégoriser documents [SHOULD] 📋
 **En tant que** système  
 **Je veux** catégoriser automatiquement les documents  
 **Afin de** faciliter la recherche
@@ -566,7 +683,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-025: API correction catégories [SHOULD] 📋
+#### US-031: API correction catégories [SHOULD] 📋
 **En tant que** utilisateur  
 **Je veux** corriger les catégories erronées  
 **Afin d'** améliorer le système
@@ -580,11 +697,11 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - [ ] Tests unitaires
 
 **Estimation:** 3 points  
-**Dépendances:** US-013 (API), US-024 (Categorizer)
+**Dépendances:** US-013 (API), US-030 (Categorizer)
 
 ---
 
-#### US-026: Feedback loop catégorisation [COULD] 🔮
+#### US-032: Feedback loop catégorisation [COULD] 🔮
 **En tant que** système  
 **Je veux** utiliser les corrections pour améliorer  
 **Afin d'** augmenter la précision
@@ -596,7 +713,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - [ ] Tests avec corrections simulées
 
 **Estimation:** 5 points  
-**Dépendances:** US-025  
+**Dépendances:** US-031  
 **Note:** Nice-to-have, peut être déféré
 
 ---
@@ -605,7 +722,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ### Epic 10: CLI & Dashboard [SHOULD]
 
-#### US-027: Dashboard TUI (status) [SHOULD] 📋
+#### US-033: Dashboard TUI (status) [SHOULD] 📋
 **En tant que** utilisateur  
 **Je veux** voir le statut d'AItao en CLI  
 **Afin de** monitorer le système
@@ -623,7 +740,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-028: Cronjob daily scan [MUST] 📋
+#### US-034: Cronjob daily scan [MUST] 📋
 **En tant que** système  
 **Je veux** scanner les volumes quotidiennement  
 **Afin d'** indexer les nouveaux fichiers
@@ -641,7 +758,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-029: System load monitor [SHOULD] 📋
+#### US-035: System load monitor [SHOULD] 📋
 **En tant que** système  
 **Je veux** détecter la charge système  
 **Afin de** throttler les tâches background
@@ -661,7 +778,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ### Epic 11: Testing & Documentation [SHOULD]
 
-#### US-030: Tests end-to-end [SHOULD] 📋
+#### US-036: Tests end-to-end [SHOULD] 📋
 **En tant que** développeur  
 **Je veux** des tests E2E  
 **Afin de** garantir le fonctionnement
@@ -678,7 +795,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-031: Documentation utilisateur [SHOULD] 📋
+#### US-037: Documentation utilisateur [SHOULD] 📋
 **En tant que** utilisateur  
 **Je veux** une documentation claire  
 **Afin d'** installer et utiliser AItao
@@ -692,7 +809,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - [ ] FAQ
 
 **Estimation:** 5 points  
-**Dépendances:** US-030
+**Dépendances:** US-036
 
 ---
 

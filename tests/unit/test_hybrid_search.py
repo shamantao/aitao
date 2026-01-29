@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 # ============================================================================
 # Mock Setup (before importing HybridSearchEngine)
+# We save and restore sys.modules to avoid polluting other tests
 # ============================================================================
 
 # Create mock logger
@@ -38,8 +39,12 @@ mock_get_logger = Mock(return_value=mock_logger)
 # Mock logger module
 mock_logger_module = Mock()
 mock_logger_module.get_logger = mock_get_logger
+mock_logger_module.StructuredLogger = Mock
+mock_logger_module.JSONFormatter = Mock
+mock_logger_module.HumanReadableFormatter = Mock
 
-# Insert mock before import
+# Save original module if exists, then mock for import
+_original_logger_module = sys.modules.get("src.core.logger")
 sys.modules["src.core.logger"] = mock_logger_module
 
 
@@ -53,6 +58,12 @@ from src.search.hybrid_engine import (
     SearchResult,
     HybridSearchResponse,
 )
+
+# Restore original module after import to avoid polluting other tests
+if _original_logger_module is not None:
+    sys.modules["src.core.logger"] = _original_logger_module
+else:
+    del sys.modules["src.core.logger"]
 
 
 # ============================================================================
