@@ -5,14 +5,16 @@ This module provides the main FastAPI application with:
 - CORS middleware configuration
 - Request logging
 - Error handlers
-- API routes for search, ingest, health, and stats
+- API routes for search, ingest, health, stats, and chat
 - OpenAPI documentation at /docs
 
 Endpoints:
-- GET  /api/health  - System health check
-- GET  /api/stats   - Index statistics
-- POST /api/search  - Hybrid search
-- POST /api/ingest  - Queue file for indexing
+- GET  /api/health         - System health check
+- GET  /api/stats          - Index statistics
+- POST /api/search         - Hybrid search
+- POST /api/ingest         - Queue file for indexing
+- POST /api/chat           - Chat with RAG (Ollama-compatible)
+- POST /v1/chat/completions - Chat with RAG (OpenAI-compatible)
 """
 
 import time
@@ -40,7 +42,7 @@ except ImportError:
     from core.logger import get_logger
 
 # Version
-__version__ = "2.2.13"
+__version__ = "2.3.18"
 
 # Logger
 logger = get_logger("api")
@@ -231,6 +233,16 @@ async def ingest_batch(request: IngestBatchRequest):
     """
     from src.api.routes.ingest import queue_batch
     return await queue_batch(request)
+
+
+# ============================================================================
+# Chat Routes (mounted via router)
+# ============================================================================
+
+# Import and include chat routes
+from src.api.routes.chat import router as chat_router, openai_router
+app.include_router(chat_router)
+app.include_router(openai_router)
 
 
 # ============================================================================

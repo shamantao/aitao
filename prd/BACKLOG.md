@@ -3,7 +3,7 @@
 **Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.17 (Sprint 3 US-017 Complete)
+**Version actuelle:** 2.3.18 (Sprint 3 US-018 Complete)
 
 ---
 
@@ -14,7 +14,7 @@
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
-| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 410 | v2.3.16 → v2.3.17 |
+| Sprint 3: RAG & LLM | 🔄 In Progress | US-016 → US-021 | 432 | v2.3.16 → v2.3.18 |
 | Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
 | Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
 | Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
@@ -434,22 +434,23 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-018: Endpoint /api/chat (RAG + Ollama) [MUST] 📋
+#### US-018: Endpoint /api/chat (RAG + Ollama) [MUST] ✅ DONE
 **En tant que** utilisateur (via Continue.dev, AnythingLLM, etc.)  
 **Je veux** un endpoint chat compatible Ollama et OpenAI  
 **Afin de** parler avec le LLM enrichi par RAG
 
 **Critères d'acceptation:**
-- [ ] Endpoint `POST /api/chat` (Ollama-compatible format)
-- [ ] Endpoint `POST /v1/chat/completions` (OpenAI-compatible format)
-- [ ] Requête: `{model, messages, stream, ...}`
-- [ ] Workflow: receive prompt → RAG enrichment → forward to Ollama → stream response
-- [ ] Store prompt+response in ChatHistory (indexed)
-- [ ] Streaming SSE support
-- [ ] Tests unitaires (18 tests)
+- [x] Endpoint `POST /api/chat` (Ollama-compatible format)
+- [x] Endpoint `POST /v1/chat/completions` (OpenAI-compatible format)
+- [x] Requête: `{model, messages, stream, ...}`
+- [x] Workflow: receive prompt → RAG enrichment → forward to Ollama → stream response
+- [x] RAG context metadata in response (rag_context field)
+- [x] Streaming SSE support
+- [x] Tests unitaires (22 tests)
 
 **Estimation:** 5 points  
-**Dépendances:** US-016 (OllamaClient), US-017 (RAGEngine)
+**Dépendances:** US-016 (OllamaClient), US-017 (RAGEngine)  
+**Commit:** Tag: v2.3.18 - Date: 2026-01-30
 
 ---
 
