@@ -498,6 +498,76 @@ class TaskQueue:
         
         return removed
     
+    def reset_stuck_tasks(self, timeout_seconds: int = 600) -> int:
+        """
+        Reset tasks stuck in 'processing' status back to 'pending'.
+        
+        Tasks are considered stuck if they have been in 'processing' status
+        for longer than timeout_seconds. This handles cases where the worker
+        crashed without properly completing or failing the task.
+        
+        Args:
+            timeout_seconds: Time in seconds after which a processing task
+                           is considered stuck (default: 600 = 10 minutes)
+        
+        Returns:
+            Number of tasks reset
+        """
+        from datetime import datetime, timezone
+        
+        tasks = self._load_tasks()
+        now = datetime.now(timezone.utc)
+        reset_count = 0
+        
+        for task in tasks:
+            if task.status != TaskStatus.PROCESSING.value:
+                continue
+            
+            if not task.started_at:
+                # No start time, definitely stuck
+                task.status = TaskStatus.PENDING.value
+                task.started_at = None
+                reset_count += 1
+                continue
+            
+            # Parse started_at and check age
+            try:
+                # Handle various ISO formats
+                started_str = task.started_at.replace('Z', '+00:00')
+                if '+' not in started_str and '-' not in started_str[-6:]:
+                    # No timezone, assume UTC
+                    started = datetime.fromisoformat(started_str).replace(tzinfo=timezone.utc)
+                else:
+                    started = datetime.fromisoformat(started_str)
+                
+                age_seconds = (now - started).total_seconds()
+                
+                if age_seconds > timeout_seconds:
+                    _get_logger().warning(
+                        f"Resetting stuck task",
+                        metadata={
+                            "task_id": task.id,
+                            "file": task.file_path,
+                            "stuck_for_seconds": int(age_seconds)
+                        }
+                    )
+                    task.status = TaskStatus.PENDING.value
+                    task.started_at = None
+                    reset_count += 1
+                    
+            except (ValueError, TypeError) as e:
+                # Can't parse date, reset to be safe
+                _get_logger().warning(f"Cannot parse started_at for task {task.id}: {e}")
+                task.status = TaskStatus.PENDING.value
+                task.started_at = None
+                reset_count += 1
+        
+        if reset_count > 0:
+            self._save_tasks(tasks)
+            _get_logger().info(f"Reset {reset_count} stuck tasks to pending")
+        
+        return reset_count
+    
     def clear_all(self) -> int:
         """
         Remove all tasks from the queue.

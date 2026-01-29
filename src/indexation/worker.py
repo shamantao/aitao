@@ -51,6 +51,7 @@ class WorkerConfig:
     max_consecutive_errors: int = 5  # Errors before pause
     error_pause_time: int = 60       # Seconds to pause after errors
     shutdown_timeout: int = 30       # Seconds to wait for graceful shutdown
+    stuck_task_timeout: int = 600    # Seconds before a processing task is considered stuck (10 min)
 
 
 @dataclass
@@ -313,6 +314,29 @@ class BackgroundWorker:
             )
             return False
     
+    def _reset_stuck_tasks(self) -> int:
+        """
+        Reset tasks that are stuck in 'processing' status.
+        
+        This handles recovery from worker crashes where tasks were
+        marked as processing but never completed.
+        
+        Returns:
+            Number of tasks reset
+        """
+        try:
+            reset_count = self.queue.reset_stuck_tasks(
+                timeout_seconds=self.worker_config.stuck_task_timeout
+            )
+            if reset_count > 0:
+                _get_logger().info(
+                    f"Reset {reset_count} stuck tasks at startup/check"
+                )
+            return reset_count
+        except Exception as e:
+            _get_logger().error(f"Error resetting stuck tasks: {e}")
+            return 0
+    
     def _poll_and_process(self) -> bool:
         """
         Poll queue and process one task.
@@ -364,10 +388,24 @@ class BackgroundWorker:
         self.stats.is_running = True
         self.stats.started_at = datetime.now().isoformat()
         
+        # Reset any stuck tasks from previous crash
+        self._reset_stuck_tasks()
+        
+        # Counter for periodic stuck task check
+        polls_since_stuck_check = 0
+        stuck_check_interval = 10  # Check every 10 polls (~5 minutes)
+        
         try:
             while not self._shutdown_requested:
                 try:
                     self._poll_and_process()
+                    
+                    # Periodically check for stuck tasks
+                    polls_since_stuck_check += 1
+                    if polls_since_stuck_check >= stuck_check_interval:
+                        self._reset_stuck_tasks()
+                        polls_since_stuck_check = 0
+                        
                 except Exception as e:
                     _get_logger().error(f"Error in poll loop: {e}")
                 
