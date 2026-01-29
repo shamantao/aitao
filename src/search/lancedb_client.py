@@ -113,13 +113,28 @@ class LanceDBClient:
             if self._config else "sentence-transformers/all-MiniLM-L6-v2"
         )
         
+        # Check if offline mode is enabled (avoid HuggingFace API calls)
+        offline_mode = (
+            self._config.get("search.lancedb.offline_mode", False)
+            if self._config else False
+        )
+        
         # Initialize embedding model
         self.logger.info(
             "Loading embedding model",
-            metadata={"model": model_name}
+            metadata={"model": model_name, "offline": offline_mode}
         )
         try:
-            self._embedding_model = SentenceTransformer(model_name)
+            # Set environment variable for HuggingFace offline mode
+            if offline_mode:
+                import os
+                os.environ["HF_HUB_OFFLINE"] = "1"
+                os.environ["TRANSFORMERS_OFFLINE"] = "1"
+            
+            self._embedding_model = SentenceTransformer(
+                model_name,
+                local_files_only=offline_mode
+            )
             self.dimension = self._embedding_model.get_sentence_embedding_dimension()
         except Exception as e:
             raise LanceDBError(f"Failed to load embedding model: {e}")

@@ -1104,6 +1104,37 @@ def _default_handler(file_path: Path) -> IndexResult:
     # OR: actual implementation
 ```
 
+### AC-005: Central Interface Registry 🆕
+**Rule:** Shared data structures, constants, and function signatures used by multiple modules MUST be defined in `src/core/registry.py`.
+
+**Rationale:** Bugs like `result.error` vs `result.error_message` happen when modules define similar structures independently. A central registry ensures consistency.
+
+**Registry contains:**
+- `ConfigKeys`: All config.yaml key paths (prevents typos)
+- `TaskStatus`, `TaskPriority`, `TaskType`: Queue enums
+- `Task`, `IndexResult`, `SearchResult`: Data structures
+- `Defaults`: Timeout values, ports, model names
+- `APIEndpoints`: All API route paths
+
+**Example:**
+```python
+# ❌ FORBIDDEN - Defining locally in multiple modules
+@dataclass
+class IndexResult:
+    error_message: str  # Wrong name!
+
+# ✅ REQUIRED - Import from registry
+from src.core.registry import IndexResult, ConfigKeys
+
+result = IndexResult(success=True, error=None)  # Correct attribute
+path = config.get(ConfigKeys.LANCEDB_PATH)  # No typos
+```
+def _default_handler(file_path: Path) -> IndexResult:
+    """Handle files without specific extractor."""
+    raise NotImplementedError("Default handler not implemented")
+    # OR: actual implementation
+```
+
 ---
 
 ## 11. Sprint Acceptance Protocol 🧪 NEW

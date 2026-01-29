@@ -23,6 +23,7 @@ import sys
 import time
 import signal
 import psutil
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Callable, Dict, Any
@@ -33,8 +34,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import ConfigManager
 from core.logger import get_logger
-from indexation.queue import TaskQueue, Task, TaskStatus
-from indexation.indexer import DocumentIndexer
+from src.indexation.queue import TaskQueue, Task, TaskStatus
+from src.indexation.indexer import DocumentIndexer
 
 
 def _get_logger():
@@ -433,7 +434,10 @@ class BackgroundWorker:
     
     def start_daemon(self) -> bool:
         """
-        Start the worker as a background daemon.
+        Start the worker as a background daemon using subprocess.
+        
+        Uses subprocess.Popen instead of os.fork() for macOS Metal compatibility.
+        The fork() system call is not safe with Metal/MPS GPU libraries.
         
         Returns:
             True if started successfully, False otherwise
@@ -442,35 +446,40 @@ class BackgroundWorker:
             _get_logger().warning("Worker already running")
             return False
         
-        pid = os.fork()
+        # Use subprocess instead of fork for Metal/MPS compatibility
+        # Find project root to run the worker script
+        project_root = Path(__file__).parent.parent.parent
+        python_exe = sys.executable
+        worker_script = project_root / "scripts" / "run_worker.py"
         
-        if pid > 0:
-            # Parent process
-            _get_logger().info(f"Worker started with PID {pid}")
-            return True
-        else:
-            # Child process (daemon)
-            try:
-                # Detach from parent
-                os.setsid()
+        # Use dedicated worker script (avoids inline import issues)
+        worker_cmd = [python_exe, str(worker_script)]
+        
+        try:
+            # Start worker as detached subprocess
+            process = subprocess.Popen(
+                worker_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,  # Detach from parent
+                cwd=str(project_root),
+            )
+            
+            # Give it a moment to start
+            time.sleep(0.5)
+            
+            # Check if it started successfully
+            if process.poll() is None:
+                _get_logger().info(f"Worker started with PID {process.pid}")
+                return True
+            else:
+                _get_logger().error("Worker failed to start")
+                return False
                 
-                # Close standard file descriptors
-                sys.stdin.close()
-                sys.stdout.close()
-                sys.stderr.close()
-                
-                # Redirect to /dev/null
-                sys.stdin = open(os.devnull, 'r')
-                sys.stdout = open(os.devnull, 'w')
-                sys.stderr = open(os.devnull, 'w')
-                
-                # Run the worker
-                self.run()
-                
-            except Exception as e:
-                _get_logger().error(f"Daemon error: {e}")
-            finally:
-                os._exit(0)
+        except Exception as e:
+            _get_logger().error(f"Failed to start worker: {e}")
+            return False
     
     def stop_daemon(self, timeout: int = 10) -> bool:
         """

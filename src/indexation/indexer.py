@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import json
 import logging
 
-from indexation.text_extractor import TextExtractor, ExtractionResult
+from src.indexation.text_extractor import TextExtractor, ExtractionResult
 from search.lancedb_client import LanceDBClient, LanceDBError
 from search.meilisearch_client import MeilisearchClient, MeilisearchError
 
