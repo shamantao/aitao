@@ -3,7 +3,7 @@
 **Date:** January 29, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.20 (Sprint 3 Complete ✅)
+**Version actuelle:** 2.3.21.2 (Sprint Q&A In Progress 🔍)
 
 ---
 
@@ -15,7 +15,7 @@
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
 | Sprint 3: RAG & LLM | ✅ Complete | US-016 → US-021 | 461 | v2.3.16 → v2.3.20 |
-| **Sprint Fantôme: Vérifications** | 🔍 In Progress | QA-001 → QA-005 | - | v2.3.20 |
+| **Sprint Q&A: Vérifications** | 🔍 In Progress | QA-001 → QA-006 | - | v2.3.21.x |
 | Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
 | Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
 | Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
@@ -515,7 +515,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-## 🔍 Sprint Fantôme: Vérifications & Fixes (1 semaine - Jan 29 2026)
+## 🔍 Sprint Q&A: Vérifications & Fixes (1 semaine - Jan 29 2026)
 
 ### QA-001: Vérifier CLI aitao.sh commands [MUST]
 **Problème:** Commande `./aitao.sh stop` échoue avec "No such command 'stop'"  
@@ -564,18 +564,46 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-### QA-003: Tester démarrage services après fixes [SHOULD]
-**Objectif:** Vérifier que tous les services démarrent correctement
+### QA-003: Tests E2E Startup Chain + Fix Lifecycle [MUST] 🚨
+**Problème CRITIQUE:** 476 tests unitaires passent mais l'application ne fonctionne pas!  
+**Cause:** `./aitao.sh start` ne démarre que Meilisearch, pas le pipeline complet.
 
-**Tests à faire:**
-- [ ] `./aitao.sh status` → Affiche état système
-- [ ] `./aitao.sh ms status` → Meilisearch OK
-- [ ] `./aitao.sh db status` → LanceDB OK
-- [ ] `./aitao.sh worker status` → Worker running
-- [ ] Paths corrects: `$STORAGE_ROOT` non littéral
+**Objectif:** Garantir que le système fonctionne de bout en bout.
 
-**Estimation:** 2 points  
-**Status:** ⏳ À faire
+**Critères d'acceptation:**
+
+**1. Corriger lifecycle.py pour démarrer TOUS les services:**
+- [ ] Meilisearch (brew services) ✅ déjà fait
+- [ ] API FastAPI (port 5000)
+- [ ] Worker daemon (background indexing)
+- [ ] Initial scan trigger (populate queue)
+
+**2. Créer tests E2E (Smoke Tests):**
+- [ ] `tests/e2e/test_startup_chain.py`
+- [ ] Test: `./aitao.sh start` → tous services running
+- [ ] Test: Scan → Queue populated → Worker processes → Documents indexed
+- [ ] Test: `./aitao.sh search "test"` → Retourne des résultats
+- [ ] Test: `./aitao.sh stop` → Tous services arrêtés proprement
+
+**3. Mettre à jour la Définition de "Done":**
+- [ ] Ajouter: "Test E2E prouve que la fonctionnalité est accessible à l'utilisateur final"
+- [ ] Ajouter: "Validation manuelle du workflow complet avant clôture de sprint"
+
+**Workflow attendu après fix:**
+```bash
+./aitao.sh start
+    ↓
+1. Meilisearch starts (brew services)
+2. API FastAPI starts (port 5000)
+3. Worker daemon starts (background)
+4. Initial scan runs (add files to queue)
+5. Worker processes queue (indexing with progress)
+```
+
+**Estimation:** 5 points  
+**Dépendances:** QA-001, QA-002  
+**Status:** ✅ COMPLÉTÉ  
+**Version:** 2.3.21.3
 
 ---
 
@@ -606,11 +634,39 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-**Sprint Fantôme Résumé:**
-- Diagnostic: CLI commands structure issue (documentation)
-- Fixes: Path variable substitution (committed)
-- Cleanup: Bad files removed (committed)
-- Remaining: Service testing, docs, schema validation
+---
+
+### QA-006: Nettoyage Legacy V1 [MUST] 🧹
+**Problème:** Du code legacy de la V1 pollue le workspace et cause des confusions.
+
+**Objectif:** Identifier et supprimer TOUT ce qui n'est pas défini dans le PRD/Backlog.
+
+**Fichiers legacy identifiés à supprimer:**
+- [ ] `src/core/sync_agent.py` - Watcher legacy (pas dans PRD)
+- [ ] `src/core/server.py` - Serveur port 18000 (legacy, API = port 5000)
+- [ ] Références au port 18000 dans config
+- [ ] Tout fichier dans `tmp/aitao_legacy_*` (déjà hors git)
+
+**Actions:**
+- [ ] Scanner l'arborescence pour fichiers non-référencés dans PRD
+- [ ] Lister les imports orphelins
+- [ ] Supprimer les fichiers legacy
+- [ ] Vérifier que les tests passent après nettoyage
+- [ ] Commit: "chore: remove legacy V1 code"
+
+**Estimation:** 3 points  
+**Status:** ⏳ À faire  
+**Version cible:** 2.3.21.6
+
+---
+
+**Sprint Q&A Résumé:**
+- ✅ QA-001: Commandes start/stop/restart ajoutées
+- ✅ QA-002: Variables config.yaml corrigées
+- ✅ QA-003: Tests E2E + Fix lifecycle (CRITIQUE)
+- ⏳ QA-004: Documentation CLI
+- ⏳ QA-005: Validation schema config.yaml
+- ⏳ QA-006: Nettoyage legacy V1
 
 ---
 
@@ -951,6 +1007,14 @@ Une US est considérée "Done" quand:
 5. ✅ Documentation inline (docstrings)
 6. ✅ Logs JSON pour debugging
 7. ✅ Intégré dans branche `pdr/v2-remodular`
+8. 🚨 **Test E2E prouve que la fonctionnalité est accessible à l'utilisateur final**
+9. 🚨 **Validation manuelle du workflow complet avant clôture de sprint**
+
+### ⚠️ Leçon Apprise (QA-003):
+> 476 tests unitaires ont passé pendant que l'application ne fonctionnait pas.
+> Les tests unitaires testent les composants ISOLÉS.
+> Les tests E2E testent l'EXPÉRIENCE UTILISATEUR RÉELLE.
+> **Un composant qui fonctionne seul mais n'est pas câblé = fonctionnalité inexistante.**
 
 ---
 
