@@ -40,11 +40,11 @@ def mock_rag_engine():
 
 @pytest.fixture
 def mock_config():
-    """Create a mock ConfigManager."""
-    with patch("src.cli.chat.ConfigManager") as MockConfig:
+    """Create a mock ConfigManager via get_config singleton."""
+    with patch("src.cli.chat.get_config") as MockGetConfig:
         config = MagicMock()
         config.get.return_value = "test-model:7b"
-        MockConfig.return_value = config
+        MockGetConfig.return_value = config
         yield config
 
 

@@ -28,7 +28,7 @@ from typing import List, Dict, Any, Optional
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.core.config import ConfigManager
+from src.core.config import ConfigManager, get_config
 from src.core.logger import get_logger
 from src.core.pathmanager import path_manager
 from src.llm.ollama_client import (
@@ -108,7 +108,7 @@ class ChatSession:
             show_context: Whether to display RAG context documents
             save_history: Whether to save conversation to file
         """
-        self.config = config or ConfigManager()
+        self.config = config or get_config()
         self.logger = get_logger("cli.chat")
         
         # Initialize clients

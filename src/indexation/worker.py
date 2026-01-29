@@ -138,10 +138,13 @@ class BackgroundWorker:
         
         # PID file path
         if self.config_manager:
-            storage_root = self.config_manager.get("paths.storage_root", "data")
-            storage_path = Path(os.path.expandvars(storage_root)).expanduser()
+            storage_root = self.config_manager.get("paths.storage_root")
+            if storage_root:
+                storage_path = Path(os.path.expandvars(storage_root)).expanduser()
+            else:
+                raise ValueError("storage_root not configured - check config.yaml")
         else:
-            storage_path = Path("data")
+            raise ValueError("ConfigManager required for worker initialization")
         self.pid_file = storage_path / "worker.pid"
         
         # Register signal handlers

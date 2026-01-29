@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD)
 # AI Tao 2.0 - Local-First Search & Translation Engine
 
-**Version:** 2.2.15  
-**Date:** January 28, 2026  
-**Status:** Active - Sprint 3 RAG/LLM starting  
+**Version:** 2.3.22  
+**Date:** January 29, 2026  
+**Status:** Active - Sprint Q&A (Quality Assurance)  
 **Author:** shamantao (AI Tao Project)  
 **Branch:** `pdr/v2-remodular`
 
@@ -1032,7 +1032,135 @@ llm:
 
 ---
 
-## 10. Open Questions
+## 10. Architecture Contracts 🔒 NEW
+
+**Purpose:** Define mandatory architectural rules that MUST be enforced across the entire codebase. These contracts prevent integration bugs that unit tests with mocks cannot catch.
+
+**Verification:** Run `python scripts/check_contracts.py` before each commit.
+
+### AC-001: ConfigManager Singleton Usage
+**Rule:** All components MUST use `get_config()` to access configuration. Direct `ConfigManager()` instantiation is FORBIDDEN outside of `src/core/config.py`.
+
+**Rationale:** Multiple ConfigManager instances can read different configs or use different paths, causing subtle bugs where components disagree on storage locations.
+
+**Example:**
+```python
+# ❌ FORBIDDEN
+config = ConfigManager()
+path = config.get("paths", "lancedb_path")
+
+# ✅ REQUIRED
+from src.core.config import get_config
+config = get_config()
+path = config.get("paths", "lancedb_path")
+```
+
+### AC-002: No Hardcoded Paths
+**Rule:** NO hardcoded paths like `"data/"`, `"./data/"`, `Path("data")` in source files. All paths MUST come from ConfigManager or PathManager.
+
+**Rationale:** Hardcoded fallback paths cause components to write to unexpected locations when config is missing or malformed.
+
+**Example:**
+```python
+# ❌ FORBIDDEN
+db_path = self.db_path or "data/lancedb"
+
+# ✅ REQUIRED
+db_path = config.get("paths", "lancedb_path")
+if not db_path:
+    raise ConfigError("lancedb_path not configured")
+```
+
+### AC-003: Structured Logging Only
+**Rule:** Production code (`src/`) MUST use the structured logger. `print()` statements are FORBIDDEN in production code.
+
+**Rationale:** Print statements bypass log rotation, structured formatting, and make debugging harder. Test and script files are exempt.
+
+**Example:**
+```python
+# ❌ FORBIDDEN
+print(f"Processing {file_path}")
+
+# ✅ REQUIRED
+logger.info("Processing file", file_path=str(file_path))
+```
+
+### AC-004: No Placeholder Functions
+**Rule:** Functions MUST have real implementations. Functions that only contain `pass`, `return None`, or just a docstring are FORBIDDEN.
+
+**Rationale:** Placeholder functions that "do nothing" cause silent failures in production. If a function isn't ready, it should raise `NotImplementedError`.
+
+**Example:**
+```python
+# ❌ FORBIDDEN
+def _default_handler(file_path: Path) -> IndexResult:
+    """Handle files without specific extractor."""
+    pass
+
+# ✅ REQUIRED
+def _default_handler(file_path: Path) -> IndexResult:
+    """Handle files without specific extractor."""
+    raise NotImplementedError("Default handler not implemented")
+    # OR: actual implementation
+```
+
+---
+
+## 11. Sprint Acceptance Protocol 🧪 NEW
+
+**Purpose:** Prevent releasing code that passes unit tests but fails in real usage. Every sprint MUST complete this protocol before marking "Done".
+
+### 11.1 Smoke Test Checklist
+
+Before closing a sprint, manually verify these critical paths:
+
+| Test | Command | Expected Result |
+|------|---------|-----------------|
+| Start services | `./aitao.sh start` | API + Worker running, no errors |
+| Stop services | `./aitao.sh stop` | Clean shutdown, PIDs removed |
+| Health check | `curl localhost:5000/api/health` | `{"status": "healthy"}` |
+| Search query | `./aitao.sh search "test"` | Results or "0 results" (no crash) |
+| Index file | `./aitao.sh index /path/to/file.txt` | File indexed, appears in search |
+| Config reload | `./aitao.sh restart` | Services restart with new config |
+
+### 11.2 Integration Test Matrix
+
+Unit tests with mocks don't catch integration failures. These tests use REAL components:
+
+| Component A | Component B | Test Scenario |
+|-------------|-------------|---------------|
+| ConfigManager | LanceDB | LanceDB uses correct configured path |
+| ConfigManager | Queue | Queue uses correct configured path |
+| ConfigManager | Worker | Worker finds queue at configured path |
+| Scanner | Queue | Scanned files appear in queue |
+| Worker | LanceDB | Indexed files searchable in LanceDB |
+| API | LanceDB | Search endpoint returns indexed docs |
+| CLI | API | CLI commands produce expected output |
+
+### 11.3 Contract Verification
+
+Run before each PR/merge:
+```bash
+python scripts/check_contracts.py
+```
+
+If any violations are found, the PR MUST NOT be merged.
+
+### 11.4 Definition of Done (Enhanced)
+
+A sprint is "Done" only when:
+
+1. ✅ All unit tests pass (`pytest`)
+2. ✅ All integration tests pass (real components, not mocks)
+3. ✅ Architecture contracts verified (`check_contracts.py`)
+4. ✅ Smoke tests passed manually (Checklist 11.1)
+5. ✅ No new `TODO` or `FIXME` without issue reference
+6. ✅ Version bumped in `pyproject.toml`
+7. ✅ PRD updated if scope changed
+
+---
+
+## 12. Open Questions
 
 1. **Meilisearch vs Standalone:** Use host instance or bundle Meilisearch Docker?  
    **Decision:** Benchmark both, prefer host for simplicity.

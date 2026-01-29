@@ -54,11 +54,12 @@ _start_time: Optional[float] = None
 _config: Optional[ConfigManager] = None
 
 
-def get_config() -> ConfigManager:
-    """Get or create config manager instance."""
+def get_app_config() -> ConfigManager:
+    """Get or create config manager instance via singleton."""
     global _config
     if _config is None:
-        _config = ConfigManager()
+        from src.core.config import get_config
+        _config = get_config()
     return _config
 
 
@@ -86,7 +87,7 @@ app = FastAPI(
 
 def configure_cors(app: FastAPI) -> None:
     """Configure CORS middleware from config."""
-    config = get_config()
+    config = get_app_config()
     
     # Get CORS origins from config, default to localhost
     cors_origins = config.get("api.cors_origins", ["http://localhost:3000", "http://localhost:5173"])
@@ -265,7 +266,7 @@ def run_server(host: str = "127.0.0.1", port: int = 5000, reload: bool = False):
     """Run the API server with uvicorn."""
     import uvicorn
     
-    config = get_config()
+    config = get_app_config()
     host = config.get("api.host", host)
     port = config.get("api.port", port)
     

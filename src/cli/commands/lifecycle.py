@@ -36,7 +36,7 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 from cli.utils import console, success, error, warning, info, status_line
-from core.config import ConfigManager
+from core.config import ConfigManager, get_config
 
 app = typer.Typer(help="Service lifecycle management")
 
@@ -53,7 +53,7 @@ def _get_api_port() -> int:
         import os
         os.chdir(project_root)
         
-        config = ConfigManager()
+        config = get_config()
         port = config.get("api.port", 5000)
         return port if isinstance(port, int) else int(port)
     except Exception as e:

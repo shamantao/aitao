@@ -40,7 +40,8 @@ def get_ollama_client() -> OllamaClient:
     """Get or create Ollama client."""
     global _ollama_client
     if _ollama_client is None:
-        config = ConfigManager()
+        from src.core.config import get_config
+        config = get_config()
         _ollama_client = OllamaClient(config, logger)
     return _ollama_client
 
