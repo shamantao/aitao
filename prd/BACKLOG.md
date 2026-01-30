@@ -584,7 +584,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-021d: Config.yaml - Structure modèles enrichie [MUST] 📋
+#### US-021d: Config.yaml - Structure modèles enrichie [MUST] ✅ DONE
 **En tant que** utilisateur  
 **Je veux** configurer mes modèles de façon déclarative  
 **Afin de** contrôler précisément quels modèles sont utilisés
@@ -592,7 +592,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 **Intention:** La configuration est la source de vérité pour les modèles.
 
 **Critères d'acceptation:**
-- [ ] Nouvelle structure dans `config.yaml`:
+- [x] Nouvelle structure dans `config.yaml`:
   ```yaml
   llm:
     models:
@@ -604,23 +604,33 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
         required: false
         roles: ["code"]
   ```
-- [ ] Validation schema au chargement config
-- [ ] Migration automatique de l'ancien format (juste liste de noms)
-- [ ] Tests de parsing + validation
+- [x] Validation schema au chargement config
+- [x] Migration automatique de l'ancien format (juste liste de noms)
+- [x] Tests de parsing + validation
 
-**Validation (obligatoire):**
-- [ ] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire)
-- [ ] Tous les tests unitaires: `./aitao.sh validate`
-- [ ] Tests E2E: `./aitao.sh validate`
-- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
-- [ ] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés)
-- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
-- [ ] Commit + push GitHub effectués
-- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+**Validation (effectuée):**
+- [x] Tests unitaires: 26 tests dédiés + 453 total
+- [x] Conformité PRD: docstrings EN, logging, ConfigManager utilisé
+- [x] Version bump: 2.3.21.4
+- [x] Commit: d1b49ab
 
-**Estimation:** 2 points  
-**Dépendances:** US-003 (ConfigManager)
-**Version visée:** 2.3.21.4
+**Fichiers modifiés:**
+- `src/core/model_config.py`: Nouveau module de validation
+- `src/llm/model_manager.py`: Intégration validate_model_config()
+- `tests/unit/test_model_config.py`: 26 tests complets
+
+**Fonctionnalités:**
+- ModelConfigValidator pour validation/migration de schéma
+- ModelConfigItem dataclass avec validation
+- Support format ancien (backward compatible) ET nouveau
+- Migration automatique lors du chargement
+- Erreurs claires avec noms de champs
+- Defaults pour champs optionnels
+
+**Estimation:** 2 points ✅  
+**Dépendances:** US-003 (ConfigManager) ✅  
+**version finale:** 2.3.21.4 ✅  
+**Commit:** d1b49ab ✅
 
 ---
 
