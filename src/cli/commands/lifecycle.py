@@ -62,6 +62,11 @@ def _get_api_port() -> int:
         return 5000
 
 
+def get_api_port() -> int:
+    """Public helper to retrieve the API port."""
+    return _get_api_port()
+
+
 def _run_command(name: str, command: list, timeout: int = 30) -> bool:
     """
     Run a command and return success status.
@@ -181,6 +186,16 @@ def _stop_api_server() -> bool:
         return True
     except Exception:
         return False
+
+
+def start_api() -> Tuple[bool, Optional[int]]:
+    """Public helper to start the API server."""
+    return _start_api_server()
+
+
+def stop_api() -> bool:
+    """Public helper to stop the API server."""
+    return _stop_api_server()
 
 
 def _start_worker() -> Tuple[bool, Optional[int]]:

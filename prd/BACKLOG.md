@@ -584,6 +584,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 **Estimation:** 3 points  
 **Dépendances:** US-021b (ModelManager)
+**version cible:** 2.3.21c (after validation)
 
 ---
 

@@ -1,11 +1,11 @@
 """
 Health check endpoint handler.
 
-This module provides system health monitoring:
-- API status
-- LanceDB connectivity
-- Meilisearch connectivity
-- Worker status
+This module provides two health check endpoints:
+1. /api/health - Fast minimal check (API is responding)
+2. /api/health/debug - Detailed diagnostics (all services + stats)
+
+Design principle: Minimal endpoint for monitoring, detailed endpoint for debugging.
 """
 
 import time
@@ -110,19 +110,85 @@ async def check_service_worker() -> ServiceStatus:
 
 async def check_health(start_time: Optional[float], version: str) -> HealthResponse:
     """
-    Perform full health check on all services.
+    Minimal fast health check - API is responding?
+    
+    This is the SIMPLE endpoint used for monitoring (e.g., load balancers, CLI status).
+    Returns instantly without checking dependent services.
     
     Args:
         start_time: API start timestamp for uptime calculation
         version: API version string
     
     Returns:
-        HealthResponse with status of all services
+        HealthResponse with minimal info (API status + uptime)
     """
+    # API is healthy if we reach this point (FastAPI app is responding)
+    api_status = ServiceStatus(
+        name="api",
+        status="healthy",
+        message=f"Version {version}",
+    )
+    
+    # Calculate uptime
+    uptime = None
+    if start_time:
+        uptime = time.time() - start_time
+    
+    # Minimal response - just the API itself
+    return HealthResponse(
+        status="healthy",
+        version=version,
+        timestamp=datetime.now(timezone.utc),
+        services={"api": api_status},
+        uptime_seconds=round(uptime, 2) if uptime else None,
+    )
+
+
+async def check_health_debug(start_time: Optional[float], version: str) -> HealthResponse:
+    """
+    Detailed health check - all services + diagnostic info.
+    
+    This is the DEBUG endpoint used for diagnostics and troubleshooting.
+    Checks LanceDB, Meilisearch, Worker, and includes detailed metrics.
+    
+    WARNING: This endpoint is SLOW (~2+ seconds) because it performs full-table
+    scans on LanceDB and loads all documents. Use /api/health for monitoring.
+    
+    Args:
+        start_time: API start timestamp for uptime calculation
+        version: API version string
+    
+    Returns:
+        HealthResponse with detailed service diagnostics
+    """
+    # Profile each service check
+    check_start = time.time()
+    
     # Check all services
+    lancedb_start = time.time()
     lancedb_status = await check_service_lancedb()
+    lancedb_time = (time.time() - lancedb_start) * 1000
+    
+    meilisearch_start = time.time()
     meilisearch_status = await check_service_meilisearch()
+    meilisearch_time = (time.time() - meilisearch_start) * 1000
+    
+    worker_start = time.time()
     worker_status = await check_service_worker()
+    worker_time = (time.time() - worker_start) * 1000
+    
+    total_check_time = (time.time() - check_start) * 1000
+    
+    # Log timings for profiling (visible only in DEBUG mode)
+    logger.info(
+        "Debug health check breakdown",
+        metadata={
+            "lancedb_ms": round(lancedb_time, 2),
+            "meilisearch_ms": round(meilisearch_time, 2),
+            "worker_ms": round(worker_time, 2),
+            "total_ms": round(total_check_time, 2),
+        }
+    )
     
     # API is always healthy if we reach this point
     api_status = ServiceStatus(

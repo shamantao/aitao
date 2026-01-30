@@ -34,6 +34,7 @@ from cli.commands import index as index_cmd
 from cli.commands import search as search_cmd
 from cli.commands import lifecycle as lifecycle_cmd
 from cli.commands import models as models_cmd
+from cli.commands import api as api_cmd
 
 # Import version
 try:
@@ -183,6 +184,17 @@ def _show_detailed_help():
     models_table.add_row("models remove <name>", "Remove model from config (future)")
     console.print(models_table)
     console.print()
+
+    # API commands
+    console.print("[bold]API Server (api):[/bold]")
+    api_table = Table(show_header=False, box=None, padding=(0, 2))
+    api_table.add_column("Command", style="yellow")
+    api_table.add_column("Description")
+    api_table.add_row("api status", "Show API status")
+    api_table.add_row("api start", "Start API server")
+    api_table.add_row("api stop", "Stop API server")
+    console.print(api_table)
+    console.print()
     console.print("[bold]Options:[/bold]")
     console.print("  [dim]-d, --debug[/dim]    Enable verbose logging")
     console.print("  [dim]-q, --quiet[/dim]    Suppress all logs")
@@ -221,6 +233,7 @@ app.add_typer(index_cmd.app, name="index", help="Document indexing pipeline")
 app.add_typer(search_cmd.app, name="search", help="Hybrid document search")
 app.add_typer(lifecycle_cmd.app, name="lifecycle", help="Service lifecycle (start/stop/restart)")
 app.add_typer(models_cmd.app, name="models", help="LLM model management")
+app.add_typer(api_cmd.app, name="api", help="API server management")
 
 
 @app.command()

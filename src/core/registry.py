@@ -251,7 +251,8 @@ class APIEndpoints:
     Prevents hardcoding endpoint paths in multiple places.
     """
     # Core API
-    HEALTH = "/api/health"
+    HEALTH = "/api/health"              # Fast minimal check (API responding?)
+    HEALTH_DEBUG = "/api/health/debug"  # Slow detailed diagnostics (all services)
     STATS = "/api/stats"
     SEARCH = "/api/search"
     INGEST = "/api/ingest"

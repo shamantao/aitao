@@ -44,7 +44,12 @@ except ImportError:
     from core.logger import get_logger
 
 # Version
-__version__ = "2.3.22.0"
+try:
+    from src.core.version import get_version
+except ImportError:
+    from core.version import get_version
+
+__version__ = get_version()
 
 # Logger
 logger = get_logger("api")
@@ -185,12 +190,37 @@ async def root():
 @app.get("/api/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
     """
-    Check system health status.
+    Check API health status (FAST).
     
-    Returns the status of all services (API, LanceDB, Meilisearch, Worker).
+    Returns instantly - API is responding? Yes/No.
+    Does NOT check dependent services (LanceDB, Meilisearch, Worker).
+    
+    Use this endpoint for monitoring and load balancing.
+    Response time: < 50ms
     """
     from src.api.routes.health import check_health
     return await check_health(_start_time, __version__)
+
+
+@app.get("/api/health/debug", response_model=HealthResponse, tags=["System"])
+async def health_check_debug():
+    """
+    Check ALL services health status (SLOW - use for diagnostics only).
+    
+    Performs detailed diagnostics on:
+    - API status
+    - LanceDB connectivity and document count
+    - Meilisearch connectivity and index status
+    - Worker daemon status
+    
+    WARNING: This endpoint is SLOW (~2+ seconds) because it loads all documents
+    from LanceDB for statistics. Do NOT use for monitoring/load balancing.
+    
+    Use /api/health for monitoring. Use this endpoint only for debugging.
+    Response time: 2-3+ seconds depending on index size
+    """
+    from src.api.routes.health import check_health_debug
+    return await check_health_debug(_start_time, __version__)
 
 
 @app.get("/api/stats", response_model=StatsResponse, tags=["System"])

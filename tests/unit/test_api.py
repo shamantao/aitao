@@ -110,15 +110,15 @@ class TestRootEndpoint:
 # ============================================================================
 
 class TestHealthEndpoint:
-    """Tests for /api/health endpoint."""
+    """Tests for /api/health and /api/health/debug endpoints."""
     
     def test_health_returns_200(self, client):
         """Test health endpoint returns 200."""
         response = client.get("/api/health")
         assert response.status_code == 200
     
-    def test_health_response_format(self, client):
-        """Test health response has correct format."""
+    def test_health_minimal_format(self, client):
+        """Test health response is MINIMAL - only API service."""
         response = client.get("/api/health")
         data = response.json()
         
@@ -127,23 +127,44 @@ class TestHealthEndpoint:
         assert "timestamp" in data
         assert "services" in data
         
-        # Check services
+        # Minimal health check should ONLY have 'api' service
+        services = data["services"]
+        assert "api" in services
+        assert len(services) == 1, "Health endpoint should only check API, not dependent services"
+    
+    def test_health_always_healthy(self, client):
+        """Test health returns 'healthy' if API is responding."""
+        response = client.get("/api/health")
+        data = response.json()
+        
+        # Minimal health check always returns 'healthy' if API responds
+        assert data["status"] == "healthy"
+        assert data["services"]["api"]["status"] == "healthy"
+    
+    def test_health_debug_returns_200(self, client):
+        """Test health/debug endpoint returns 200."""
+        response = client.get("/api/health/debug")
+        assert response.status_code == 200
+    
+    def test_health_debug_full_format(self, client):
+        """Test health/debug response includes all services."""
+        response = client.get("/api/health/debug")
+        data = response.json()
+        
+        assert "status" in data
+        assert "version" in data
+        assert "timestamp" in data
+        assert "services" in data
+        
+        # Debug health check should have all services
         services = data["services"]
         assert "api" in services
         assert "lancedb" in services
         assert "meilisearch" in services
         assert "worker" in services
     
-    def test_health_all_healthy(self, client):
-        """Test health returns 'healthy' when all services up."""
-        response = client.get("/api/health")
-        data = response.json()
-        
-        assert data["status"] == "healthy"
-        assert data["services"]["api"]["status"] == "healthy"
-    
-    def test_health_degraded_when_service_down(self, client):
-        """Test health returns 'degraded' when ONE service is down."""
+    def test_health_debug_degraded_when_service_down(self, client):
+        """Test health/debug returns 'degraded' when ONE service is down."""
         # Mock LanceDB to fail (but Meilisearch is OK)
         mock_lancedb_module.LanceDBClient.side_effect = Exception("Connection failed")
         
@@ -153,14 +174,14 @@ class TestHealthEndpoint:
         mock_meili_instance.get_stats.return_value = {"numberOfDocuments": 100}
         mock_meilisearch_module.MeilisearchClient = MagicMock(return_value=mock_meili_instance)
         
-        response = client.get("/api/health")
+        response = client.get("/api/health/debug")
         data = response.json()
         
         # With one service down, status should be 'degraded'
         assert data["status"] == "degraded"
     
-    def test_health_down_when_all_critical_services_down(self, client):
-        """Test health returns 'down' when ALL critical services are down."""
+    def test_health_debug_down_when_all_critical_services_down(self, client):
+        """Test health/debug returns 'down' when ALL critical services are down."""
         # Mock LanceDB to fail
         mock_lancedb_module.LanceDBClient.side_effect = Exception("Connection failed")
         
