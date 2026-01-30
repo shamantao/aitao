@@ -176,30 +176,71 @@ aitao ingest /path/to/document.pdf --ocr qwen-vl --priority high
 AItao acts as a **RAG Hub** - external applications (AnythingLLM, Continue.dev, Open WebUI, etc.) connect to AItao instead of directly to Ollama. AItao enriches queries with relevant document context before forwarding to the LLM.
 
 ```
-Client → AItao API (port 5000) → RAG Enrichment → Ollama (port 11434)
-                                       ↓
-                              LanceDB + Meilisearch
+Client → AItao API (port 8200) → Virtual Model Router → RAG Enrichment → Ollama (port 11434)
+                                       │                      ↓
+                                       │              LanceDB + Meilisearch
+                                       │                      ↓
+                                       └─────── Category Filter (optional)
+```
+
+##### Virtual Models (User-Controlled RAG Modes)
+
+**Problem solved:** Code-optimized models (Qwen Coder) perform poorly when injected with unrelated document context. Users need control over RAG behavior without complex configuration.
+
+**Solution:** Virtual model names that encode RAG behavior. The user chooses the mode via the model name:
+
+| Virtual Model | Behavior | Real Model |
+|---------------|----------|------------|
+| `llama3.1-basic` | Pure code - NO RAG | llama3.1-local:latest |
+| `qwen-coder-basic` | Code help - NO RAG | qwen2.5-coder-local:latest |
+| `qwen-coder-context` | Code + RAG filtered to "code" category | qwen2.5-coder-local:latest |
+| `llama3.1-doc` | Full RAG (all documents) | llama3.1-local:latest |
+| `llama3.1-smart` | AI decides (auto-detection, Sprint 7+) | llama3.1-local:latest |
+
+**Routing Logic:**
+```python
+# Pseudo-code
+model_name = request.model  # e.g., "qwen-coder-context"
+
+if model_name.endswith("-basic"):
+    rag_enabled = False
+    real_model = resolve_base_model(model_name)
+    
+elif model_name.endswith("-context"):
+    rag_enabled = True
+    rag_filter = {"category": "code"}  # Filter to code-only documents
+    real_model = resolve_base_model(model_name)
+    
+elif model_name.endswith("-doc"):
+    rag_enabled = True
+    rag_filter = None  # All documents
+    real_model = resolve_base_model(model_name)
+    
+elif model_name.endswith("-smart"):
+    rag_enabled = "auto"  # AI analyzes query intent
+    real_model = resolve_base_model(model_name)
 ```
 
 **Chat Request (Ollama-compatible):**
 ```json
 POST /api/chat
 {
-  "model": "qwen2.5-coder:7b",
+  "model": "qwen-coder-context",
   "messages": [
-    {"role": "user", "content": "Where is the Germany trip doc?"}
+    {"role": "user", "content": "Write a test for the indexer"}
   ],
   "stream": true
 }
 ```
 
 **AItao Processing:**
-1. Receive user prompt
-2. Search RAG (LanceDB + Meilisearch) for relevant context
-3. Enrich prompt with document snippets
-4. Forward to Ollama
-5. Store prompt + response in ChatHistory (indexed for future search)
-6. Stream response back to client
+1. Receive user prompt with virtual model name
+2. Parse model suffix to determine RAG mode
+3. If RAG enabled: Search LanceDB/Meilisearch (with optional category filter)
+4. Enrich prompt with relevant document snippets
+5. Forward to real Ollama model
+6. Store prompt + response in ChatHistory (indexed for future search)
+7. Stream response back to client
 
 **Search Request (unchanged):**
 ```json
@@ -214,7 +255,9 @@ POST /api/search
 **Requirements:**
 - **Ollama-compatible API**: `/api/chat`, `/api/generate`, `/api/tags` (list models)
 - **OpenAI-compatible API**: `/v1/chat/completions`, `/v1/models`
-- AItao as transparent proxy (clients configure `http://localhost:5000` as their LLM endpoint)
+- AItao as transparent proxy (clients configure `http://localhost:8200` as their LLM endpoint)
+- Virtual model routing with per-model RAG configuration
+- Category-based RAG filtering (leverages Sprint 6 categorization)
 - Shared RAG (LanceDB + Meilisearch) for all models
 - ChatHistory indexed for future search ("What did I ask about Germany last week?")
 - User file requests = **HIGH priority** in queue (vs auto-scan = NORMAL)
@@ -441,56 +484,76 @@ POST /api/search
 
 ### FR-004: OCR Pipeline 🔄
 
-**OCR Router Logic:**
-```python
-def route_ocr(file_path):
-    # 1. Try direct text extraction (pdfminer, pypdf)
-    text = extract_text_direct(file_path)
-    if is_sufficient(text):
-        return {"method": "direct", "text": text}
-    
-    # 2. Detect tables (OpenCV contours)
-    has_tables = detect_tables(file_path, threshold=0.7)
-    
-    if has_tables:
-        # Use Qwen-VL for table extraction
-        return qwen_vl_ocr(file_path, extract_tables=True)
-    else:
-        # Use AppleScript OCR (fast, macOS native)
-        return applescript_ocr(file_path)
+**Intention:** Extraire du texte depuis des images et PDFs scannés avec la meilleure qualité possible, tout en optimisant pour la vitesse quand le contenu est simple.
+
+**Principes architecturaux:**
+1. **Modularité:** Chaque provider OCR implémente la même interface (`OCRProvider`)
+2. **Multi-plateforme:** macOS utilise AppleScript/Vision, Linux utilise Tesseract (future)
+3. **Router intelligent:** Choisit automatiquement le meilleur provider selon le contenu
+
+**Workflow du Router:**
+```
+Document → Extraction directe (pdfminer/pypdf)
+              ↓
+         Texte suffisant? → OUI → Retourner texte
+              ↓ NON
+         Détecter tableaux (OpenCV)
+              ↓
+         Tableaux détectés? → OUI → Qwen-VL Provider (précis, lent)
+              ↓ NON
+         Native OCR Provider (rapide)
+              ↓
+         Cache résultat
 ```
 
-**Qwen-VL Configuration:**
+**Providers disponibles:**
+
+| Provider | Plateforme | Usage | Vitesse |
+|----------|------------|-------|---------|
+| `direct` | Toutes | PDF avec texte embarqué | ⚡ Instantané |
+| `native` | macOS: AppleScript, Linux: Tesseract | Texte simple | ⚡ Rapide (~10s) |
+| `qwen-vl` | Toutes (via Ollama) | Tableaux, layouts complexes | 🐢 Lent (~5-15min) |
+
+**Configuration (`config.yaml`):**
 ```yaml
-qwen_vl:
-  model_path: "${models_dir}/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
-  mmproj_path: "${models_dir}/Qwen2.5-VL-7B-Instruct-mmproj-bf16.gguf"
-  max_tokens: 4096
-  temperature: 0.1  # Deterministic for OCR
-  table_extraction:
-    output_format: "json"  # Also supports csv, markdown
-    preserve_structure: true
+ocr:
+  # Provider par défaut quand le router hésite
+  default_provider: "native"
+  
+  # Seuil pour détection de tableaux (0.0 - 1.0)
+  table_detection_threshold: 0.7
+  
+  # Force un provider spécifique (ignore le router)
+  # force_provider: "qwen-vl"  # Optionnel
+  
+  providers:
+    native:
+      # macOS: utilise Vision framework via AppleScript
+      # Linux: utilise Tesseract (doit être installé)
+      enabled: true
+    qwen_vl:
+      model: "qwen2-vl:7b"  # Via Ollama
+      max_tokens: 4096
+      temperature: 0.1  # Déterministe pour OCR
 ```
 
-**Output Cache:**
-- OCR results cached in `${storage_root}/cache/ocr/`
-- Filename: `{file_sha256}.json`
-- Content:
-  ```json
-  {
-    "file_path": "/path/to/doc.pdf",
-    "sha256": "abc123...",
-    "ocr_method": "qwen-vl",
-    "timestamp": "2026-01-28T10:30:00Z",
-    "text": "...",
-    "tables": [
-      {
-        "table_id": 1,
-        "data": [[...], [...]]
-      }
-    ]
-  }
-  ```
+**Structure des résultats:**
+```python
+@dataclass
+class OCRResult:
+    text: str                    # Texte extrait
+    tables: list[Table] | None   # Tableaux structurés (si détectés)
+    method: str                  # "direct", "native", "qwen-vl"
+    confidence: float            # 0.0 - 1.0
+    provider: str                # Nom du provider utilisé
+    processing_time_ms: int      # Temps de traitement
+    error: str | None            # Message d'erreur si échec
+```
+
+**Cache:**
+- Résultats OCR cachés dans `${storage_root}/cache/ocr/`
+- Clé: `{file_sha256}.json`
+- Évite de re-OCRer un document déjà traité
 
 ---
 
@@ -838,6 +901,82 @@ llm:
 3. **ChatHistory Indexing**: All prompts and responses are stored and indexed for future search
 4. **Priority Ingestion**: Files requested by user during chat = HIGH priority in queue
 5. **Multi-Model**: Ollama manages model loading/unloading automatically
+
+---
+
+### FR-010b: Model Lifecycle Management 🚀 NEW
+
+**Intention:** L'utilisateur ne doit jamais télécharger manuellement des modèles. AItao gère automatiquement les modèles Ollama selon la configuration.
+
+**Principes:**
+1. **Source unique** : Les modèles sont listés dans `config.yaml` → `llm.models`
+2. **Auto-provisioning** : Au démarrage, AItao télécharge les modèles manquants via `ollama pull`
+3. **Pas de duplication** : Utiliser les modèles Ollama officiels, pas de GGUF locaux (sauf exception)
+4. **Nettoyage prudent** : Proposer (mais ne pas forcer) la suppression des modèles non listés
+
+**Configuration (`config.yaml`):**
+```yaml
+llm:
+  # Modèles requis par AItao (téléchargés automatiquement si manquants)
+  models:
+    - name: "llama3.1:8b"           # Modèle général (chat, RAG)
+      required: true                 # Bloque le démarrage si absent
+      size_gb: 4.7                   # Indication pour l'utilisateur
+      
+    - name: "qwen2.5-coder:7b"      # Modèle code
+      required: false                # Optionnel, téléchargé en background
+      size_gb: 4.4
+      
+    - name: "llava:7b"              # Vision (alternative à Qwen-VL pour OCR)
+      required: false
+      size_gb: 4.5
+      use_for: ["ocr"]              # Usage spécifique
+  
+  # Comportement au démarrage
+  startup:
+    check_models: true              # Vérifier présence des modèles
+    auto_pull: true                 # Télécharger automatiquement les manquants
+    pull_timeout_minutes: 30        # Timeout par modèle
+    
+  # Nettoyage des modèles non utilisés
+  cleanup:
+    enabled: false                  # Désactivé par défaut (prudent)
+    warn_unused: true               # Afficher warning pour modèles non listés
+    # JAMAIS de suppression automatique sans confirmation explicite
+```
+
+**Workflow au démarrage:**
+```
+./aitao.sh start
+    │
+    ├─→ Vérifier Ollama running
+    │       └─→ Si non: démarrer Ollama
+    │
+    ├─→ Lister modèles requis (config.yaml)
+    │
+    ├─→ Pour chaque modèle:
+    │       ├─→ Présent dans Ollama? → OK
+    │       └─→ Absent? → ollama pull (avec progress bar)
+    │
+    ├─→ Tous les modèles required présents?
+    │       ├─→ OUI: Continuer démarrage
+    │       └─→ NON: Erreur + instructions
+    │
+    └─→ Démarrer API + Worker
+```
+
+**CLI Commands:**
+```bash
+./aitao.sh models list      # Liste modèles config + installés
+./aitao.sh models pull      # Force téléchargement des modèles manquants
+./aitao.sh models cleanup   # Propose suppression des modèles non listés
+./aitao.sh models add <name> # Ajoute un modèle à la config + pull
+```
+
+**Note sur les GGUF locaux:**
+- Les fichiers GGUF dans `models_dir` ne sont **plus nécessaires** pour les modèles standard
+- Exception : modèles custom ou fine-tunés peuvent être importés via `ollama create`
+- Le répertoire `models_dir` sera conservé uniquement pour les modèles vision (Qwen-VL GGUF) si nécessaire
 
 ---
 

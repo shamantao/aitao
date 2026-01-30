@@ -33,6 +33,7 @@ from cli.commands import extract as extract_cmd
 from cli.commands import index as index_cmd
 from cli.commands import search as search_cmd
 from cli.commands import lifecycle as lifecycle_cmd
+from cli.commands import models as models_cmd
 
 # Import version
 try:
@@ -170,7 +171,18 @@ def _show_detailed_help():
     console.print(search_table)
     console.print()
     
-    # Options
+    # Models commands
+    console.print("[bold]LLM Models (models):[/bold]  [dim]Model management[/dim]")
+    models_table = Table(show_header=False, box=None, padding=(0, 2))
+    models_table.add_column("Command", style="magenta")
+    models_table.add_column("Description")
+    
+    models_table.add_row("models status", "Show configured vs installed models")
+    models_table.add_row("models pull", "Download missing models (future)")
+    models_table.add_row("models add <name>", "Add model to config (future)")
+    models_table.add_row("models remove <name>", "Remove model from config (future)")
+    console.print(models_table)
+    console.print()
     console.print("[bold]Options:[/bold]")
     console.print("  [dim]-d, --debug[/dim]    Enable verbose logging")
     console.print("  [dim]-q, --quiet[/dim]    Suppress all logs")
@@ -208,6 +220,7 @@ app.add_typer(extract_cmd.app, name="extract", help="Text extraction from docume
 app.add_typer(index_cmd.app, name="index", help="Document indexing pipeline")
 app.add_typer(search_cmd.app, name="search", help="Hybrid document search")
 app.add_typer(lifecycle_cmd.app, name="lifecycle", help="Service lifecycle (start/stop/restart)")
+app.add_typer(models_cmd.app, name="models", help="LLM model management")
 
 
 @app.command()

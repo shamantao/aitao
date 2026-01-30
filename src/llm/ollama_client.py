@@ -19,7 +19,7 @@ The client handles:
 
 import json
 import logging
-from typing import Optional, Dict, Any, List, AsyncIterator
+from typing import Optional, Dict, Any, List, Iterator
 from dataclasses import dataclass
 import httpx
 
@@ -164,7 +164,7 @@ class OllamaClient:
         temperature: float = 0.7,
         top_p: float = 0.9,
         **kwargs
-    ) -> Dict[str, Any] | AsyncIterator[str]:
+    ) -> Dict[str, Any] | Iterator[str]:
         """
         Chat completion endpoint (Ollama-compatible format).
         
@@ -177,7 +177,7 @@ class OllamaClient:
             **kwargs: Additional Ollama parameters
             
         Returns:
-            Dict with response (if stream=False) or AsyncIterator (if stream=True)
+            Dict with response (if stream=False) or Iterator (if stream=True)
             
         Raises:
             OllamaConnectionError: If server unreachable
@@ -234,8 +234,8 @@ class OllamaClient:
         
         return response.json()
     
-    def _chat_stream(self, payload: Dict[str, Any]) -> AsyncIterator[str]:
-        """Execute streaming chat request (returns SSE stream)."""
+    def _chat_stream(self, payload: Dict[str, Any]) -> Iterator[str]:
+        """Execute streaming chat request (returns JSON lines as strings)."""
         with self.client.stream(
             "POST",
             f"{self.host}/api/chat",
@@ -246,14 +246,10 @@ class OllamaClient:
                     f"Chat stream failed with status {response.status_code}"
                 )
             
-            for line in response.iter_text():
+            for line in response.iter_lines():
                 if line.strip():
-                    try:
-                        data = json.loads(line)
-                        if "message" in data and "content" in data["message"]:
-                            yield data["message"]["content"]
-                    except json.JSONDecodeError:
-                        self.logger.debug(f"Skipping malformed JSON: {line}")
+                    # Yield raw JSON line for caller to parse
+                    yield line
     
     def generate(
         self,
@@ -261,7 +257,7 @@ class OllamaClient:
         model: Optional[str] = None,
         stream: bool = False,
         **kwargs
-    ) -> Dict[str, Any] | AsyncIterator[str]:
+    ) -> Dict[str, Any] | Iterator[str]:
         """
         Text generation endpoint (non-chat mode).
         
@@ -313,7 +309,7 @@ class OllamaClient:
         
         return response.json()
     
-    def _generate_stream(self, payload: Dict[str, Any]) -> AsyncIterator[str]:
+    def _generate_stream(self, payload: Dict[str, Any]) -> Iterator[str]:
         """Execute streaming generate request."""
         with self.client.stream(
             "POST",

@@ -278,6 +278,74 @@ categories:
   default: "autre"
 
 # -----------------------------------------------------------------------------
+# LLM Configuration (Ollama Backend)
+# -----------------------------------------------------------------------------
+# Configure the LLM backend for chat, RAG, and text generation
+llm:
+  # Backend type: "ollama" (recommended)
+  backend: "ollama"
+  
+  # Ollama server URL
+  ollama_url: "http://localhost:11434"
+  
+  # Default model for chat/generation
+  default_model: "llama3.1-local:latest"
+  
+  # =========================================================================
+  # Model Configuration (NEW - from US-021d)
+  # =========================================================================
+  # Each model is configured with name, required flag, size info, and roles.
+  # The ModelManager (US-021b) will verify these are installed at startup.
+  #
+  # Models can be in two formats (for backward compatibility):
+  # - Simple: "model:tag" (old format, treated as required=false)
+  # - Enhanced: {name, required, size_gb, roles} (new format)
+  #
+  models:
+    # Required model: blocks startup if missing
+    - name: "llama3.1-local:latest"
+      required: true
+      size_gb: 4.7
+      roles: ["chat", "rag"]
+      description: "General-purpose LLM for chat and RAG"
+    
+    # Optional model: warned if missing, but doesn't block startup
+    - name: "qwen2.5-coder-local:latest"
+      required: false
+      size_gb: 4.4
+      roles: ["code"]
+      description: "Code-focused LLM (better for code assistance)"
+  
+  # =========================================================================
+  # Startup Configuration (NEW - from US-021c)
+  # =========================================================================
+  startup:
+    # Check that configured models exist in Ollama at startup
+    check_models: true
+    
+    # Automatically download missing models (future: US-021c)
+    auto_pull: false
+    
+    # Timeout per model download (minutes)
+    pull_timeout_minutes: 30
+  
+  # RAG (Retrieval-Augmented Generation) settings
+  # Note: RAG injects personal documents into prompts
+  # For code assistance, disable this - Continue.dev provides its own code context
+  rag:
+    enabled: false
+    # Max documents to include in context
+    max_context_docs: 5
+    # Max tokens for RAG context
+    max_context_tokens: 2000
+  
+  # Generation parameters
+  generation:
+    temperature: 0.7
+    top_p: 0.9
+    max_tokens: 2048
+
+# -----------------------------------------------------------------------------
 # API Configuration
 # -----------------------------------------------------------------------------
 # Configure the REST API server

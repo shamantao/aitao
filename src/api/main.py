@@ -44,7 +44,7 @@ except ImportError:
     from core.logger import get_logger
 
 # Version
-__version__ = "2.3.19"
+__version__ = "2.3.22.0"
 
 # Logger
 logger = get_logger("api")

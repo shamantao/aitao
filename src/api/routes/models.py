@@ -175,28 +175,26 @@ async def list_models_openai():
     
     try:
         ollama = get_ollama_client()
-        models_data = ollama.list_models()
+        ollama_models = ollama.list_models()  # Returns List[OllamaModel]
         
-        # Convert to OpenAI format
+        # Convert OllamaModel objects to OpenAI format
         models = []
-        for model_info in models_data.get("models", []):
-            model_name = model_info.get("name", "unknown")
-            
+        for model_obj in ollama_models:
             # Parse modified_at to timestamp if available
             created = int(time.time())
-            if "modified_at" in model_info:
+            if model_obj.modified_at:
                 try:
                     from datetime import datetime
                     # Ollama uses ISO format
                     dt = datetime.fromisoformat(
-                        model_info["modified_at"].replace("Z", "+00:00")
+                        model_obj.modified_at.replace("Z", "+00:00")
                     )
                     created = int(dt.timestamp())
                 except (ValueError, TypeError):
                     pass
             
             models.append(OpenAIModel(
-                id=model_name,
+                id=model_obj.name,
                 object="model",
                 created=created,
                 owned_by="ollama",

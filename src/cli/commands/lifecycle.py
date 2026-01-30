@@ -37,6 +37,8 @@ if str(src_path) not in sys.path:
 
 from cli.utils import console, success, error, warning, info, status_line
 from core.config import ConfigManager, get_config
+from llm.model_manager import ModelManager
+from llm.ollama_client import OllamaConnectionError
 
 app = typer.Typer(help="Service lifecycle management")
 
@@ -280,10 +282,11 @@ def start(
     Start all AItao services.
     
     Starts the complete AItao stack:
-    1. Meilisearch (full-text search engine)
-    2. API server (FastAPI on port 5000)
-    3. Background worker (document processing)
-    4. Initial scan (unless --skip-scan)
+    1. Verify LLM models (US-021b)
+    2. Meilisearch (full-text search engine)
+    3. API server (FastAPI on port 5000)
+    4. Background worker (document processing)
+    5. Initial scan (unless --skip-scan)
     
     After starting, the system is ready to index and search documents.
     """
@@ -292,6 +295,34 @@ def start(
     
     all_success = True
     port = _get_api_port()
+    
+    # 0. Check LLM models (BEFORE Meilisearch, required by API)
+    console.print("[cyan]Step 1: Verify LLM models[/cyan]")
+    try:
+        manager = ModelManager()
+        model_status = manager.check_models()
+        
+        if model_status.required_missing:
+            error(f"Required models missing: {', '.join(model_status.required_missing)}")
+            console.print("[red]Cannot start without required models[/red]")
+            console.print()
+            console.print("Download them with:")
+            for model in model_status.required_missing:
+                console.print(f"  [cyan]ollama pull {model}:7b[/cyan]")
+            raise typer.Exit(code=1)
+        else:
+            status_line("LLM Models", f"OK ({len(model_status.present)} present)", ok=True)
+    except OllamaConnectionError as e:
+        error(f"Cannot connect to Ollama: {str(e)}")
+        console.print("[yellow]Make sure Ollama is running:[/yellow]")
+        console.print("  [cyan]ollama serve[/cyan]")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        error(f"Unexpected error checking models: {str(e)}")
+        raise typer.Exit(code=1)
+    
+    console.print()
+    console.print("[cyan]Step 2: Start services[/cyan]")
     
     # 1. Start Meilisearch
     if not _run_command(

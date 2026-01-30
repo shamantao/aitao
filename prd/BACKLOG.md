@@ -15,11 +15,13 @@
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
 | Sprint 3: RAG & LLM | ✅ Complete | US-016 → US-021 | 461 | v2.3.16 → v2.3.20 |
-| **Sprint Q&A: Vérifications** | 🔍 In Progress | QA-001 → QA-006 | - | v2.3.21.x |
+| **Sprint 3b: Model Management** | 📋 **PRIORITAIRE** | US-021b → US-021f | - | v2.3.22.x |
+| **Sprint 3c: Virtual Models** | 📋 Pending | US-021g → US-021i | - | v2.3.23.x |
+| Sprint Q&A: Vérifications | ✅ Complete | QA-001 → QA-006 | - | v2.3.21.x |
 | Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
-| Sprint 5: Traduction | 📋 Pending | US-027 → US-029 | - | v2.5.x |
-| Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032 | - | v2.6.x |
-| Sprint 7: Dashboard & Polish | 📋 Pending | US-033 → US-037 | - | v2.7.x |
+| Sprint 5: Traduction | 📋 Pending | US-027 → US-029b | - | v2.5.x |
+| Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032b | - | v2.6.x |
+| Sprint 7: Dashboard & Polish | 📋 Pending | US-033 → US-037b | - | v2.7.x |
 
 ---
 
@@ -515,6 +517,280 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
+### Epic 5c: Model Lifecycle Management [MUST] 🆕
+
+**Contexte:** Les modèles LLM doivent être gérés automatiquement par AItao. L'utilisateur configure la liste dans `config.yaml`, AItao s'occupe du téléchargement et de la vérification.
+
+**Priorité:** MUST - Bloque le fonctionnement du projet si les modèles ne sont pas présents.
+
+#### US-021b: ModelManager - Vérification des modèles au démarrage [MUST] ✅ DONE
+**En tant que** utilisateur  
+**Je veux** que AItao vérifie automatiquement la présence des modèles requis  
+**Afin de** ne jamais avoir d'erreur "model not found" en pleine utilisation
+
+**Intention:** Au démarrage, AItao doit s'assurer que tous les modèles configurés sont disponibles dans Ollama.
+
+**Critères d'acceptation:**
+- [x] Classe `ModelManager` dans `src/llm/model_manager.py`
+- [x] Méthode `check_models() -> ModelStatus`:
+  - Liste modèles dans `config.yaml` → `llm.models`
+  - Compare avec `ollama list`
+  - Retourne: `{present: [...], missing: [...], extra: [...]}`
+- [x] Intégré dans `lifecycle.py` au démarrage (après Ollama, avant API)
+- [x] Si modèle `required: true` manquant → erreur claire avec instructions
+- [x] CLI: `./aitao.sh models status` affiche l'état des modèles
+- [x] Tests unitaires
+
+**Validation (obligatoire):**
+- [x] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire)
+- [x] Tous les tests unitaires: `./aitao.sh validate`
+- [x] Tests E2E: `./aitao.sh validate`
+- [x] Validation fonctionnelle user-centric: `./aitao.sh validate`
+- [x] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés)
+- [x] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [x] Commit + push GitHub effectués
+- [x] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+
+**Estimation:** 3 points  
+**Dépendances:** US-016 (OllamaClient), US-003 (ConfigManager)
+
+---
+
+#### US-021c: ModelManager - Téléchargement automatique [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** que AItao télécharge automatiquement les modèles manquants  
+**Afin de** ne jamais avoir à taper `ollama pull` manuellement
+
+**Intention:** Expérience "out of the box" - l'utilisateur configure, AItao fait le reste.
+
+**Critères d'acceptation:**
+- [ ] Méthode `pull_missing_models()` dans `ModelManager`
+- [ ] Utilise `ollama pull <model>` avec affichage progression
+- [ ] Timeout configurable (`config.yaml` → `llm.startup.pull_timeout_minutes`)
+- [ ] Option `--skip-pull` pour démarrage rapide sans téléchargement
+- [ ] CLI: `./aitao.sh models pull` force le téléchargement
+- [ ] Gestion erreurs: timeout, espace disque, network
+- [ ] Tests unitaires (avec mock ollama)
+
+**Validation (obligatoire):**
+- [ ] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire)
+- [ ] Tous les tests unitaires: `./aitao.sh validate`
+- [ ] Tests E2E: `./aitao.sh validate`
+- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
+- [ ] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés)
+- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [ ] Commit + push GitHub effectués
+- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+
+**Estimation:** 3 points  
+**Dépendances:** US-021b (ModelManager)
+
+---
+
+#### US-021d: Config.yaml - Structure modèles enrichie [MUST] 📋
+**En tant que** utilisateur  
+**Je veux** configurer mes modèles de façon déclarative  
+**Afin de** contrôler précisément quels modèles sont utilisés
+
+**Intention:** La configuration est la source de vérité pour les modèles.
+
+**Critères d'acceptation:**
+- [ ] Nouvelle structure dans `config.yaml`:
+  ```yaml
+  llm:
+    models:
+      - name: "llama3.1:8b"
+        required: true      # Bloque démarrage si absent
+        size_gb: 4.7        # Info pour l'utilisateur
+        roles: ["chat", "rag"]  # Usage prévu
+      - name: "qwen2.5-coder:7b"
+        required: false
+        roles: ["code"]
+  ```
+- [ ] Validation schema au chargement config
+- [ ] Migration automatique de l'ancien format (juste liste de noms)
+- [ ] Tests de parsing + validation
+
+**Validation (obligatoire):**
+- [ ] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire)
+- [ ] Tous les tests unitaires: `./aitao.sh validate`
+- [ ] Tests E2E: `./aitao.sh validate`
+- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
+- [ ] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés)
+- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [ ] Commit + push GitHub effectués
+- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+
+**Estimation:** 2 points  
+**Dépendances:** US-003 (ConfigManager)
+
+---
+
+#### US-021e: CLI models subcommand [SHOULD] 📋
+**En tant que** utilisateur  
+**Je veux** des commandes CLI pour gérer mes modèles  
+**Afin de** voir l'état et agir manuellement si besoin
+
+**Intention:** Transparence et contrôle pour l'utilisateur avancé.
+
+**Critères d'acceptation:**
+- [ ] Groupe de commandes `./aitao.sh models`:
+  - `status` - Liste modèles config vs installés
+  - `pull` - Télécharge les modèles manquants
+  - `add <name>` - Ajoute un modèle à la config + pull
+  - `remove <name>` - Retire de la config (propose suppression Ollama)
+- [ ] Affichage Rich avec tableau coloré
+- [ ] Confirmation avant toute suppression
+- [ ] Tests unitaires
+
+**Validation (obligatoire):**
+- [ ] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire)
+- [ ] Tous les tests unitaires: `./aitao.sh validate`
+- [ ] Tests E2E: `./aitao.sh validate`
+- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
+- [ ] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés)
+- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [ ] Commit + push GitHub effectués
+- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+
+**Estimation:** 3 points  
+**Dépendances:** US-021b, US-021c
+
+---
+
+#### US-021f: Documentation migration GGUF → Ollama [SHOULD] 📋
+**En tant que** utilisateur existant  
+**Je veux** comprendre pourquoi mes GGUF locaux ne sont plus nécessaires  
+**Afin de** libérer de l'espace disque et éviter la confusion
+
+**Intention:** Clarifier la transition et éviter la duplication de stockage.
+
+**Critères d'acceptation:**
+- [ ] Section dans README.md expliquant:
+  - Les modèles Ollama sont gérés automatiquement
+  - Les GGUF locaux (`models_dir`) ne sont plus nécessaires pour les modèles standard
+  - Comment migrer (supprimer les GGUF après vérification)
+  - Exception: modèles custom/fine-tuned restent en GGUF
+- [ ] Guide de migration dans `docs/MIGRATION_MODELS.md`
+- [ ] Mise à jour `config.yaml.template`
+
+**Validation (obligatoire):**
+- [ ] Documentation mise à jour (README + guide migration)
+- [ ] Tous les tests unitaires: `./aitao.sh validate`
+- [ ] Tests E2E: `./aitao.sh validate`
+- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
+- [ ] Conformité PRD (doc en anglais, cohérence config)
+- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [ ] Commit + push GitHub effectués
+- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+
+**Estimation:** 1 point  
+**Dépendances:** Aucune
+
+---
+
+## Sprint 3c: Virtual Models (1 semaine - Fév 2026)
+
+**Architecture:** Modèles virtuels permettant à l'utilisateur de choisir le mode RAG via le nom du modèle.  
+**Principe:** L'utilisateur garde le contrôle sur le niveau de contexte injecté, sans configuration complexe.
+
+```
+Noms des modèles virtuels:
+├── *-basic      → RAG désactivé (code pur)
+├── *-context    → RAG filtré par catégorie
+├── *-doc        → RAG complet (tous les documents)
+└── *-smart      → L'IA décide automatiquement (Sprint 7+)
+```
+
+### Epic 4b: Virtual Model Routing [MUST]
+
+#### US-021g: Implémenter le routage des modèles virtuels [MUST] 📋
+**En tant que** utilisateur de Continue.dev ou autre client  
+**Je veux** choisir mon niveau de RAG via le nom du modèle  
+**Afin de** ne pas avoir à modifier la configuration selon le contexte
+
+**Intention:** Permettre le choix du mode RAG de façon transparente via le nom du modèle.
+
+**Modèles virtuels proposés:**
+| Modèle Virtuel | Comportement | Modèle Réel |
+|----------------|--------------|-------------|
+| `llama3.1-basic` | Code pur - pas de RAG | llama3.1-local:latest |
+| `qwen-coder-basic` | Aide code - pas de RAG | qwen2.5-coder-local:latest |
+| `qwen-coder-context` | Code + RAG catégorie "code" | qwen2.5-coder-local:latest |
+| `llama3.1-doc` | RAG complet (documents) | llama3.1-local:latest |
+| `llama3.1-smart` | L'IA décide (Sprint 7+) | llama3.1-local:latest |
+
+**Critères d'acceptation:**
+- [ ] Parser le suffixe du modèle dans `src/api/routes/chat.py`
+- [ ] Mapper vers le modèle réel Ollama
+- [ ] Configurer le mode RAG selon le suffixe:
+  - `-basic` → `rag_enabled = False`
+  - `-context` → `rag_enabled = True, filter_category = "code"`
+  - `-doc` → `rag_enabled = True, filter_category = None`
+  - `-smart` → `rag_enabled = "auto"` (détection automatique - Sprint 7)
+- [ ] `/v1/models` expose les modèles virtuels aux clients
+- [ ] Tests unitaires pour chaque mode
+
+**Estimation:** 5 points  
+**Dépendances:** US-021b (OllamaClient), US-016 (RAG Engine)
+
+---
+
+#### US-021h: Configuration virtual_models dans config.yaml [SHOULD] 📋
+**En tant que** administrateur  
+**Je veux** configurer les modèles virtuels dans config.yaml  
+**Afin de** personnaliser les noms et les mappings
+
+**Critères d'acceptation:**
+- [ ] Nouvelle section `virtual_models` dans config.yaml
+- [ ] Définition des suffixes et comportements
+- [ ] Possibilité de définir des filtres de catégorie personnalisés
+- [ ] Documentation inline complète
+
+**Exemple config.yaml:**
+```yaml
+virtual_models:
+  enabled: true
+  suffixes:
+    basic:
+      rag_enabled: false
+    context:
+      rag_enabled: true
+      filter_categories: ["code", "config"]
+    doc:
+      rag_enabled: true
+      filter_categories: null  # All categories
+    smart:
+      rag_enabled: auto
+  mappings:
+    llama3.1-basic: llama3.1-local:latest
+    qwen-coder-basic: qwen2.5-coder-local:latest
+    qwen-coder-context: qwen2.5-coder-local:latest
+    llama3.1-doc: llama3.1-local:latest
+```
+
+**Estimation:** 3 points  
+**Dépendances:** US-021g
+
+---
+
+#### US-021i: Test E2E Virtual Models [MUST] 📋
+**En tant que** développeur  
+**Je veux** un test complet du routage des modèles virtuels  
+**Afin de** garantir que chaque mode fonctionne correctement
+
+**Critères d'acceptation:**
+- [ ] Test `qwen-coder-basic` → pas de contexte RAG injecté
+- [ ] Test `qwen-coder-context` → contexte filtré catégorie "code"
+- [ ] Test `llama3.1-doc` → contexte RAG complet
+- [ ] Test modèle inconnu → erreur 404 ou fallback
+- [ ] Intégré dans CI
+
+**Estimation:** 3 points  
+**Dépendances:** US-021g, US-021h
+
+---
+
 ## 🔍 Sprint Q&A: Vérifications & Fixes (1 semaine - Jan 29 2026)
 
 ### QA-001: Vérifier CLI aitao.sh commands [MUST]
@@ -564,41 +840,24 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-### QA-003: Tests E2E Startup Chain + Fix Lifecycle [MUST] 🚨
+### QA-003: Tests E2E Startup Chain + Fix Lifecycle [MUST] ✅ DONE 🚨
 **Problème CRITIQUE:** 476 tests unitaires passent mais l'application ne fonctionne pas!  
 **Cause:** `./aitao.sh start` ne démarre que Meilisearch, pas le pipeline complet.
 
 **Objectif:** Garantir que le système fonctionne de bout en bout.
 
-**Critères d'acceptation:**
+**Résolution:**
+- ✅ lifecycle.py corrigé pour démarrer TOUS les services
+- ✅ Meilisearch (brew services)
+- ✅ API FastAPI (port configurable, défaut 8200)
+- ✅ Worker daemon (background indexing)
+- ✅ Initial scan trigger (populate queue)
+- ✅ Tests E2E créés: `tests/e2e/test_startup_chain.py` (10 tests)
+- ✅ Définition de "Done" mise à jour avec critères E2E
 
-**1. Corriger lifecycle.py pour démarrer TOUS les services:**
-- [ ] Meilisearch (brew services) ✅ déjà fait
-- [ ] API FastAPI (port 5000)
-- [ ] Worker daemon (background indexing)
-- [ ] Initial scan trigger (populate queue)
-
-**2. Créer tests E2E (Smoke Tests):**
-- [ ] `tests/e2e/test_startup_chain.py`
-- [ ] Test: `./aitao.sh start` → tous services running
-- [ ] Test: Scan → Queue populated → Worker processes → Documents indexed
-- [ ] Test: `./aitao.sh search "test"` → Retourne des résultats
-- [ ] Test: `./aitao.sh stop` → Tous services arrêtés proprement
-
-**3. Mettre à jour la Définition de "Done":**
-- [ ] Ajouter: "Test E2E prouve que la fonctionnalité est accessible à l'utilisateur final"
-- [ ] Ajouter: "Validation manuelle du workflow complet avant clôture de sprint"
-
-**Workflow attendu après fix:**
-```bash
-./aitao.sh start
-    ↓
-1. Meilisearch starts (brew services)
-2. API FastAPI starts (port 5000)
-3. Worker daemon starts (background)
-4. Initial scan runs (add files to queue)
-5. Worker processes queue (indexing with progress)
-```
+**Fichiers créés/modifiés:**
+- src/cli/commands/lifecycle.py (540 lignes)
+- tests/e2e/test_startup_chain.py (10 tests E2E)
 
 **Estimation:** 5 points  
 **Dépendances:** QA-001, QA-002  
@@ -679,240 +938,401 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 **🎉 Sprint Q&A COMPLÉTÉ - 486 tests passent**
 
-**🎉 Sprint Q&A COMPLÉTÉ - 486 tests passent**
-
 ---
 
 ## Sprint 4: OCR & Extraction (3 semaines - Mar-Apr 2026)
 
+**Architecture:** Pipeline OCR modulaire et multi-plateforme.  
+**Principe:** Le Router définit l'interface, les Providers implémentent selon la plateforme.
+
+```
+src/ocr/
+├── interfaces.py          # OCRProvider (abstract), OCRResult (dataclass)
+├── router.py              # OCRRouter - sélection intelligente du provider
+├── table_detector.py      # Détection de tableaux (OpenCV)
+├── providers/
+│   ├── native_provider.py # macOS: AppleScript / Linux: Tesseract
+│   └── qwen_vl_provider.py
+```
+
 ### Epic 6: OCR Pipeline [MUST]
 
-#### US-022: Détecter tableaux dans PDF/images [SHOULD] 📋
+#### US-022: OCR Router + Interfaces [MUST] 📋
+**En tant que** développeur  
+**Je veux** une architecture OCR modulaire avec interfaces claires  
+**Afin de** pouvoir remplacer n'importe quel provider sans casser le système
+
+**Intention:** Définir le contrat avant l'implémentation. Tout provider OCR doit respecter la même interface.
+
+**Critères d'acceptation:**
+- [ ] Interface abstraite `OCRProvider` dans `src/ocr/interfaces.py`
+  - Méthode: `extract(path: Path) -> OCRResult`
+  - Propriété: `name: str`, `platforms: list[str]`
+- [ ] Dataclass `OCRResult` dans `src/ocr/interfaces.py`
+  - Champs: `text, tables, method, confidence, metadata, error`
+- [ ] Classe `OCRRouter` dans `src/ocr/router.py`
+  - Détecte plateforme (macOS/Linux/Windows)
+  - Sélectionne le provider approprié
+  - Workflow: direct extraction → fallback OCR
+- [ ] Config `config.yaml` → `ocr.default_provider`, `ocr.providers`
+- [ ] Tests: mock providers pour valider le routing
+
+**Estimation:** 5 points  
+**Dépendances:** US-001 (PathManager), US-003 (ConfigManager)
+
+---
+
+#### US-023: Table Detector [SHOULD] 📋
 **En tant que** système  
-**Je veux** détecter la présence de tableaux  
-**Afin de** router vers le bon OCR
+**Je veux** détecter la présence de tableaux dans les documents  
+**Afin de** router vers Qwen-VL quand nécessaire
+
+**Intention:** Optimiser le pipeline - les tableaux nécessitent un VLM, le texte simple peut utiliser l'OCR natif rapide.
 
 **Critères d'acceptation:**
 - [ ] Classe `TableDetector` dans `src/ocr/table_detector.py`
-- [ ] Utilise OpenCV pour détecter contours
-- [ ] Calcule score de probabilité (seuil configurable: 0.7)
-- [ ] Retourne: `{has_tables: bool, confidence: float}`
-- [ ] Tests avec images de test (tableaux, texte simple)
+- [ ] Utilise OpenCV pour détecter contours structurés
+- [ ] Seuil configurable (`config.yaml` → `ocr.table_detection_threshold`: 0.7)
+- [ ] Retourne: `TableDetectionResult(has_tables: bool, confidence: float, regions: list)`
+- [ ] Tests avec images de test (tableaux complexes, texte simple, mixte)
 
 **Estimation:** 3 points  
-**Dépendances:** Aucune
+**Dépendances:** US-022 (interfaces)
 
 ---
 
-#### US-023: Intégrer AppleScript OCR [MUST] 📋
+#### US-024: Native OCR Provider (macOS/Linux) [MUST] 📋
 **En tant que** système  
-**Je veux** utiliser l'OCR natif macOS  
-**Afin d'** OCRer rapidement les documents simples
+**Je veux** un provider OCR natif multi-plateforme  
+**Afin d'** OCRer rapidement les documents simples sur toute plateforme
+
+**Intention:** Abstraction de l'OCR natif. macOS = AppleScript, Linux = Tesseract. Même interface, implémentation différente.
 
 **Critères d'acceptation:**
-- [ ] Classe `AppleScriptOCR` dans `src/ocr/applescript_ocr.py`
-- [ ] Appel AppleScript via subprocess
-- [ ] Entrée: chemin PDF/image
-- [ ] Sortie: texte extrait
-- [ ] Gestion erreurs (OCR failed)
+- [ ] Classe `NativeOCRProvider` dans `src/ocr/providers/native_provider.py`
+- [ ] Implémente `OCRProvider` interface
+- [ ] Détection auto de la plateforme:
+  - macOS → AppleScript Vision framework
+  - Linux → Tesseract OCR (si installé)
+  - Windows → (Future: Windows OCR API)
+- [ ] Méthode `is_available() -> bool` pour vérifier disponibilité
 - [ ] Cache résultats (`${storage_root}/cache/ocr/{sha256}.json`)
-- [ ] Tests avec documents de test
+- [ ] Gestion erreurs avec messages clairs
+- [ ] Tests sur macOS (AppleScript) avec documents de test
+
+**Estimation:** 5 points  
+**Dépendances:** US-022 (interfaces)  
+**Note:** V1 = macOS. Tesseract Linux = stub avec `NotImplementedError` clair.
+
+---
+
+#### US-025a: Benchmark OCR Vision Models [MUST] 📋
+**En tant que** développeur  
+**Je veux** comparer Qwen2.5-VL (GGUF+mmproj) vs Ollama llava  
+**Afin de** choisir le meilleur modèle pour l'OCR de tableaux
+
+**Intention:** Valider expérimentalement quel modèle vision donne les meilleurs résultats avant d'implémenter le provider.
+
+**Contexte:**
+- Qwen2.5-VL en GGUF local avec mmproj (nécessite llama-cpp-python)
+- Ollama llava (facile à intégrer, gestion automatique)
+- Critères: qualité OCR tableaux, vitesse, consommation mémoire
+
+**Critères d'acceptation:**
+- [ ] Script `scripts/benchmark_ocr_vlm.py`
+- [ ] Dataset de test: 10 images (5 tableaux complexes, 5 texte simple)
+  - Documents comptables, bulletins scolaires, formulaires
+- [ ] Métriques collectées:
+  - Précision OCR (vs ground truth manuel)
+  - Temps d'inférence (ms)
+  - RAM utilisée (MB)
+  - Qualité extraction tableaux (structure JSON)
+- [ ] Rapport Markdown généré: `docs/BENCHMARK_OCR_VLM.md`
+- [ ] Recommandation claire pour US-025
 
 **Estimation:** 3 points  
-**Dépendances:** US-001 (PathManager)
+**Dépendances:** Aucune (standalone benchmark)
 
 ---
 
-#### US-024: Intégrer Qwen-VL OCR [MUST] 🔄
+#### US-025: Qwen-VL Provider [SHOULD] 📋
 **En tant que** système  
-**Je veux** utiliser Qwen-VL pour les documents complexes  
-**Afin d'** extraire texte + tableaux avec précision
+**Je veux** utiliser Qwen-VL pour les documents complexes avec tableaux  
+**Afin d'** extraire texte + structure des tableaux avec précision
+
+**Intention:** Provider haute qualité pour documents complexes. Plus lent mais précis pour tableaux et layouts difficiles.
 
 **Critères d'acceptation:**
-- [ ] Classe `QwenVLOCR` dans `src/ocr/qwen_vl_ocr.py`
-- [ ] Charge modèle + mmproj (`config.yaml` → `ocr.qwen_vl`)
-- [ ] Entrée: chemin PDF/image + `extract_tables=True/False`
-- [ ] Sortie: `{text, tables: [{table_id, data: [...]}]}`
-- [ ] Format tables: JSON (défaut), CSV, Markdown
+- [ ] Classe `QwenVLProvider` dans `src/ocr/providers/qwen_vl_provider.py`
+- [ ] Implémente `OCRProvider` interface
+- [ ] Charge modèle via Ollama (`config.yaml` → `ocr.qwen_vl.model`)
+- [ ] Extraction tableaux: JSON structuré `{table_id, headers, rows}`
+- [ ] Prompt engineering pour extraction précise
 - [ ] Cache résultats
-- [ ] Tests avec documents de test (tableaux)
+- [ ] Tests avec documents de test (tableaux, chinois traditionnel)
 
 **Estimation:** 5 points  
-**Dépendances:** US-001 (PathManager), US-003 (ConfigManager)  
-**Note:** Script bench déjà existant, à intégrer
+**Dépendances:** US-022 (interfaces), US-016 (OllamaClient)  
+**Note:** Script bench existant à refactorer en provider
 
 ---
 
-#### US-025: Créer OCR Router [MUST] 📋
+### Epic 7: Extraction Métadonnées [COULD]
+
+#### US-026: EXIF Extractor [COULD] 📋
 **En tant que** système  
-**Je veux** un router qui choisit le bon OCR  
-**Afin d'** optimiser vitesse/qualité
+**Je veux** extraire les métadonnées EXIF des images  
+**Afin d'** enrichir l'indexation avec date, lieu, appareil
 
-**Critères d'acceptation:**
-- [ ] Classe `OCRRouter` dans `src/ocr/router.py`
-- [ ] Workflow:
-  1. Essayer extraction texte direct (pdfminer)
-  2. Si insuffisant, détecter tableaux
-  3. Si tableaux → Qwen-VL, sinon AppleScript OCR
-- [ ] Configurable (`config.yaml` → `ocr.router`)
-- [ ] Retourne: `{method, text, tables, metadata}`
-- [ ] Tests avec divers documents
-
-**Estimation:** 5 points  
-**Dépendances:** US-022, US-023, US-024
-
----
-
-### Epic 7: Extraction EXIF [SHOULD]
-
-#### US-026: Extraire métadonnées EXIF des images [SHOULD] 📋
-**En tant que** système  
-**Je veux** extraire les EXIF des images  
-**Afin d'** enrichir l'indexation
+**Intention:** Extraction de métadonnées directes (pas d'OCR nécessaire). Permet de rechercher "photos de Berlin juin 2025".
 
 **Critères d'acceptation:**
 - [ ] Classe `EXIFExtractor` dans `src/indexation/exif_extractor.py`
-- [ ] Extraction: date_taken, camera, location (GPS), dimensions
-- [ ] Retourne: `{exif: {...}, metadata: {...}}`
-- [ ] Indexe dans LanceDB + Meilisearch (filtres)
-- [ ] Tests avec images de test (avec/sans EXIF)
+- [ ] Librairies: `piexif` ou `exifread`
+- [ ] Extraction: date_taken, camera_model, gps_coordinates, dimensions, orientation
+- [ ] Convertit GPS → adresse lisible (reverse geocoding local, optionnel)
+- [ ] Retourne: `EXIFResult(date, location, camera, dimensions, raw_exif)`
+- [ ] Indexe dans LanceDB + Meilisearch (filtres par date, lieu)
+- [ ] Tests avec images JPG/HEIC (avec/sans EXIF)
 
 **Estimation:** 3 points  
-**Dépendances:** US-012 (DocumentIndexer)
+**Dépendances:** US-012 (DocumentIndexer)  
+**Note:** Indépendant de l'OCR - extraction directe de métadonnées binaires.
 
 ---
 
 ## Sprint 5: Traduction (2 semaines - Avr-Mai 2026)
 
+**Architecture:** Pipeline de traduction modulaire via LLM.  
+**Principe:** Séparation claire entre traduction pure, extraction d'actions, et exposition API.
+
+```
+src/translation/
+├── interfaces.py          # TranslationResult, ActionResult (dataclasses)
+├── translator.py          # Traducteur zh-TW → fr/en
+├── action_extractor.py    # Extraction deadlines, tasks, entités
+└── prompts/
+    ├── translation.txt    # Prompt optimisé traduction formelle
+    └── extraction.txt     # Prompt extraction structurée
+```
+
 ### Epic 8: Translation Pipeline [MUST]
 
 #### US-027: Créer pipeline de traduction [MUST] 📋
 **En tant que** utilisateur  
-**Je veux** traduire des documents chinois  
+**Je veux** traduire des documents chinois traditionnels  
 **Afin de** les comprendre en français/anglais
 
+**Intention:** Traduction de qualité humaine, contextualisée pour documents formels (comptabilité, école, administration).
+
 **Critères d'acceptation:**
+- [ ] Dataclasses dans `src/translation/interfaces.py`:
+  - `TranslationResult(source_text, translation_fr, translation_en, confidence, model_used)`
 - [ ] Classe `Translator` dans `src/translation/translator.py`
-- [ ] LLM: Qwen-2.5-Coder ou équivalent (`config.yaml` → `translation.model`)
-- [ ] Entrée: texte chinois
-- [ ] Sortie: `{translation_fr, translation_en, confidence}`
-- [ ] Prompt engineering pour contexte formel
+- [ ] Utilise `OllamaClient` (`config.yaml` → `translation.model`)
+- [ ] Prompt engineering: contexte formel, vocabulaire précis
 - [ ] Cache traductions (`${storage_root}/cache/translations/{sha256}.json`)
-- [ ] Tests avec documents de test
+- [ ] Tests unitaires + test avec document réel chinois
 
 **Estimation:** 5 points  
-**Dépendances:** US-003 (ConfigManager)
+**Dépendances:** US-016 (OllamaClient), US-003 (ConfigManager)
 
 ---
 
 #### US-028: Extraire actions/deadlines [MUST] 📋
 **En tant que** utilisateur  
-**Je veux** extraire les échéances d'un document  
-**Afin de** connaître mes tâches et deadlines
+**Je veux** extraire automatiquement les échéances d'un document  
+**Afin de** voir immédiatement mes tâches et deadlines
+
+**Intention:** Transformer un document passif en liste d'actions claires avec dates.
 
 **Critères d'acceptation:**
+- [ ] Dataclass `ActionResult` dans `src/translation/interfaces.py`:
+  - `deadlines: list[Deadline]`, `actions: list[str]`, `entities: dict`
 - [ ] Classe `ActionExtractor` dans `src/translation/action_extractor.py`
-- [ ] Prompt LLM pour extraire: deadlines, tasks, amounts, entities
-- [ ] Retourne JSON: `{deadlines: [{task, date, days_remaining}], actions, entities}`
-- [ ] Parse dates (français, anglais, chinois)
-- [ ] Calcule days_remaining
-- [ ] Tests avec documents de test
+- [ ] Prompt LLM structuré pour extraire:
+  - Deadlines: tâche + date + days_remaining
+  - Actions: liste d'items à faire
+  - Entités: noms, montants, organisations
+- [ ] Parse dates multi-format (fr, en, zh-TW)
+- [ ] Calcule `days_remaining` automatiquement
+- [ ] Tests avec documents de test variés
 
 **Estimation:** 5 points  
-**Dépendances:** US-021 (Translator)
+**Dépendances:** US-027 (Translator), US-016 (OllamaClient)
 
 ---
 
 #### US-029: API endpoint /api/translate [MUST] 📋
 **En tant que** utilisateur  
-**Je veux** traduire un document via API  
-**Afin de** l'intégrer dans mon workflow
+**Je veux** traduire un document via l'API REST  
+**Afin de** l'intégrer dans mon workflow ou UI externe
+
+**Intention:** Exposer la traduction via API standardisée.
 
 **Critères d'acceptation:**
-- [ ] Endpoint `POST /api/translate`
-- [ ] Entrée: `{file_path OR text, source_lang, target_lang, extract_actions}`
-- [ ] Workflow: OCR (si nécessaire) → Translate → Extract actions
-- [ ] Retourne: `{translation, actions, metadata}`
-- [ ] Tests unitaires + intégration
+- [ ] Endpoint `POST /api/translate`:
+  - Input: `{file_path OR text, source_lang, target_lang, extract_actions: bool}`
+  - Output: `{translation, actions (si demandé), metadata}`
+- [ ] Workflow interne: OCR (si image/PDF) → Translate → Extract actions (optionnel)
+- [ ] Gestion erreurs avec messages clairs
+- [ ] Tests unitaires + test d'intégration E2E
 
 **Estimation:** 3 points  
-**Dépendances:** US-027, US-028, US-013 (API)
+**Dépendances:** US-027, US-028, US-013 (API FastAPI)
+
+---
+
+#### US-029b: Test E2E Translation Pipeline [MUST] 📋
+**En tant que** développeur  
+**Je veux** un test end-to-end du pipeline traduction  
+**Afin de** valider que tout fonctionne de bout en bout
+
+**Intention:** Appliquer les leçons du Sprint Q&A - tests E2E obligatoires.
+
+**Critères d'acceptation:**
+- [ ] Test `tests/e2e/test_translation_pipeline.py`
+- [ ] Scénario complet: document chinois → API → traduction + actions
+- [ ] Vérifie: qualité traduction, extraction dates, réponse API
+- [ ] Utilise vrai document de test (pas mock)
+- [ ] Intégré dans CI
+
+**Estimation:** 2 points  
+**Dépendances:** US-029
 
 ---
 
 ## Sprint 6: Catégorisation (2 semaines - Mai 2026)
 
+**Architecture:** Catégorisation intelligente via LLM avec boucle de feedback.  
+**Principe:** L'utilisateur peut toujours corriger, et le système apprend de ses erreurs.
+
+```
+src/indexation/
+├── categorizer.py         # Auto-catégorisation via LLM
+└── category_manager.py    # Gestion corrections + feedback
+
+config/
+└── categories.yaml        # Définitions des catégories
+```
+
 ### Epic 9: Category Management [SHOULD]
 
 #### US-030: Auto-catégoriser documents [SHOULD] 📋
 **En tant que** système  
-**Je veux** catégoriser automatiquement les documents  
-**Afin de** faciliter la recherche
+**Je veux** catégoriser automatiquement les documents lors de l'indexation  
+**Afin de** permettre des recherches filtrées par catégorie
+
+**Intention:** Classification intelligente basée sur le contenu, pas juste le chemin du fichier.
 
 **Critères d'acceptation:**
 - [ ] Classe `Categorizer` dans `src/indexation/categorizer.py`
-- [ ] Charge catégories depuis `config/categories.yaml`
-- [ ] LLM analyse: title + first 1000 words + keywords
-- [ ] Retourne: `{category, confidence}`
-- [ ] Si confidence <0.7 → flag pour review manuel
-- [ ] Tests avec documents de test
+- [ ] Charge catégories depuis `config/categories.yaml` (avec keywords multilingues)
+- [ ] LLM analyse: titre + premiers 1000 mots + path hints
+- [ ] Retourne: `CategoryResult(category, confidence, alternative_categories)`
+- [ ] Si `confidence < 0.7` → flag `needs_review = True`
+- [ ] Intégré dans `DocumentIndexer` (optionnel via config)
+- [ ] Tests avec documents variés (enterprise, school, news, etc.)
 
 **Estimation:** 5 points  
-**Dépendances:** US-003 (ConfigManager)
+**Dépendances:** US-016 (OllamaClient), US-003 (ConfigManager)
 
 ---
 
 #### US-031: API correction catégories [SHOULD] 📋
 **En tant que** utilisateur  
-**Je veux** corriger les catégories erronées  
-**Afin d'** améliorer le système
+**Je veux** corriger une catégorie erronée via l'API  
+**Afin que** le système apprenne de mes corrections
+
+**Intention:** L'utilisateur garde le contrôle. Ses corrections améliorent le système.
 
 **Critères d'acceptation:**
-- [ ] Endpoint `PUT /api/categories/{doc_id}`
-- [ ] Entrée: `{new_category, reason}`
+- [ ] Endpoint `PUT /api/documents/{doc_id}/category`
+  - Input: `{new_category, reason (optionnel)}`
+  - Output: `{success, old_category, new_category}`
 - [ ] Met à jour metadata dans LanceDB + Meilisearch
-- [ ] Sauvegarde correction dans `corrections.json`
-- [ ] Retourne: `{success, message}`
-- [ ] Tests unitaires
+- [ ] Sauvegarde correction dans `${storage_root}/corrections/corrections.json`
+- [ ] Format correction: `{doc_sha256, old_category, new_category, reason, timestamp}`
+- [ ] Tests unitaires + intégration
 
 **Estimation:** 3 points  
 **Dépendances:** US-013 (API), US-030 (Categorizer)
 
 ---
 
-#### US-032: Feedback loop catégorisation [COULD] 🔮
+#### US-032: Feedback loop catégorisation [COULD] 📋
 **En tant que** système  
-**Je veux** utiliser les corrections pour améliorer  
-**Afin d'** augmenter la précision
+**Je veux** utiliser les corrections passées pour améliorer les futures catégorisations  
+**Afin d'** augmenter la précision au fil du temps
+
+**Intention:** Apprentissage continu sans fine-tuning (few-shot learning via prompt).
 
 **Critères d'acceptation:**
-- [ ] Lit `corrections.json`
-- [ ] Ajuste prompt système avec exemples de corrections
-- [ ] Option: Fine-tuning model (V3+)
+- [ ] Classe `CategoryFeedbackLoop` dans `src/indexation/category_manager.py`
+- [ ] Lit les N dernières corrections depuis `corrections.json`
+- [ ] Injecte exemples dans le prompt système du Categorizer
+- [ ] Format: "Document X était classé 'leisure' mais corrigé en 'news' car: raison"
+- [ ] Limite: max 5 exemples pour éviter prompt trop long
 - [ ] Tests avec corrections simulées
 
-**Estimation:** 5 points  
+**Estimation:** 3 points  
 **Dépendances:** US-031  
-**Note:** Nice-to-have, peut être déféré
+**Note:** Nice-to-have. Si temps limité, peut être différé au Sprint 7.
+
+---
+
+#### US-032b: Test E2E Catégorisation [SHOULD] 📋
+**En tant que** développeur  
+**Je veux** un test end-to-end du workflow catégorisation  
+**Afin de** valider la chaîne complète : index → catégoriser → corriger → re-catégoriser
+
+**Intention:** Appliquer les leçons du Sprint Q&A.
+
+**Critères d'acceptation:**
+- [ ] Test `tests/e2e/test_categorization_pipeline.py`
+- [ ] Scénario: indexer doc → vérifier catégorie → corriger → vérifier correction
+- [ ] Vérifie persistance dans LanceDB + Meilisearch
+- [ ] Intégré dans CI
+
+**Estimation:** 2 points  
+**Dépendances:** US-031
 
 ---
 
 ## Sprint 7: Dashboard & Polish (2 semaines - Juin 2026)
 
+**Architecture:** Monitoring, automatisation et finalisation pour usage quotidien.  
+**Principe:** AItao doit "juste marcher" sans intervention manuelle.
+
+```
+src/
+├── dashboard/
+│   └── tui.py             # Dashboard Rich TUI
+├── core/
+│   └── system_monitor.py  # Monitoring CPU/RAM/Disk
+scripts/
+└── daily_scan.sh          # Cronjob scan quotidien
+```
+
 ### Epic 10: CLI & Dashboard [SHOULD]
 
-#### US-033: Dashboard TUI (status) [SHOULD] 📋
+#### US-033: Dashboard TUI enrichi [SHOULD] 📋
 **En tant que** utilisateur  
-**Je veux** voir le statut d'AItao en CLI  
-**Afin de** monitorer le système
+**Je veux** voir un dashboard complet du système en terminal  
+**Afin de** monitorer AItao d'un coup d'œil
+
+**Intention:** Le `./aitao.sh status` actuel est fonctionnel mais basique. Version améliorée avec refresh auto.
 
 **Critères d'acceptation:**
-- [ ] Script `src/dashboard/tui.py`
-- [ ] Utilise Rich (Python TUI)
-- [ ] Affiche: Services (API, Worker, LanceDB, Meilisearch), Resources (CPU, RAM, Disk), Recent Activity
-- [ ] Refresh auto toutes les 5 secondes
+- [ ] Script `src/dashboard/tui.py` avec Rich
+- [ ] Affiche:
+  - Services: API (port), Worker, LanceDB, Meilisearch (avec ✓/✗)
+  - Stats: Documents indexés, taille DB, queue en attente
+  - Resources: CPU %, RAM (GB), Disk (GB)
+  - Activité récente: 5 dernières opérations
+- [ ] Mode watch: refresh toutes les 5 secondes (`--watch`)
 - [ ] Couleurs: vert (OK), jaune (warning), rouge (erreur)
-- [ ] Accessible via `./aitao.sh status`
+- [ ] Accessible via `./aitao.sh dashboard` ou `./aitao.sh status --watch`
 
 **Estimation:** 5 points  
 **Dépendances:** US-005 (CLI)
@@ -921,34 +1341,42 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 #### US-034: Cronjob daily scan [MUST] 📋
 **En tant que** système  
-**Je veux** scanner les volumes quotidiennement  
-**Afin d'** indexer les nouveaux fichiers
+**Je veux** scanner automatiquement les volumes configurés chaque jour  
+**Afin d'** indexer les nouveaux fichiers sans intervention
+
+**Intention:** Indexation "set and forget" - l'utilisateur configure une fois, puis oublie.
 
 **Critères d'acceptation:**
 - [ ] Script `scripts/daily_scan.sh`
-- [ ] Cron: `0 2 * * *` (2am daily)
-- [ ] Appelle `FilesystemScanner` → ajoute à queue
-- [ ] Log début/fin scan (JSON)
-- [ ] Notification utilisateur: "X nouveaux documents détectés"
-- [ ] Tests avec cronjob simulé
+- [ ] Appelle `./aitao.sh scan --volumes prod` (volumes de production)
+- [ ] Instructions installation cron: `crontab -e` → `0 2 * * * /path/to/daily_scan.sh`
+- [ ] Log JSON dans `${logs_dir}/daily_scan_YYYY-MM-DD.log`
+- [ ] Résumé final: "X nouveaux, Y modifiés, Z erreurs"
+- [ ] Option notification (macOS: osascript notification)
+- [ ] Tests avec exécution manuelle
 
 **Estimation:** 2 points  
-**Dépendances:** US-008 (FilesystemScanner), US-009 (TaskQueue)
+**Dépendances:** US-008 (FilesystemScanner)
 
 ---
 
 #### US-035: System load monitor [SHOULD] 📋
 **En tant que** système  
-**Je veux** détecter la charge système  
-**Afin de** throttler les tâches background
+**Je veux** détecter la charge système et l'activité utilisateur  
+**Afin de** throttler les tâches background quand le Mac est utilisé
+
+**Intention:** AItao ne doit jamais ralentir le travail de l'utilisateur.
 
 **Critères d'acceptation:**
 - [ ] Classe `SystemMonitor` dans `src/core/system_monitor.py`
-- [ ] Méthodes: `get_cpu_percent()`, `get_memory_usage()`, `get_disk_usage()`
-- [ ] Détecte activité utilisateur (macOS: mouse/keyboard events)
-- [ ] Retourne: `{is_busy: bool, cpu_percent, memory_gb, disk_gb}`
-- [ ] Worker utilise ce module pour throttler
-- [ ] Tests unitaires
+- [ ] Méthodes:
+  - `get_cpu_percent() -> float`
+  - `get_memory_usage() -> MemoryInfo(used_gb, total_gb, percent)`
+  - `get_disk_usage(path) -> DiskInfo(used_gb, total_gb, percent)`
+  - `is_user_active() -> bool` (macOS: dernière activité clavier/souris < 60s)
+  - `should_throttle() -> bool` (CPU >80% OR user active)
+- [ ] Worker utilise `should_throttle()` pour pauser
+- [ ] Tests unitaires (avec mocks pour ressources système)
 
 **Estimation:** 3 points  
 **Dépendances:** US-010 (Worker)
@@ -957,38 +1385,76 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ### Epic 11: Testing & Documentation [SHOULD]
 
-#### US-036: Tests end-to-end [SHOULD] 📋
+#### US-036: Tests end-to-end complets [MUST] 📋
 **En tant que** développeur  
-**Je veux** des tests E2E  
-**Afin de** garantir le fonctionnement
+**Je veux** une suite de tests E2E couvrant tous les workflows critiques  
+**Afin de** garantir que AItao fonctionne en conditions réelles
+
+**Intention:** Leçon majeure du Sprint Q&A - les tests unitaires avec mocks ne suffisent pas.
 
 **Critères d'acceptation:**
-- [ ] Tests E2E dans `tests/e2e/`
-- [ ] Scénarios: Ingest document → Index → Search → Retrieve
-- [ ] Tests avec dataset réel (PDF, DOCX, images)
-- [ ] CI/CD pipeline (GitHub Actions)
-- [ ] Coverage >80%
+- [ ] Dossier `tests/e2e/` avec tests d'intégration complets
+- [ ] Scénarios obligatoires:
+  1. `test_ingest_to_search.py`: Scan → Queue → Worker → Index → Search → Résultat
+  2. `test_ocr_pipeline.py`: Image/PDF → OCR Router → Extraction → Index
+  3. `test_translation_e2e.py`: Document chinois → Traduction → Actions
+  4. `test_api_endpoints.py`: Tous les endpoints critiques
+  5. `test_startup_shutdown.py`: Lifecycle complet des services
+- [ ] Dataset de test réel (pas mocks): `tests/fixtures/`
+- [ ] Tous les tests passent en CI (GitHub Actions)
+- [ ] Coverage rapport généré
 
 **Estimation:** 8 points  
-**Dépendances:** Tous les précédents
+**Dépendances:** Sprints 4, 5, 6
 
 ---
 
-#### US-037: Documentation utilisateur [SHOULD] 📋
-**En tant que** utilisateur  
-**Je veux** une documentation claire  
-**Afin d'** installer et utiliser AItao
+#### US-037: Documentation utilisateur finale [SHOULD] 📋
+**En tant que** nouvel utilisateur  
+**Je veux** une documentation claire et complète  
+**Afin d'** installer, configurer et utiliser AItao
+
+**Intention:** Un utilisateur non-technique doit pouvoir installer et utiliser AItao en suivant le README.
 
 **Critères d'acceptation:**
-- [ ] README.md mis à jour (v2)
-- [ ] Installation guide (macOS)
-- [ ] Configuration guide (config.yaml)
-- [ ] API documentation (OpenAPI)
-- [ ] Troubleshooting guide
-- [ ] FAQ
+- [ ] `README.md` mis à jour avec:
+  - Quickstart (5 min)
+  - Installation détaillée (macOS)
+  - Configuration (`config.yaml` expliqué)
+  - Commandes CLI (avec exemples)
+  - Intégration Continue.dev / Open WebUI / AnythingLLM
+- [ ] `docs/TROUBLESHOOTING.md`: problèmes courants + solutions
+- [ ] `docs/API.md`: documentation API (ou lien vers `/docs`)
+- [ ] `docs/ARCHITECTURE.md`: vue d'ensemble pour développeurs
+- [ ] Capture d'écran du dashboard
 
 **Estimation:** 5 points  
 **Dépendances:** US-036
+
+---
+
+#### US-037b: Validation finale et release V2.4 [MUST] 📋
+**En tant que** développeur  
+**Je veux** une checklist de validation complète avant release  
+**Afin de** m'assurer que V2.4 est prête pour usage quotidien
+
+**Intention:** Pas de "ça marche sur ma machine" - validation rigoureuse.
+
+**Critères d'acceptation:**
+- [ ] Tous les tests passent (`pytest` + E2E)
+- [ ] `./aitao.sh start` démarre tous les services sans erreur
+- [ ] Health check OK (`curl localhost:8200/api/health`)
+- [ ] Indexation d'un nouveau document fonctionne
+- [ ] Recherche retourne des résultats pertinents
+- [ ] OCR fonctionne (au moins native provider)
+- [ ] Traduction fonctionne
+- [ ] Continue.dev connecté et fonctionnel
+- [ ] Version bumped → `2.4.0`
+- [ ] Tag Git créé
+- [ ] CHANGELOG mis à jour
+
+**Estimation:** 2 points  
+**Dépendances:** Tous les US du sprint
 
 ---
 

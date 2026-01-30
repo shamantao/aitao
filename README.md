@@ -135,6 +135,9 @@ Save and exit (Ctrl+O, Enter, Ctrl+X).
 
 ```bash
 ./aitao.sh status
+
+# Full validation (unit + e2e + functional)
+./aitao.sh validate
 ```
 
 You should see all services marked with ✓.

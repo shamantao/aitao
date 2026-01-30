@@ -72,6 +72,10 @@ class ConfigKeys:
     OLLAMA_DEFAULT_MODEL = "llm.ollama.default_model"
     RAG_ENABLED = "llm.rag.enabled"
     RAG_MAX_CONTEXT_DOCS = "llm.rag.max_context_docs"
+    LLM_MODELS = "llm.models"
+    LLM_STARTUP_CHECK_MODELS = "llm.startup.check_models"
+    LLM_STARTUP_AUTO_PULL = "llm.startup.auto_pull"
+    LLM_STARTUP_PULL_TIMEOUT = "llm.startup.pull_timeout_minutes"
 
 
 # ============================================================================
@@ -294,6 +298,46 @@ class Defaults:
     # Search weights
     MEILISEARCH_WEIGHT = 0.4
     LANCEDB_WEIGHT = 0.6
+
+
+# ============================================================================
+# LLM Model Management Structures (AC-005)
+# ============================================================================
+
+class ModelRole(str, Enum):
+    """Role/purpose of a model."""
+    CHAT = "chat"
+    CODE = "code"
+    VISION = "vision"
+    EMBEDDING = "embedding"
+    RAG = "rag"
+
+
+@dataclass
+class ModelInfo:
+    """
+    Configuration for a single LLM model.
+    
+    Canonical structure for model configuration and verification.
+    """
+    name: str                           # Model name in Ollama (e.g., "llama3.1:8b")
+    required: bool = False              # Blocks startup if missing
+    size_gb: Optional[float] = None     # Size info for user (e.g., 4.7)
+    roles: List[ModelRole] = field(default_factory=list)  # Usage: chat, code, vision, etc.
+    description: str = ""               # User-friendly description
+
+
+@dataclass
+class ModelStatus:
+    """
+    Status of models (present/missing/extra).
+    
+    Result of ModelManager.check_models().
+    """
+    present: List[str]                  # Models configured AND installed
+    missing: List[str]                  # Models configured BUT not installed
+    extra: List[str]                    # Models installed BUT not configured
+    required_missing: List[str]         # Critical: required models that are missing
 
 
 # ============================================================================

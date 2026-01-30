@@ -43,6 +43,23 @@ if [ ! -x "$PYTHON" ]; then
     exit 1
 fi
 
+# --- Validate (full pipeline) ---
+if [ "${1:-}" = "validate" ]; then
+    echo "🔍 Running full validation pipeline..."
+
+    echo "✅ Step 1: Unit tests"
+    "$PYTHON" -m pytest "$SCRIPT_DIR/tests/unit" -v
+
+    echo "✅ Step 2: E2E tests"
+    "$PYTHON" -m pytest "$SCRIPT_DIR/tests/e2e" -v
+
+    echo "✅ Step 3: Functional check (models status)"
+    "$PYTHON" -m src.cli.main models status > /dev/null
+
+    echo -e "${GREEN}✓ Validation complete${NC}"
+    exit 0
+fi
+
 # --- Delegate to Python CLI ---
 # Pass original working directory for file path resolution
 export AITAO_ORIG_PWD="$(pwd)"

@@ -47,4 +47,10 @@ if [ -n "$STAGED_FILES" ]; then
 fi
 
 echo -e "${GREEN}✓ No 'pip install' issues found${NC}"
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+if [ -x "$REPO_ROOT/aitao.sh" ]; then
+    echo "🔍 Running full validation (aitao.sh validate)..."
+    "$REPO_ROOT/aitao.sh" validate
+fi
 exit 0
