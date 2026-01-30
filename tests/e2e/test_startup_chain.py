@@ -105,15 +105,19 @@ class TestServiceLifecycle:
         # Start
         success, pid = _start_worker()
         assert success is True
-        # Note: pid might be None if using fork() - the parent returns before child writes PID
+        # Note: pid might be None if using subprocess - the parent returns before child writes PID
         
-        # Wait for daemon to initialize
-        time.sleep(1)
-        
-        # Verify worker is running (check via worker module)
+        # Wait for daemon to initialize with retry loop
+        # Subprocess needs time to: start Python, import modules, write PID file
         from indexation.worker import BackgroundWorker
-        worker = BackgroundWorker()
-        assert worker.is_running(), "Worker should be running"
+        worker = None
+        for _ in range(10):  # Max 5 seconds
+            time.sleep(0.5)
+            worker = BackgroundWorker()
+            if worker.is_running():
+                break
+        
+        assert worker is not None and worker.is_running(), "Worker should be running"
         
         # Stop
         stopped = _stop_worker()
@@ -186,8 +190,14 @@ class TestFullStartupChain:
         worker_ok, worker_pid = _start_worker()
         assert worker_ok, "Worker should start"
         
-        # Verify both running
-        time.sleep(1)
+        # Wait for both to initialize (subprocess needs time to write PID files)
+        from indexation.worker import BackgroundWorker
+        for _ in range(10):  # Max 5 seconds
+            time.sleep(0.5)
+            worker = BackgroundWorker()
+            if worker.is_running():
+                worker_pid = worker.get_pid()
+                break
         
         try:
             os.kill(api_pid, 0)
@@ -195,11 +205,7 @@ class TestFullStartupChain:
         except (ProcessLookupError, TypeError):
             api_running = False
         
-        try:
-            os.kill(worker_pid, 0)
-            worker_running = True
-        except (ProcessLookupError, TypeError):
-            worker_running = False
+        worker_running = worker.is_running() if worker else False
         
         assert api_running, "API should be running"
         assert worker_running, "Worker should be running"

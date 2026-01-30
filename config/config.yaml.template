@@ -1,0 +1,241 @@
+# =============================================================================
+# AItao V2 Configuration Template
+# =============================================================================
+# 
+# Copy this file to config.yaml and customize for your environment.
+# 
+#   cp config.yaml.template config.yaml
+#
+# Environment variables:
+#   Use ${VAR_NAME} syntax to reference environment variables
+#   Example: ${HOME}/aitao will expand to /Users/username/aitao
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Paths Configuration
+# -----------------------------------------------------------------------------
+# Define where AItao stores data, logs, models, and temporary files
+paths:
+  # Root directory for all AItao data
+  # Default: ${HOME}/.aitao/data
+  storage_root: "${HOME}/.aitao/data"
+  
+  # Directory containing GGUF model files
+  # Default: ${HOME}/.aitao/models
+  models_dir: "${HOME}/.aitao/models"
+  
+  # Logs directory
+  logs_dir: "${storage_root}/logs"
+  
+  # Queue directory for pending document processing
+  queue_dir: "${storage_root}/queue"
+  
+  # Cache directory for OCR and translation results
+  cache_dir: "${storage_root}/cache"
+  
+  # Corrections directory for manual OCR/translation fixes
+  corrections_dir: "${storage_root}/corrections"
+  
+  # LanceDB vector database directory
+  vector_db_dir: "${storage_root}/lancedb"
+
+# -----------------------------------------------------------------------------
+# Worker Configuration
+# -----------------------------------------------------------------------------
+# Configure background worker behavior
+worker:
+  # Seconds between queue polls (lower = faster processing, higher CPU)
+  # Default: 5 seconds
+  poll_interval: 5
+  
+  # Maximum CPU usage before pausing processing
+  cpu_threshold: 80.0
+  
+  # Seconds before a stuck task is reset to pending
+  stuck_task_timeout: 600
+
+# -----------------------------------------------------------------------------
+# Indexing Configuration
+# -----------------------------------------------------------------------------
+# Configure document scanning and indexing behavior
+indexing:
+  # Enable automatic periodic indexing
+  enabled: true
+  
+  # Interval between automatic scans (in minutes)
+  interval_minutes: 60
+  
+  # Paths to include in indexing (absolute paths)
+  # Add all directories you want to make searchable
+  include_paths:
+    - "${HOME}/Documents/"
+    # Add more paths here:
+    # - "${HOME}/Downloads/"
+    # - "/Volumes/ExternalDrive/"
+  
+  # Directories to exclude from indexing
+  exclude_dirs:
+    - "__pycache__"
+    - ".git"
+    - ".venv"
+    - "venv"
+    - "env"
+    - ".env"
+    - "node_modules"
+    - ".ds_store"
+    - "dist"
+    - "build"
+    - "target"
+    - "site-packages"
+    - ".idea"
+    - ".vscode"
+  
+  # Files to exclude from indexing
+  exclude_files:
+    - ".DS_Store"
+    - "package-lock.json"
+    - "yarn.lock"
+    - "Thumbs.db"
+  
+  # File extensions to exclude
+  exclude_extensions:
+    - ".lock"
+    - ".log"
+    - ".tmp"
+    - ".swp"
+    - ".cache"
+
+# -----------------------------------------------------------------------------
+# OCR Configuration
+# -----------------------------------------------------------------------------
+# Configure optical character recognition for images and PDFs
+ocr:
+  # OCR provider selection
+  # Options: "auto" (smart routing), "paddleocr" (fast), "qwen-vl" (best quality)
+  provider: "auto"
+  
+  # Languages to recognize (ISO 639-1 codes)
+  languages:
+    - "en"
+    - "fr"
+  
+  # Confidence threshold for OCR results (0.0 - 1.0)
+  confidence_threshold: 0.7
+  
+  # Qwen-VL specific settings (for complex documents with tables)
+  qwen_vl:
+    # Path to Qwen2.5-VL GGUF model file
+    model_path: "${HOME}/.aitao/models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    n_gpu_layers: -1
+    context_size: 4096
+    max_tokens: 2048
+
+# -----------------------------------------------------------------------------
+# Translation Configuration
+# -----------------------------------------------------------------------------
+# Configure automatic translation
+translation:
+  # Translation provider: "mbart50", "nllb", "ollama"
+  provider: "mbart50"
+  source_lang: "en"
+  target_lang: "fr"
+  score_translations: true
+  min_confidence: 0.6
+
+# -----------------------------------------------------------------------------
+# Search Configuration
+# -----------------------------------------------------------------------------
+# Configure hybrid search (Meilisearch + LanceDB)
+search:
+  # Meilisearch configuration (keyword/fuzzy search)
+  meilisearch:
+    url: "http://localhost:7700"
+    api_key: ""
+    index_name: "aitao_documents"
+    searchable_attributes:
+      - "title"
+      - "content"
+      - "category"
+      - "tags"
+    displayed_attributes:
+      - "id"
+      - "title"
+      - "file_path"
+      - "category"
+      - "language"
+      - "created_at"
+      - "updated_at"
+    filterable_attributes:
+      - "category"
+      - "language"
+      - "created_at"
+      - "file_type"
+  
+  # LanceDB configuration (semantic/vector search)
+  lancedb:
+    # Embedding model: "BAAI/bge-m3" (multilingual, recommended)
+    embedding_model: "BAAI/bge-m3"
+    table_name: "aitao_embeddings"
+    dimension: 1024
+    top_k: 20
+    # Minimum similarity score (0.0 - 1.0)
+    min_score: 0.45
+    # Offline mode: skip HuggingFace API checks
+    offline_mode: true
+
+# -----------------------------------------------------------------------------
+# Categories Configuration
+# -----------------------------------------------------------------------------
+# Define document categories for organization
+categories:
+  enabled: true
+  labels:
+    - "administration"
+    - "comptabilite"
+    - "juridique"
+    - "technique"
+    - "personnel"
+    - "commercial"
+    - "medical"
+    - "education"
+    - "autre"
+  default: "autre"
+
+# -----------------------------------------------------------------------------
+# API Configuration
+# -----------------------------------------------------------------------------
+# Configure the REST API server
+api:
+  host: "127.0.0.1"
+  port: 5000
+  cors_enabled: true
+  cors_origins:
+    - "*"
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+  auth:
+    enabled: false
+    api_key: ""
+
+# -----------------------------------------------------------------------------
+# Resources Configuration
+# -----------------------------------------------------------------------------
+# Configure system resources and performance
+resources:
+  max_workers: 4
+  batch_size: 10
+  max_file_size_mb: 100
+  memory_limit_mb: 2048
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+# Configure structured logging
+logging:
+  level: "INFO"
+  max_file_size_mb: 100
+  backup_count: 5
+  format: "json"
+  console_enabled: true

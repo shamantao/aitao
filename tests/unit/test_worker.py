@@ -88,7 +88,7 @@ class TestWorkerConfig:
         """Test default configuration values."""
         config = WorkerConfig()
         
-        assert config.poll_interval == 30
+        assert config.poll_interval == 5
         assert config.cpu_threshold == 80.0
         assert config.max_consecutive_errors == 5
         assert config.error_pause_time == 60
@@ -156,7 +156,7 @@ class TestWorkerInit:
     
     def test_init_default_config(self, worker):
         """Test default worker configuration."""
-        assert worker.worker_config.poll_interval == 30
+        assert worker.worker_config.poll_interval == 5
         assert worker.worker_config.cpu_threshold == 80.0
     
     def test_init_creates_signal_handlers(self, worker):
@@ -635,4 +635,4 @@ class TestEdgeCases:
         worker = BackgroundWorker(queue=temp_queue)
         
         # Default values should be set
-        assert worker.worker_config.poll_interval == 30
+        assert worker.worker_config.poll_interval == 5
