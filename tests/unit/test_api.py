@@ -190,7 +190,7 @@ class TestHealthEndpoint:
         mock_meili_instance.is_connected.return_value = False
         mock_meilisearch_module.MeilisearchClient = MagicMock(return_value=mock_meili_instance)
         
-        response = client.get("/api/health")
+        response = client.get("/api/health/debug")
         data = response.json()
         
         # With both critical services down, status should be 'down'

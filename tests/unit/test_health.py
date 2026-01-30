@@ -164,7 +164,7 @@ class TestCheckServiceWorker:
 # ============================================================================
 
 class TestCheckHealthOverall:
-    """Tests for overall health status determination."""
+    """Tests for overall health status determination (using debug version)."""
     
     def _mock_services(self, lance_status, meili_status, worker_status):
         """Helper to create mock service status functions."""
@@ -184,7 +184,7 @@ class TestCheckHealthOverall:
              patch.object(health_module, "check_service_meilisearch", side_effect=meili), \
              patch.object(health_module, "check_service_worker", side_effect=worker):
             
-            result = run_async(health_module.check_health(start_time=1000.0, version="2.2.15"))
+            result = run_async(health_module.check_health_debug(start_time=1000.0, version="2.2.15"))
             
             assert result.status == "healthy"
             assert result.version == "2.2.15"
@@ -197,7 +197,7 @@ class TestCheckHealthOverall:
              patch.object(health_module, "check_service_meilisearch", side_effect=meili), \
              patch.object(health_module, "check_service_worker", side_effect=worker):
             
-            result = run_async(health_module.check_health(start_time=1000.0, version="2.2.15"))
+            result = run_async(health_module.check_health_debug(start_time=1000.0, version="2.2.15"))
             
             assert result.status == "degraded"
     
@@ -209,7 +209,7 @@ class TestCheckHealthOverall:
              patch.object(health_module, "check_service_meilisearch", side_effect=meili), \
              patch.object(health_module, "check_service_worker", side_effect=worker):
             
-            result = run_async(health_module.check_health(start_time=1000.0, version="2.2.15"))
+            result = run_async(health_module.check_health_debug(start_time=1000.0, version="2.2.15"))
             
             # System is DOWN when both search backends unavailable
             assert result.status == "down"
@@ -222,7 +222,7 @@ class TestCheckHealthOverall:
              patch.object(health_module, "check_service_meilisearch", side_effect=meili), \
              patch.object(health_module, "check_service_worker", side_effect=worker):
             
-            result = run_async(health_module.check_health(start_time=1000.0, version="2.2.15"))
+            result = run_async(health_module.check_health_debug(start_time=1000.0, version="2.2.15"))
             
             assert result.status == "degraded"
     
@@ -274,7 +274,7 @@ class TestCheckHealthOverall:
              patch.object(health_module, "check_service_meilisearch", side_effect=meili), \
              patch.object(health_module, "check_service_worker", side_effect=worker):
             
-            result = run_async(health_module.check_health(start_time=1000.0, version="2.2.15"))
+            result = run_async(health_module.check_health_debug(start_time=1000.0, version="2.2.15"))
             
             assert len(result.services) == 4
             assert "api" in result.services
@@ -290,7 +290,7 @@ class TestCheckHealthOverall:
              patch.object(health_module, "check_service_meilisearch", side_effect=meili), \
              patch.object(health_module, "check_service_worker", side_effect=worker):
             
-            result = run_async(health_module.check_health(start_time=1000.0, version="2.2.15"))
+            result = run_async(health_module.check_health_debug(start_time=1000.0, version="2.2.15"))
             
             # Only one search service down = degraded (still functional)
             assert result.status == "degraded"
