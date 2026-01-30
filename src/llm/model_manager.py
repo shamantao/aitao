@@ -35,6 +35,7 @@ import asyncio
 from src.core.config import get_config
 from src.core.logger import get_logger
 from src.core.registry import ModelStatus, ModelInfo, ModelRole, ConfigKeys
+from src.core.model_config import validate_model_config, ModelConfigItem
 from src.llm.ollama_client import OllamaClient, OllamaConnectionError
 
 
@@ -154,13 +155,21 @@ class ModelManager:
     
     def _get_configured_models(self) -> List[ModelInfo]:
         """
-        Parse models from config.yaml.
+        Parse models from config.yaml with validation.
+        
+        Uses ModelConfigValidator to:
+        1. Validate schema (required fields, types)
+        2. Migrate old format to new format
+        3. Inject defaults for optional fields
         
         Returns list of ModelInfo objects from llm.models config.
         Handles both old format (simple list of strings) and new format (list of dicts).
         
         Returns:
             List of ModelInfo objects
+            
+        Raises:
+            ValueError: If configuration is invalid
         """
         config = get_config()
         models_config = config.get(ConfigKeys.LLM_MODELS, [])
@@ -169,22 +178,27 @@ class ModelManager:
             logger.warning("No models configured in config.yaml")
             return []
         
+        try:
+            # Validate and migrate to new format
+            validated_items = validate_model_config(models_config)
+        except ValueError as e:
+            logger.error(
+                f"Invalid model configuration: {str(e)}",
+                metadata={"error": str(e)}
+            )
+            raise
+        
+        # Convert validated items to ModelInfo objects
         models = []
-        for item in models_config:
-            if isinstance(item, str):
-                # Old format: simple string "llama3.1:8b"
-                models.append(ModelInfo(name=item, required=False))
-            elif isinstance(item, dict):
-                # New format: dict with name, required, roles, etc.
-                models.append(ModelInfo(
-                    name=item.get("name", ""),
-                    required=item.get("required", False),
-                    size_gb=item.get("size_gb"),
-                    roles=[ModelRole(r) for r in item.get("roles", [])],
-                    description=item.get("description", "")
-                ))
-            else:
-                logger.warning("Invalid model config format", item=item)
+        for item in validated_items:
+            models.append(ModelInfo(
+                name=item.name,
+                required=item.required,
+                size_gb=item.size_gb,
+                roles=[ModelRole(r) if r in [role.value for role in ModelRole] else r 
+                       for r in item.roles],
+                description=item.description
+            ))
         
         return models
     

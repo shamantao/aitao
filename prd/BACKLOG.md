@@ -620,6 +620,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 **Estimation:** 2 points  
 **Dépendances:** US-003 (ConfigManager)
+**Version visée:** 2.3.21.4
 
 ---
 
