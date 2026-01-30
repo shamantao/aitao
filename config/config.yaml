@@ -45,6 +45,21 @@ paths:
   vector_db_dir: "${storage_root}/lancedb"
 
 # -----------------------------------------------------------------------------
+# Worker Configuration
+# -----------------------------------------------------------------------------
+# Configure background worker behavior
+worker:
+  # Seconds between queue polls (lower = faster processing, higher CPU)
+  # Default: 5 seconds
+  poll_interval: 5
+  
+  # Maximum CPU usage before pausing processing
+  cpu_threshold: 80.0
+  
+  # Seconds before a stuck task is reset to pending
+  stuck_task_timeout: 600
+
+# -----------------------------------------------------------------------------
 # Indexing Configuration
 # -----------------------------------------------------------------------------
 # Configure document scanning and indexing behavior

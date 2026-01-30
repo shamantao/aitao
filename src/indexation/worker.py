@@ -46,7 +46,7 @@ def _get_logger():
 @dataclass
 class WorkerConfig:
     """Worker configuration settings."""
-    poll_interval: int = 30          # Seconds between queue polls
+    poll_interval: int = 5           # Seconds between queue polls (default: 5s)
     cpu_threshold: float = 80.0      # Max CPU % before pausing
     max_consecutive_errors: int = 5  # Errors before pause
     error_pause_time: int = 60       # Seconds to pause after errors
@@ -122,10 +122,13 @@ class BackgroundWorker:
             worker_section = self.config_manager.get("worker", {})
             if isinstance(worker_section, dict):
                 self.worker_config.poll_interval = worker_section.get(
-                    "poll_interval", 30
+                    "poll_interval", 5
                 )
                 self.worker_config.cpu_threshold = worker_section.get(
                     "cpu_threshold", 80.0
+                )
+                self.worker_config.stuck_task_timeout = worker_section.get(
+                    "stuck_task_timeout", 600
                 )
         
         # Initialize queue

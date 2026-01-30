@@ -57,12 +57,29 @@ def status():
             
             # Get queue stats
             queue_stats = worker.queue.get_stats()
+            pending = queue_stats['pending']
+            poll_interval = worker.worker_config.poll_interval
+            
             lines.append("")
             lines.append("[bold]Queue:[/bold]")
-            lines.append(f"  Pending: {queue_stats['pending']}")
+            lines.append(f"  Pending: {pending}")
             lines.append(f"  Processing: {queue_stats['processing']}")
             lines.append(f"  Completed: {queue_stats['completed']}")
             lines.append(f"  Failed: {queue_stats['failed']}")
+            
+            # ETA calculation
+            if pending > 0:
+                eta_seconds = pending * poll_interval
+                if eta_seconds < 60:
+                    eta_str = f"~{eta_seconds}s"
+                elif eta_seconds < 3600:
+                    eta_str = f"~{eta_seconds // 60}min"
+                else:
+                    hours = eta_seconds // 3600
+                    mins = (eta_seconds % 3600) // 60
+                    eta_str = f"~{hours}h{mins:02d}min"
+                lines.append("")
+                lines.append(f"[bold]ETA:[/bold] {eta_str} ({poll_interval}s/task)")
             
             console.print(Panel(
                 "\n".join(lines),
