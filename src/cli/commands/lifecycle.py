@@ -106,9 +106,12 @@ def _run_command(name: str, command: list, timeout: int = 30) -> bool:
         return False
 
 
-def _start_api_server() -> Tuple[bool, Optional[int]]:
+def _start_api_server(skip_pull: bool = False) -> Tuple[bool, Optional[int]]:
     """
     Start the FastAPI server as a background process.
+    
+    Args:
+        skip_pull: If True, skip automatic model download on startup
     
     Returns:
         (success, pid) tuple
@@ -129,6 +132,11 @@ def _start_api_server() -> Tuple[bool, Optional[int]]:
         python_path = sys.executable
         api_module = "src.api.main:app"
         
+        # Build environment variables for the subprocess
+        env = os.environ.copy()
+        if skip_pull:
+            env["AITAO_SKIP_MODEL_PULL"] = "1"
+        
         # Start process detached
         process = subprocess.Popen(
             [
@@ -142,6 +150,7 @@ def _start_api_server() -> Tuple[bool, Optional[int]]:
             stderr=subprocess.DEVNULL,
             cwd=str(src_path.parent),
             start_new_session=True,
+            env=env,
         )
         
         # Save PID
@@ -188,9 +197,9 @@ def _stop_api_server() -> bool:
         return False
 
 
-def start_api() -> Tuple[bool, Optional[int]]:
+def start_api(skip_pull: bool = False) -> Tuple[bool, Optional[int]]:
     """Public helper to start the API server."""
-    return _start_api_server()
+    return _start_api_server(skip_pull=skip_pull)
 
 
 def stop_api() -> bool:
@@ -291,17 +300,19 @@ def _check_meilisearch_running() -> bool:
 @app.command()
 def start(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    skip_scan: bool = typer.Option(False, "--skip-scan", help="Skip initial filesystem scan")
+    skip_scan: bool = typer.Option(False, "--skip-scan", help="Skip initial filesystem scan"),
+    skip_pull: bool = typer.Option(False, "--skip-pull", help="Skip automatic model downloads")
 ):
     """
     Start all AItao services.
     
     Starts the complete AItao stack:
     1. Verify LLM models (US-021b)
-    2. Meilisearch (full-text search engine)
-    3. API server (FastAPI on port 5000)
-    4. Background worker (document processing)
-    5. Initial scan (unless --skip-scan)
+    2. Download missing models if needed (unless --skip-pull)
+    3. Meilisearch (full-text search engine)
+    4. API server (FastAPI on port 5000)
+    5. Background worker (document processing)
+    6. Initial scan (unless --skip-scan)
     
     After starting, the system is ready to index and search documents.
     """
@@ -318,15 +329,36 @@ def start(
         model_status = manager.check_models()
         
         if model_status.required_missing:
-            error(f"Required models missing: {', '.join(model_status.required_missing)}")
-            console.print("[red]Cannot start without required models[/red]")
-            console.print()
-            console.print("Download them with:")
-            for model in model_status.required_missing:
-                console.print(f"  [cyan]ollama pull {model}:7b[/cyan]")
-            raise typer.Exit(code=1)
-        else:
-            status_line("LLM Models", f"OK ({len(model_status.present)} present)", ok=True)
+            if skip_pull:
+                error(f"Required models missing (and --skip-pull is set): {', '.join(model_status.required_missing)}")
+                console.print("[red]Cannot start without required models[/red]")
+                console.print()
+                console.print("Download them with:")
+                for model in model_status.required_missing:
+                    console.print(f"  [cyan]ollama pull {model}:7b[/cyan]")
+                console.print()
+                console.print("Or run without --skip-pull to auto-download:")
+                console.print("  [cyan]./aitao.sh start[/cyan]")
+                raise typer.Exit(code=1)
+            else:
+                # Auto-download missing required models
+                console.print("[yellow]Downloading missing required models...[/yellow]")
+                console.print()
+                
+                pull_result = manager.pull_missing_models()
+                
+                if pull_result["required_failed"]:
+                    error(f"Failed to download required models: {', '.join(pull_result['required_failed'])}")
+                    console.print("[red]Cannot start without required models[/red]")
+                    raise typer.Exit(code=1)
+                else:
+                    status_line("Models Downloaded", f"OK ({len(pull_result['required_pulled'])} models)", ok=True)
+                    
+                # Re-check after pulling
+                model_status = manager.check_models()
+        
+        status_line("LLM Models", f"OK ({len(model_status.present)} present)", ok=True)
+        
     except OllamaConnectionError as e:
         error(f"Cannot connect to Ollama: {str(e)}")
         console.print("[yellow]Make sure Ollama is running:[/yellow]")
@@ -353,7 +385,7 @@ def start(
         console=console,
         transient=True,
     ):
-        api_ok, api_pid = _start_api_server()
+        api_ok, api_pid = _start_api_server(skip_pull=skip_pull)
     
     if api_ok:
         status_line("API Server", f"OK (port {port}, PID {api_pid})", ok=True)

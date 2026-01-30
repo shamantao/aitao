@@ -68,9 +68,14 @@ def status():
 
 
 @app.command()
-def start():
-    """Start the API server."""
-    ok, pid = lifecycle_cmd.start_api()
+def start(skip_pull: bool = typer.Option(False, help="Skip automatic model downloads")):
+    """
+    Start the API server.
+    
+    By default, missing required models are downloaded automatically.
+    Use --skip-pull to start immediately without waiting for downloads.
+    """
+    ok, pid = lifecycle_cmd.start_api(skip_pull=skip_pull)
     if ok:
         status_line("API", f"Started (PID {pid})")
     else:

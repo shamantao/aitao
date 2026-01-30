@@ -27,8 +27,10 @@ Design Principles:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
 import logging
+import subprocess
+import asyncio
 
 from src.core.config import get_config
 from src.core.logger import get_logger
@@ -254,3 +256,230 @@ class ModelManager:
         except OllamaConnectionError:
             logger.error("Cannot check if model installed - Ollama unreachable", metadata={"model": model_name})
             return False
+    
+    def pull_missing_models(
+        self,
+        timeout_minutes: Optional[int] = None,
+        progress_callback: Optional[Callable[[str, float], None]] = None
+    ) -> Dict[str, Any]:
+        """
+        Download all missing required and optional models from Ollama hub.
+        
+        Uses 'ollama pull <model>' for each missing model.
+        
+        Args:
+            timeout_minutes: Maximum time to wait (per model or total?).
+                           Reads from config.yaml → llm.startup.pull_timeout_minutes if None.
+            progress_callback: Optional callback called with (model_name, percent_complete).
+                             Useful for CLI progress display.
+        
+        Returns:
+            Dict with:
+            {
+                "success": bool,           # True if all required models downloaded
+                "required_pulled": [...],  # Required models successfully pulled
+                "required_failed": [...],  # Required models that failed
+                "optional_pulled": [...],  # Optional models successfully pulled
+                "optional_failed": [...],  # Optional models that failed
+                "total_time_seconds": float
+            }
+        
+        Raises:
+            OllamaConnectionError: If Ollama is unreachable
+        
+        Side effects:
+            Logs progress at INFO/WARNING/ERROR levels
+        """
+        import time
+        start_time = time.time()
+        
+        # Get config
+        config = get_config()
+        if timeout_minutes is None:
+            timeout_minutes = config.get("llm.startup.pull_timeout_minutes") or 60
+        
+        logger.info(
+            "Starting model pull",
+            metadata={"timeout_minutes": timeout_minutes}
+        )
+        
+        # Check current status
+        try:
+            status = self.check_models()
+        except OllamaConnectionError as e:
+            logger.error("Cannot check models - Ollama unreachable", metadata={"error": str(e)})
+            return {
+                "success": False,
+                "required_pulled": [],
+                "required_failed": [],
+                "optional_pulled": [],
+                "optional_failed": [],
+                "error": str(e),
+                "total_time_seconds": time.time() - start_time
+            }
+        
+        # Get configured models for metadata
+        configured = self._get_configured_models()
+        configured_map = {m.name: m for m in configured}
+        
+        # Separate required and optional missing models
+        required_missing = []
+        optional_missing = []
+        
+        for model_name in status.missing:
+            # Find model metadata
+            model_info = None
+            for m in configured:
+                if self._parse_model_name(m.name) == model_name:
+                    model_info = m
+                    break
+            
+            if model_info and model_info.required:
+                required_missing.append(model_name)
+            else:
+                optional_missing.append(model_name)
+        
+        if not required_missing and not optional_missing:
+            logger.info("All configured models are already installed")
+            return {
+                "success": True,
+                "required_pulled": [],
+                "required_failed": [],
+                "optional_pulled": [],
+                "optional_failed": [],
+                "total_time_seconds": time.time() - start_time
+            }
+        
+        # Prepare to pull
+        to_pull = required_missing + optional_missing
+        results = {
+            "success": True,
+            "required_pulled": [],
+            "required_failed": [],
+            "optional_pulled": [],
+            "optional_failed": [],
+        }
+        
+        logger.info(
+            "Models to pull",
+            metadata={
+                "required": required_missing,
+                "optional": optional_missing,
+                "total": len(to_pull)
+            }
+        )
+        
+        # Pull each model
+        for idx, model_name in enumerate(to_pull):
+            is_required = model_name in required_missing
+            
+            # Report progress
+            percent = (idx / len(to_pull)) * 100 if to_pull else 0
+            if progress_callback:
+                progress_callback(model_name, percent)
+            
+            logger.info(f"Pulling {'required' if is_required else 'optional'} model",
+                       metadata={"model": model_name, "index": idx + 1, "total": len(to_pull)})
+            
+            # Try to pull with ollama pull
+            try:
+                self._pull_model_ollama(model_name, timeout_minutes=timeout_minutes)
+                
+                logger.info("Successfully pulled model", metadata={"model": model_name})
+                if is_required:
+                    results["required_pulled"].append(model_name)
+                else:
+                    results["optional_pulled"].append(model_name)
+                    
+            except subprocess.TimeoutExpired:
+                msg = f"Timeout pulling {model_name} (limit: {timeout_minutes}min)"
+                logger.error(msg, metadata={"model": model_name})
+                results["success"] = False
+                if is_required:
+                    results["required_failed"].append(model_name)
+                else:
+                    results["optional_failed"].append(model_name)
+                    
+            except Exception as e:
+                logger.error(
+                    f"Failed to pull model: {str(e)}",
+                    metadata={"model": model_name, "error": str(e)}
+                )
+                results["success"] = False
+                if is_required:
+                    results["required_failed"].append(model_name)
+                else:
+                    results["optional_failed"].append(model_name)
+        
+        # Final report
+        results["total_time_seconds"] = time.time() - start_time
+        
+        logger.info(
+            "Pull operation complete",
+            metadata={
+                "success": results["success"],
+                "required_pulled": len(results["required_pulled"]),
+                "required_failed": len(results["required_failed"]),
+                "optional_pulled": len(results["optional_pulled"]),
+                "optional_failed": len(results["optional_failed"]),
+                "total_seconds": results["total_time_seconds"]
+            }
+        )
+        
+        return results
+    
+    def _pull_model_ollama(self, model_name: str, timeout_minutes: int = 60) -> None:
+        """
+        Pull a single model using 'ollama pull' command.
+        
+        Args:
+            model_name: Model name (e.g., "llama3.1")
+            timeout_minutes: Max time to wait
+            
+        Raises:
+            subprocess.TimeoutExpired: If pull takes too long
+            subprocess.CalledProcessError: If ollama pull fails
+            FileNotFoundError: If ollama command not found
+        """
+        timeout_seconds = timeout_minutes * 60
+        
+        # Try to pull with most common tags
+        # First try without tag, then common variants
+        tags_to_try = [
+            "",           # ollama pull llama3.1
+            ":7b",        # ollama pull llama3.1:7b
+            ":8b",        # ollama pull llama3.1:8b
+        ]
+        
+        last_error = None
+        for tag in tags_to_try:
+            try:
+                full_model_name = f"{model_name}{tag}" if tag else model_name
+                logger.debug(f"Attempting to pull {full_model_name}")
+                
+                # Use subprocess to run 'ollama pull'
+                result = subprocess.run(
+                    ["ollama", "pull", full_model_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout_seconds
+                )
+                
+                if result.returncode == 0:
+                    logger.info(f"Successfully pulled {full_model_name}")
+                    return
+                else:
+                    last_error = result.stderr or result.stdout or "Unknown error"
+                    logger.debug(f"ollama pull {full_model_name} failed: {last_error}")
+                    
+            except subprocess.TimeoutExpired:
+                logger.error(f"Timeout pulling {model_name}{tag}")
+                raise
+            except FileNotFoundError:
+                raise FileNotFoundError("'ollama' command not found. Is Ollama installed?")
+            except subprocess.CalledProcessError as e:
+                last_error = e.stderr or e.stdout or str(e)
+                logger.debug(f"CalledProcessError for {model_name}{tag}: {last_error}")
+        
+        # If we get here, all tags failed
+        raise Exception(f"Failed to pull {model_name}: {last_error or 'Unknown error'}")

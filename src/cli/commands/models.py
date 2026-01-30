@@ -240,32 +240,109 @@ def pull():
     """
     Download missing configured models from Ollama hub.
     
-    This is a future feature (US-021c).
-    Currently, use: ollama pull <model>
-    """
-    console.print("[yellow]Feature not yet implemented (US-021c)[/yellow]")
-    console.print()
-    console.print("For now, download models manually:")
-    console.print()
+    Downloads all missing required models (blocking if any missing) and
+    optional models (non-blocking if any missing).
     
+    Uses: ollama pull <model>
+    """
     manager = _get_model_manager()
     if not manager:
         raise typer.Exit(code=1)
     
+    # Check what's missing
     try:
         model_status = manager.check_models()
     except OllamaConnectionError as e:
         console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
         raise typer.Exit(code=1)
     
-    if model_status.missing:
+    if not model_status.missing:
+        console.print("[green]✓ All configured models are already installed![/green]")
+        raise typer.Exit(code=0)
+    
+    # Show what we're about to download
+    console.print()
+    if model_status.required_missing:
+        console.print(f"[red]Required models missing ({len(model_status.required_missing)}):[/red]")
+        for model in sorted(model_status.required_missing):
+            console.print(f"  ✗ {model}")
+    
+    if model_status.missing and not model_status.required_missing:
+        # These are optional missing models
+        console.print(f"[yellow]Optional models missing ({len(model_status.missing)}):[/yellow]")
         for model in sorted(model_status.missing):
-            console.print(f"  [cyan]ollama pull {model}:7b[/cyan]")
-    else:
-        console.print("  [green]All configured models are already installed![/green]")
+            console.print(f"  ○ {model}")
     
     console.print()
-    console.print("[dim]This command will auto-download in a future sprint.[/dim]")
+    console.print("[cyan]Downloading models...[/cyan]")
+    console.print()
+    
+    # Run the pull operation
+    try:
+        result = manager.pull_missing_models()
+    except FileNotFoundError as e:
+        console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
+        console.print()
+        console.print("Please install Ollama from: https://ollama.ai", file=sys.stderr)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
+        raise typer.Exit(code=1)
+    
+    # Report results
+    console.print()
+    
+    # Required models
+    if result["required_pulled"]:
+        console.print("[green]✓ Successfully downloaded required models:[/green]")
+        for model in sorted(result["required_pulled"]):
+            console.print(f"  ✓ {model}")
+    
+    if result["required_failed"]:
+        console.print("[red]✗ Failed to download required models:[/red]")
+        for model in sorted(result["required_failed"]):
+            console.print(f"  ✗ {model}")
+        console.print()
+        console.print("[red]ERROR: Cannot start without required models![/red]", file=sys.stderr)
+        console.print()
+        console.print("Try downloading manually:", file=sys.stderr)
+        for model in sorted(result["required_failed"]):
+            console.print(f"  ollama pull {model}:7b", file=sys.stderr)
+        raise typer.Exit(code=1)
+    
+    # Optional models
+    if result["optional_pulled"]:
+        console.print("[green]✓ Successfully downloaded optional models:[/green]")
+        for model in sorted(result["optional_pulled"]):
+            console.print(f"  ○ {model}")
+    
+    if result["optional_failed"]:
+        console.print("[yellow]⚠ Failed to download optional models:[/yellow]")
+        for model in sorted(result["optional_failed"]):
+            console.print(f"  ○ {model}")
+    
+    # Summary
+    console.print()
+    elapsed = result.get("total_time_seconds", 0)
+    summary = (
+        f"[cyan]Downloaded:[/cyan] {len(result['required_pulled']) + len(result['optional_pulled'])} models\n"
+        f"[yellow]Failed:[/yellow] {len(result['required_failed']) + len(result['optional_failed'])} models\n"
+        f"[dim]Time:[/dim] {elapsed:.1f} seconds"
+    )
+    console.print(Panel(summary, title="[bold]Pull Summary[/bold]", border_style="cyan"))
+    
+    logger.info(
+        "Pull command complete",
+        metadata={
+            "success": result["success"],
+            "required_pulled": len(result["required_pulled"]),
+            "required_failed": len(result["required_failed"]),
+            "optional_pulled": len(result["optional_pulled"]),
+            "optional_failed": len(result["optional_failed"]),
+        }
+    )
+    
+    raise typer.Exit(code=0 if result["success"] else 1)
 
 
 @app.command()
