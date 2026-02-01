@@ -192,7 +192,6 @@ class TestConfigTemplate:
             "default_model",
             "models",
             "startup",
-            "rag",
             "generation",
         ]
         
@@ -200,6 +199,9 @@ class TestConfigTemplate:
         
         assert not missing_llm, \
             f"Template llm section missing keys: {missing_llm}"
+        
+        # Note: RAG is now a root-level section (not under llm)
+        # This was changed in US-023 for better organization
     
     def test_template_ocr_router_config(self, template_data: dict):
         """Verify OCR router configuration exists."""

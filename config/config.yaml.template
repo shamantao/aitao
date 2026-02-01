@@ -281,17 +281,37 @@ llm:
     auto_pull: true             # Download missing models automatically
     pull_timeout_minutes: 30    # Timeout per model download
   
-  # RAG (Retrieval-Augmented Generation) settings
-  rag:
-    enabled: true
-    max_context_docs: 5
-    max_context_tokens: 2000
-  
   # Generation parameters
   generation:
     temperature: 0.7
     top_p: 0.9
     max_tokens: 2048
+
+# -----------------------------------------------------------------------------
+# RAG Configuration (Retrieval-Augmented Generation)
+# -----------------------------------------------------------------------------
+# Controls how document context is injected into LLM prompts
+rag:
+  enabled: true                    # Enable RAG context enrichment
+  use_chunks: true                 # Use chunk-based retrieval (recommended)
+  max_context_chunks: 5            # Max chunks to include (preferred mode)
+  max_context_docs: 5              # Max documents (fallback if no chunks)
+  context_max_tokens: 4000         # Max tokens for context section
+  min_relevance_score: 0.3         # Min score to include document/chunk (0-1)
+  include_metadata: true           # Include file path, position in context
+
+# -----------------------------------------------------------------------------
+# Chunking Configuration
+# -----------------------------------------------------------------------------
+# Controls how documents are split into chunks for fine-grained RAG retrieval
+chunking:
+  enabled: true                    # Enable document chunking
+  chunk_size: 512                  # Target chunk size in tokens
+  chunk_overlap: 50                # Overlap between consecutive chunks
+  min_chunk_size: 100              # Minimum chunk size to keep
+  max_chunk_size: 1024             # Maximum chunk size allowed
+  split_on_sentences: true         # Prefer sentence boundaries
+  embedding_model: "BAAI/bge-m3"   # Model for chunk embeddings
 
 # -----------------------------------------------------------------------------
 # Virtual Model Routing Configuration

@@ -4,6 +4,7 @@ Hybrid Search Engine for AItao.
 This module provides the HybridSearchEngine class that combines:
 - Semantic search via LanceDB (embeddings-based similarity)
 - Full-text search via Meilisearch (keyword matching with typo tolerance)
+- Chunk search for RAG (fine-grained retrieval for LLM context)
 - Query expansion for better recall on short queries
 - Reciprocal Rank Fusion (RRF) for robust result merging
 - Parallel execution for performance
@@ -105,6 +106,55 @@ class HybridSearchResponse:
     mode: str = "hybrid"
 
 
+@dataclass
+class ChunkSearchResult:
+    """
+    Single chunk result for RAG retrieval.
+    
+    Represents a fine-grained text segment optimized for LLM context.
+    Multiple chunks may come from the same source document.
+    
+    Attributes:
+        chunk_id: Unique chunk identifier
+        doc_id: Parent document ID
+        path: Source file path
+        title: Document title
+        content: Chunk text content (typically 512 tokens)
+        chunk_index: Position within source document (0-indexed)
+        total_chunks: Total chunks in source document
+        score: Semantic similarity score (0-1)
+        metadata: Additional chunk metadata
+    """
+    chunk_id: str
+    doc_id: str
+    path: str
+    title: str
+    content: str
+    chunk_index: int
+    total_chunks: int
+    score: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ChunkSearchResponse:
+    """
+    Response from chunk-based RAG search.
+    
+    Attributes:
+        query: Original search query
+        chunks: List of ChunkSearchResult objects
+        total: Total chunks found
+        unique_docs: Number of unique source documents
+        search_time_ms: Search execution time
+    """
+    query: str
+    chunks: List[ChunkSearchResult]
+    total: int
+    unique_docs: int = 0
+    search_time_ms: float = 0.0
+
+
 class HybridSearchEngine:
     """
     Hybrid search engine combining semantic and full-text search.
@@ -156,6 +206,7 @@ class HybridSearchEngine:
         # Lazy-loaded clients
         self._lancedb_client = None
         self._meilisearch_client = None
+        self._chunk_store = None
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         
         logger.info(
@@ -191,6 +242,18 @@ class HybridSearchEngine:
                 logger.warning(f"Failed to initialize Meilisearch: {e}")
                 self._meilisearch_client = None
         return self._meilisearch_client
+    
+    @property
+    def chunk_store(self):
+        """Lazy-load ChunkStore for RAG retrieval."""
+        if self._chunk_store is None:
+            try:
+                from src.indexation.chunk_store import ChunkStore
+                self._chunk_store = ChunkStore()
+            except Exception as e:
+                logger.warning(f"Failed to initialize ChunkStore: {e}")
+                self._chunk_store = None
+        return self._chunk_store
     
     def _search_lancedb_sync(
         self,
@@ -870,6 +933,118 @@ class HybridSearchEngine:
         except RuntimeError:
             # No running loop, we can safely use asyncio.run
             return asyncio.run(self.search(query, limit, offset, filters, mode))
+    
+    def search_chunks(
+        self,
+        query: str,
+        limit: int = 5,
+        min_score: float = 0.3,
+    ) -> ChunkSearchResponse:
+        """
+        Search chunks for RAG context retrieval.
+        
+        Performs semantic search on the chunks table to find the most
+        relevant text segments for LLM context. Optimized for RAG where
+        we need fine-grained, high-relevance content.
+        
+        Args:
+            query: Search query string
+            limit: Maximum number of chunks to return (default 5 for ~2500 tokens)
+            min_score: Minimum similarity score threshold (0-1)
+        
+        Returns:
+            ChunkSearchResponse with relevant chunks sorted by score
+        
+        Example:
+            >>> engine = HybridSearchEngine()
+            >>> response = engine.search_chunks("Trump 4 juillet 2025")
+            >>> for chunk in response.chunks:
+            ...     print(f"{chunk.title}[{chunk.chunk_index}]: {chunk.score:.2f}")
+        """
+        start_time = time.time()
+        
+        query = query.strip()
+        if not query:
+            return ChunkSearchResponse(
+                query=query,
+                chunks=[],
+                total=0,
+                unique_docs=0,
+            )
+        
+        if self.chunk_store is None:
+            logger.warning("ChunkStore not available for chunk search")
+            return ChunkSearchResponse(
+                query=query,
+                chunks=[],
+                total=0,
+                unique_docs=0,
+            )
+        
+        try:
+            # Search chunks using ChunkStore
+            raw_chunks = self.chunk_store.search(
+                query=query,
+                limit=limit * 2,  # Get more, filter by score
+            )
+            
+            # Filter by minimum score and convert to ChunkSearchResult
+            chunks: List[ChunkSearchResult] = []
+            seen_docs = set()
+            
+            for chunk_data in raw_chunks:
+                score = chunk_data.get("_score", 0.0)
+                
+                # Apply minimum score threshold
+                if score < min_score:
+                    continue
+                
+                doc_id = chunk_data.get("doc_id", "")
+                seen_docs.add(doc_id)
+                
+                chunks.append(ChunkSearchResult(
+                    chunk_id=chunk_data.get("chunk_id", ""),
+                    doc_id=doc_id,
+                    path=chunk_data.get("path", ""),
+                    title=chunk_data.get("title", ""),
+                    content=chunk_data.get("content", ""),
+                    chunk_index=chunk_data.get("chunk_index", 0),
+                    total_chunks=chunk_data.get("total_chunks", 1),
+                    score=round(score, 4),
+                    metadata=chunk_data.get("metadata", {}),
+                ))
+                
+                if len(chunks) >= limit:
+                    break
+            
+            search_time_ms = (time.time() - start_time) * 1000
+            
+            logger.info(
+                f"Chunk search completed: {len(chunks)} chunks from {len(seen_docs)} docs",
+                metadata={
+                    "query": query,
+                    "chunks_found": len(chunks),
+                    "unique_docs": len(seen_docs),
+                    "search_time_ms": round(search_time_ms, 2),
+                }
+            )
+            
+            return ChunkSearchResponse(
+                query=query,
+                chunks=chunks,
+                total=len(chunks),
+                unique_docs=len(seen_docs),
+                search_time_ms=round(search_time_ms, 2),
+            )
+            
+        except Exception as e:
+            logger.error(f"Chunk search failed: {e}")
+            return ChunkSearchResponse(
+                query=query,
+                chunks=[],
+                total=0,
+                unique_docs=0,
+            )
     
     def close(self):
         """Clean up resources."""

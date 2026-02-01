@@ -106,6 +106,19 @@ search:
     top_k: 20
     min_score: 0.45
     offline_mode: true
+
+# Chunking Configuration for RAG
+# Documents are split into overlapping chunks for precise retrieval.
+# Without chunking, context_max_tokens=2000 is only 0.7% of a typical PDF.
+chunking:
+  enabled: true
+  chunk_size: 512          # Target size in tokens per chunk
+  chunk_overlap: 50        # Overlap between chunks in tokens
+  min_chunk_size: 100      # Minimum chunk size (smaller chunks merged)
+  max_chunk_size: 1024     # Maximum chunk size in tokens
+  split_on_sentences: true # Prefer breaking at sentence boundaries
+  embedding_model: BAAI/bge-m3
+  
 categories:
   enabled: true
   labels:
@@ -214,7 +227,9 @@ logging:
 # Controls how document context is injected into LLM prompts
 rag:
   enabled: true                  # Enable RAG context enrichment
-  max_context_docs: 5            # Max documents to include in context
-  context_max_tokens: 2000       # Max tokens for context section
-  min_relevance_score: 0.3       # Min score to include document (0-1)
-  include_metadata: true         # Include file path, category in context
+  use_chunks: true               # Use chunk-based retrieval (US-023, recommended)
+  max_context_chunks: 5          # Max chunks to include (preferred mode)
+  max_context_docs: 5            # Max documents (fallback if no chunks)
+  context_max_tokens: 4000       # Max tokens for context section (increased for chunks)
+  min_relevance_score: 0.3       # Min score to include document/chunk (0-1)
+  include_metadata: true         # Include file path, position in context

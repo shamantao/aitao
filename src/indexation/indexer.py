@@ -24,6 +24,9 @@ import json
 import logging
 
 from src.indexation.text_extractor import TextExtractor, ExtractionResult
+from src.indexation.chunker import ChunkingPipeline
+from src.indexation.chunk_store import ChunkStore, ChunkStoreError
+from src.indexation.interfaces import ChunkingConfig
 from search.lancedb_client import LanceDBClient, LanceDBError
 from search.meilisearch_client import MeilisearchClient, MeilisearchError
 
@@ -53,6 +56,9 @@ class IndexResult:
     
     meilisearch_indexed: bool = False
     """Whether document was indexed in Meilisearch."""
+    
+    chunks_indexed: int = 0
+    """Number of chunks indexed for this document."""
     
     error: Optional[str] = None
     """Error message if indexing failed."""
@@ -131,9 +137,11 @@ class DocumentIndexer:
         lancedb_client: Optional[LanceDBClient] = None,
         meilisearch_client: Optional[MeilisearchClient] = None,
         text_extractor: Optional[TextExtractor] = None,
+        chunk_store: Optional[ChunkStore] = None,
         config: Optional[ConfigManager] = None,
         skip_lancedb: bool = False,
         skip_meilisearch: bool = False,
+        skip_chunking: bool = False,
     ):
         """
         Initialize the document indexer.
@@ -142,9 +150,11 @@ class DocumentIndexer:
             lancedb_client: LanceDB client instance. Created if None.
             meilisearch_client: Meilisearch client instance. Created if None.
             text_extractor: TextExtractor instance. Created if None.
+            chunk_store: ChunkStore instance for RAG chunks. Created if None.
             config: ConfigManager instance.
             skip_lancedb: Skip LanceDB indexing (for testing).
             skip_meilisearch: Skip Meilisearch indexing (for testing).
+            skip_chunking: Skip chunking (for testing or when disabled).
         """
         self.logger = get_logger("indexer")
         self.config = config
@@ -154,10 +164,19 @@ class DocumentIndexer:
         
         self.skip_lancedb = skip_lancedb
         self.skip_meilisearch = skip_meilisearch
+        self.skip_chunking = skip_chunking
         
         # Lazy initialization for search clients
         self._lancedb_client = lancedb_client
         self._meilisearch_client = meilisearch_client
+        self._chunk_store = chunk_store
+        self._chunking_pipeline: Optional[ChunkingPipeline] = None
+        
+        # Check if chunking is enabled in config
+        if config:
+            chunking_enabled = config.get("chunking.enabled", True)
+            if not chunking_enabled:
+                self.skip_chunking = True
     
     @property
     def lancedb(self) -> Optional[LanceDBClient]:
@@ -184,6 +203,39 @@ class DocumentIndexer:
                 self.logger.error(f"Failed to initialize Meilisearch: {e}")
                 return None
         return self._meilisearch_client
+    
+    @property
+    def chunk_store(self) -> Optional[ChunkStore]:
+        """Get or create ChunkStore for RAG chunks."""
+        if self.skip_chunking:
+            return None
+        if self._chunk_store is None:
+            try:
+                self._chunk_store = ChunkStore()
+            except Exception as e:
+                self.logger.error(f"Failed to initialize ChunkStore: {e}")
+                return None
+        return self._chunk_store
+    
+    @property
+    def chunking_pipeline(self) -> Optional[ChunkingPipeline]:
+        """Get or create ChunkingPipeline."""
+        if self.skip_chunking:
+            return None
+        if self._chunking_pipeline is None:
+            # Load config from config manager
+            chunk_config = ChunkingConfig()
+            if self.config:
+                chunk_config = ChunkingConfig.from_dict({
+                    "chunk_size": self.config.get("chunking.chunk_size", 512),
+                    "chunk_overlap": self.config.get("chunking.chunk_overlap", 50),
+                    "min_chunk_size": self.config.get("chunking.min_chunk_size", 100),
+                    "max_chunk_size": self.config.get("chunking.max_chunk_size", 1024),
+                    "split_on_sentences": self.config.get("chunking.split_on_sentences", True),
+                    "embedding_model": self.config.get("chunking.embedding_model", "BAAI/bge-m3"),
+                })
+            self._chunking_pipeline = ChunkingPipeline(chunk_config)
+        return self._chunking_pipeline
     
     def _generate_id(self, path: str) -> str:
         """Generate document ID from path using SHA256."""
@@ -369,9 +421,46 @@ class DocumentIndexer:
                 errors.append(f"Meilisearch: {e}")
                 self.logger.error(f"Meilisearch indexing failed for {path}: {e}")
         
+        # Step 4: Chunk document for RAG
+        chunks_count = 0
+        if self.chunking_pipeline and self.chunk_store and extraction.text:
+            try:
+                # Delete existing chunks for this document (re-indexing)
+                self.chunk_store.delete_by_doc_id(doc_id)
+                
+                # Chunk the document
+                chunking_result = self.chunking_pipeline.chunk_document(
+                    text=extraction.text,
+                    doc_id=doc_id,
+                    path=str(path),
+                    title=title,
+                    metadata={
+                        "category": category,
+                        "language": language,
+                        "file_type": file_type,
+                    },
+                )
+                
+                if chunking_result.success and chunking_result.chunks:
+                    # Store chunks with embeddings
+                    chunks_count = self.chunk_store.add_chunks(chunking_result.chunks)
+                    self.logger.debug(
+                        f"Chunked {path.name}: {chunks_count} chunks"
+                    )
+                elif not chunking_result.success:
+                    errors.append(f"Chunking: {chunking_result.error}")
+                    
+            except ChunkStoreError as e:
+                errors.append(f"ChunkStore: {e}")
+                self.logger.error(f"Chunk storage failed for {path}: {e}")
+            except Exception as e:
+                errors.append(f"Chunking: {e}")
+                self.logger.error(f"Chunking failed for {path}: {e}")
+        
         index_time = (time.perf_counter() - index_start) * 1000
         
         # Determine overall success
+        # Chunking failure is not fatal - document is still searchable via Meilisearch
         success = (lancedb_ok or self.skip_lancedb) and (meilisearch_ok or self.skip_meilisearch)
         
         return IndexResult(
@@ -380,6 +469,7 @@ class DocumentIndexer:
             success=success,
             lancedb_indexed=lancedb_ok,
             meilisearch_indexed=meilisearch_ok,
+            chunks_indexed=chunks_count,
             error="; ".join(errors) if errors else None,
             extraction_time_ms=extract_time,
             indexing_time_ms=index_time,

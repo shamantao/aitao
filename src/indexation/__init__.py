@@ -7,6 +7,7 @@ This module handles:
 - Background worker processing
 - Document extraction and preparation
 - Document indexing pipeline
+- Text chunking for RAG
 """
 
 from src.indexation.scanner import FilesystemScanner
@@ -14,6 +15,8 @@ from src.indexation.queue import TaskQueue
 from src.indexation.worker import BackgroundWorker
 from src.indexation.text_extractor import TextExtractor, extract_text
 from src.indexation.indexer import DocumentIndexer, IndexResult, BatchIndexResult, index_file
+from src.indexation.interfaces import Chunk, ChunkingConfig, ChunkingResult
+from src.indexation.chunker import ChunkingPipeline, chunk_text
 
 __all__ = [
     "FilesystemScanner",
@@ -25,4 +28,10 @@ __all__ = [
     "IndexResult",
     "BatchIndexResult",
     "index_file",
+    # Chunking
+    "Chunk",
+    "ChunkingConfig",
+    "ChunkingResult",
+    "ChunkingPipeline",
+    "chunk_text",
 ]
