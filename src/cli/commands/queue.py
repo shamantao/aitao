@@ -25,7 +25,7 @@ from cli.utils import (
     success,
     error,
     warning,
-    info,
+    info as show_info,
     spinner,
     status_line
 )
@@ -86,18 +86,39 @@ def status():
 
 @app.command("list")
 def list_tasks(
+    status_arg: Optional[str] = typer.Argument(
+        None, 
+        help="Filter by status: pending, completed, failed, processing, cancelled"
+    ),
     pending: bool = typer.Option(False, "--pending", "-p", help="Show only pending tasks"),
     completed: bool = typer.Option(False, "--completed", "-c", help="Show only completed tasks"),
     failed: bool = typer.Option(False, "--failed", "-f", help="Show only failed tasks"),
     limit: int = typer.Option(20, "--limit", "-n", help="Maximum number of tasks to show")
 ):
-    """List tasks in the queue."""
+    """List tasks in the queue.
+    
+    Examples:
+        ./aitao.sh queue list           # Show all tasks
+        ./aitao.sh queue list failed    # Show only failed tasks
+        ./aitao.sh queue list pending   # Show only pending tasks
+        ./aitao.sh queue list -n 50     # Show up to 50 tasks
+    """
     try:
         queue = get_queue()
         
-        # Determine status filter
+        # Determine status filter (positional arg takes precedence)
         status_filter = None
-        if pending:
+        
+        # Check positional argument first
+        if status_arg:
+            valid_statuses = ["pending", "completed", "failed", "processing", "cancelled"]
+            if status_arg.lower() not in valid_statuses:
+                error(f"Invalid status: {status_arg}")
+                show_info(f"Valid statuses: {', '.join(valid_statuses)}")
+                raise typer.Exit(1)
+            status_filter = status_arg.lower()
+        # Then check option flags
+        elif pending:
             status_filter = TaskStatus.PENDING.value
         elif completed:
             status_filter = TaskStatus.COMPLETED.value
@@ -107,7 +128,7 @@ def list_tasks(
         tasks = queue.list_tasks(status=status_filter, limit=limit)
         
         if not tasks:
-            info("Queue is empty" if not status_filter else f"No {status_filter} tasks")
+            show_info("Queue is empty" if not status_filter else f"No {status_filter} tasks")
             return
         
         # Create table
@@ -227,13 +248,13 @@ def clear(
             action = "completed tasks"
         
         if count == 0:
-            info(f"No {action} to clear")
+            show_info(f"No {action} to clear")
             return
         
         if not force:
             confirm = typer.confirm(f"Clear {count} {action}?")
             if not confirm:
-                info("Cancelled")
+                show_info("Cancelled")
                 return
         
         with spinner("Clearing tasks..."):
@@ -257,7 +278,7 @@ def retry():
         stats = queue.get_stats()
         
         if stats["failed"] == 0:
-            info("No failed tasks to retry")
+            show_info("No failed tasks to retry")
             return
         
         with spinner("Retrying failed tasks..."):
