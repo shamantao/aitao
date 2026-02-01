@@ -759,41 +759,27 @@ Noms des modèles virtuels:
 
 ---
 
-#### US-021h: Configuration virtual_models dans config.yaml [SHOULD] 📋
+#### US-021h: Configuration virtual_models dans config.yaml [SHOULD] ✅ DONE
 **En tant que** administrateur  
 **Je veux** configurer les modèles virtuels dans config.yaml  
 **Afin de** personnaliser les noms et les mappings
 
 **Critères d'acceptation:**
-- [ ] Nouvelle section `virtual_models` dans config.yaml
-- [ ] Définition des suffixes et comportements
-- [ ] Possibilité de définir des filtres de catégorie personnalisés
-- [ ] Documentation inline complète
+- [x] Nouvelle section `virtual_models` dans config.yaml
+- [x] Définition des suffixes et comportements (rag_mode: disabled/enabled/auto)
+- [x] Possibilité de définir des filtres de catégorie personnalisés
+- [x] Documentation inline complète (config.yaml + config.yaml.template)
+- [x] VirtualModelRouter.from_config() factory method
+- [x] Tests unitaires pour from_config (9 nouveaux tests)
+- [x] Validation: 492 unit tests + 19 E2E tests passent
 
-**Exemple config.yaml:**
-```yaml
-virtual_models:
-  enabled: true
-  suffixes:
-    basic:
-      rag_enabled: false
-    context:
-      rag_enabled: true
-      filter_categories: ["code", "config"]
-    doc:
-      rag_enabled: true
-      filter_categories: null  # All categories
-    smart:
-      rag_enabled: auto
-  mappings:
-    llama3.1-basic: llama3.1-local:latest
-    qwen-coder-basic: qwen2.5-coder-local:latest
-    qwen-coder-context: qwen2.5-coder-local:latest
-    llama3.1-doc: llama3.1-local:latest
-```
+**Implémentation:**
+- config/config.yaml: Nouvelle section `virtual_models` avec suffixes et mappings
+- config/config.yaml.template: Documentation détaillée avec exemples
+- src/api/virtual_models.py: Ajout `from_config()`, `reset_router()`, chargement depuis config.yaml
+- tests/unit/test_virtual_models.py: 9 nouveaux tests pour TestFromConfig
 
-**Estimation:** 3 points  
-**Dépendances:** US-021g
+**Version finale:** 2.3.21.8 ✅
 
 ---
 

@@ -15,6 +15,10 @@ Example:
     Client requests: "llama3.1-doc"
     Router returns: real_model="llama3.1-local:latest", rag_enabled=True, filter=None
 
+Configuration:
+    Virtual models can be configured in config.yaml under `virtual_models` section.
+    See config/config.yaml for full documentation.
+
 Architecture Note:
     The user keeps control over context injection level through model selection,
     without needing to understand complex configuration options.
@@ -22,7 +26,7 @@ Architecture Note:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.logger import get_logger
 
@@ -115,6 +119,7 @@ class VirtualModelRouter:
         self,
         base_mappings: Optional[Dict[str, str]] = None,
         suffix_configs: Optional[Dict[str, VirtualModelConfig]] = None,
+        use_defaults: bool = True,
     ):
         """
         Initialize the router.
@@ -122,9 +127,22 @@ class VirtualModelRouter:
         Args:
             base_mappings: Map of virtual base names to real model names.
             suffix_configs: Configuration for each suffix type.
+            use_defaults: If True and mappings/configs are None, use defaults.
+                          If False, use empty dicts (disables virtual models).
         """
-        self.base_mappings = base_mappings or DEFAULT_BASE_MAPPINGS.copy()
-        self.suffix_configs = suffix_configs or DEFAULT_SUFFIX_CONFIGS.copy()
+        if base_mappings is not None:
+            self.base_mappings = base_mappings
+        elif use_defaults:
+            self.base_mappings = DEFAULT_BASE_MAPPINGS.copy()
+        else:
+            self.base_mappings = {}
+        
+        if suffix_configs is not None:
+            self.suffix_configs = suffix_configs
+        elif use_defaults:
+            self.suffix_configs = DEFAULT_SUFFIX_CONFIGS.copy()
+        else:
+            self.suffix_configs = {}
         
         # Build reverse mapping for listing virtual models
         self._virtual_models_cache: Optional[List[Dict]] = None
@@ -136,6 +154,75 @@ class VirtualModelRouter:
                 "suffixes": list(self.suffix_configs.keys()),
             }
         )
+    
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]) -> "VirtualModelRouter":
+        """
+        Create a VirtualModelRouter from config.yaml virtual_models section.
+        
+        Args:
+            config: The virtual_models config dict from config.yaml.
+                    Can be empty to use defaults.
+        
+        Returns:
+            Configured VirtualModelRouter instance.
+        
+        Example config structure:
+            {
+                "enabled": true,
+                "suffixes": {
+                    "basic": {"rag_mode": "disabled", "filter_categories": null},
+                    "doc": {"rag_mode": "enabled", "filter_categories": null}
+                },
+                "mappings": {
+                    "llama3.1": "llama3.1-local:latest"
+                }
+            }
+        """
+        # Check if virtual models are disabled
+        if not config.get("enabled", True):
+            logger.info("Virtual models disabled in config")
+            return cls(base_mappings=None, suffix_configs=None, use_defaults=False)
+        
+        # Parse suffix configurations
+        suffix_configs: Dict[str, VirtualModelConfig] = {}
+        raw_suffixes = config.get("suffixes", {})
+        
+        for suffix_name, suffix_data in raw_suffixes.items():
+            rag_mode_str = suffix_data.get("rag_mode", "enabled")
+            try:
+                rag_mode = RAGMode(rag_mode_str)
+            except ValueError:
+                logger.warning(f"Invalid rag_mode '{rag_mode_str}' for suffix '{suffix_name}', using 'enabled'")
+                rag_mode = RAGMode.ENABLED
+            
+            suffix_configs[suffix_name] = VirtualModelConfig(
+                suffix=suffix_name,
+                rag_mode=rag_mode,
+                filter_categories=suffix_data.get("filter_categories"),
+                description=suffix_data.get("description", ""),
+            )
+        
+        # Use defaults if no suffixes configured
+        if not suffix_configs:
+            suffix_configs = DEFAULT_SUFFIX_CONFIGS.copy()
+            logger.debug("Using default suffix configurations")
+        
+        # Parse base model mappings
+        base_mappings = config.get("mappings", {})
+        if not base_mappings:
+            base_mappings = DEFAULT_BASE_MAPPINGS.copy()
+            logger.debug("Using default base model mappings")
+        
+        logger.info(
+            "VirtualModelRouter configured from config.yaml",
+            metadata={
+                "suffixes": list(suffix_configs.keys()),
+                "mappings": list(base_mappings.keys()),
+            }
+        )
+        
+        return cls(base_mappings=base_mappings, suffix_configs=suffix_configs)
     
     def resolve(self, model_name: str) -> ResolvedModel:
         """
@@ -236,12 +323,49 @@ class VirtualModelRouter:
 _router: Optional[VirtualModelRouter] = None
 
 
-def get_virtual_router() -> VirtualModelRouter:
-    """Get or create the virtual model router singleton."""
+def get_virtual_router(config: Optional[Dict[str, Any]] = None) -> VirtualModelRouter:
+    """
+    Get or create the virtual model router singleton.
+    
+    On first call, loads configuration from config.yaml if no config is passed.
+    Subsequent calls return the cached instance.
+    
+    Args:
+        config: Optional virtual_models config dict. If None, loads from config.yaml.
+        
+    Returns:
+        VirtualModelRouter instance.
+    """
     global _router
     if _router is None:
-        _router = VirtualModelRouter()
+        if config is None:
+            # Load from config.yaml
+            config = _load_config_from_yaml()
+        _router = VirtualModelRouter.from_config(config)
     return _router
+
+
+def _load_config_from_yaml() -> Dict[str, Any]:
+    """Load virtual_models section from config.yaml."""
+    try:
+        from src.core.config import get_config
+        cfg = get_config()
+        vm_config = cfg.get_section("virtual_models")
+        if vm_config:
+            logger.debug("Loaded virtual_models config from config.yaml")
+            return vm_config
+    except Exception as e:
+        logger.warning(f"Could not load virtual_models from config.yaml: {e}")
+    
+    # Return empty dict to use defaults
+    return {}
+
+
+def reset_router() -> None:
+    """Reset the router singleton (useful for testing)."""
+    global _router
+    _router = None
+    logger.debug("Virtual model router reset")
 
 
 def resolve_model(model_name: str) -> ResolvedModel:

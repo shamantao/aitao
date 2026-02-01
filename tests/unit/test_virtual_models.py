@@ -13,6 +13,7 @@ from src.api.virtual_models import (
     RAGMode,
     resolve_model,
     get_virtual_router,
+    reset_router,
     DEFAULT_BASE_MAPPINGS,
     DEFAULT_SUFFIX_CONFIGS,
 )
@@ -320,3 +321,141 @@ class TestEdgeCases:
         assert resolved.is_virtual
         assert resolved.real_model == "my-model:latest"
         assert resolved.rag_enabled is False
+
+
+class TestFromConfig:
+    """Tests for VirtualModelRouter.from_config factory method."""
+    
+    def test_from_empty_config_uses_defaults(self):
+        """Test empty config uses default mappings and suffixes."""
+        router = VirtualModelRouter.from_config({})
+        
+        assert router.base_mappings == DEFAULT_BASE_MAPPINGS
+        assert router.suffix_configs == DEFAULT_SUFFIX_CONFIGS
+    
+    def test_from_config_disabled(self):
+        """Test disabled virtual models creates empty router."""
+        config = {"enabled": False}
+        router = VirtualModelRouter.from_config(config)
+        
+        assert router.base_mappings == {}
+        assert router.suffix_configs == {}
+    
+    def test_from_config_custom_mappings(self):
+        """Test config with custom base mappings."""
+        config = {
+            "enabled": True,
+            "mappings": {
+                "mymodel": "my-model:latest",
+                "other": "other-model:7b",
+            },
+        }
+        router = VirtualModelRouter.from_config(config)
+        
+        assert "mymodel" in router.base_mappings
+        assert router.base_mappings["mymodel"] == "my-model:latest"
+        # Suffixes default since not specified
+        assert router.suffix_configs == DEFAULT_SUFFIX_CONFIGS
+    
+    def test_from_config_custom_suffixes(self):
+        """Test config with custom suffix definitions."""
+        config = {
+            "enabled": True,
+            "suffixes": {
+                "fast": {
+                    "rag_mode": "disabled",
+                    "filter_categories": None,
+                    "description": "Fast mode",
+                },
+                "full": {
+                    "rag_mode": "enabled",
+                    "filter_categories": ["all"],
+                    "description": "Full RAG",
+                },
+            },
+        }
+        router = VirtualModelRouter.from_config(config)
+        
+        assert "fast" in router.suffix_configs
+        assert router.suffix_configs["fast"].rag_mode == RAGMode.DISABLED
+        assert "full" in router.suffix_configs
+        assert router.suffix_configs["full"].rag_mode == RAGMode.ENABLED
+        # Base mappings default since not specified
+        assert router.base_mappings == DEFAULT_BASE_MAPPINGS
+    
+    def test_from_config_full_custom(self):
+        """Test config with both custom mappings and suffixes."""
+        config = {
+            "enabled": True,
+            "mappings": {
+                "llama": "llama3.1:latest",
+            },
+            "suffixes": {
+                "norag": {
+                    "rag_mode": "disabled",
+                    "filter_categories": None,
+                },
+            },
+        }
+        router = VirtualModelRouter.from_config(config)
+        
+        resolved = router.resolve("llama-norag")
+        assert resolved.is_virtual
+        assert resolved.real_model == "llama3.1:latest"
+        assert resolved.rag_enabled is False
+    
+    def test_from_config_invalid_rag_mode_fallback(self):
+        """Test invalid rag_mode falls back to enabled."""
+        config = {
+            "suffixes": {
+                "test": {
+                    "rag_mode": "invalid_mode",
+                    "filter_categories": None,
+                },
+            },
+        }
+        router = VirtualModelRouter.from_config(config)
+        
+        assert router.suffix_configs["test"].rag_mode == RAGMode.ENABLED
+    
+    def test_from_config_auto_rag_mode(self):
+        """Test auto rag_mode is parsed correctly."""
+        config = {
+            "suffixes": {
+                "auto": {
+                    "rag_mode": "auto",
+                    "filter_categories": None,
+                    "description": "Auto mode",
+                },
+            },
+        }
+        router = VirtualModelRouter.from_config(config)
+        
+        assert router.suffix_configs["auto"].rag_mode == RAGMode.AUTO
+    
+    def test_from_config_filter_categories_list(self):
+        """Test filter_categories as list is parsed correctly."""
+        config = {
+            "suffixes": {
+                "code": {
+                    "rag_mode": "enabled",
+                    "filter_categories": ["code", "config", "tech"],
+                },
+            },
+        }
+        router = VirtualModelRouter.from_config(config)
+        
+        assert router.suffix_configs["code"].filter_categories == ["code", "config", "tech"]
+
+
+class TestResetRouter:
+    """Tests for reset_router function."""
+    
+    def test_reset_router_clears_singleton(self):
+        """Test reset_router clears the cached instance."""
+        router1 = get_virtual_router()
+        reset_router()
+        router2 = get_virtual_router()
+        
+        # Should be different instances after reset
+        assert router1 is not router2

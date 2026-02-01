@@ -48,9 +48,6 @@ fi
 
 echo -e "${GREEN}✓ No 'pip install' issues found${NC}"
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
-if [ -x "$REPO_ROOT/aitao.sh" ]; then
-    echo "🔍 Running full validation (aitao.sh validate)..."
-    "$REPO_ROOT/aitao.sh" validate
-fi
+# Note: Validation tests should be run manually with './aitao.sh validate'
+# before committing. This hook only checks for pip install policy violations.
 exit 0

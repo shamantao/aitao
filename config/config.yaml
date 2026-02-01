@@ -156,6 +156,40 @@ llm:
     temperature: 0.7
     top_p: 0.9
     max_tokens: 2048
+
+# Virtual Model Routing Configuration
+# Allows clients to control RAG behavior through model name suffixes.
+# Pattern: {base_model}-{suffix} (e.g., llama3.1-doc, qwen-coder-basic)
+virtual_models:
+  enabled: true
+  
+  # Suffix definitions - each suffix defines RAG behavior
+  suffixes:
+    basic:
+      rag_mode: disabled      # No RAG context injection
+      filter_categories: null
+      description: Pure LLM without RAG context
+    context:
+      rag_mode: enabled       # RAG with filtered categories
+      filter_categories:
+        - code
+        - config
+      description: RAG with code/config context only
+    doc:
+      rag_mode: enabled       # Full RAG with all documents
+      filter_categories: null
+      description: Full RAG with all document categories
+    smart:
+      rag_mode: auto          # LLM decides when to use RAG (Sprint 7+)
+      filter_categories: null
+      description: AI decides when to use RAG context
+  
+  # Base model mappings: virtual_base -> real_ollama_model
+  mappings:
+    llama3.1: llama3.1-local:latest
+    qwen-coder: qwen2.5-coder-local:latest
+    qwen-vl: qwen3-vl:latest
+
 api:
   host: 0.0.0.0
   port: 8200

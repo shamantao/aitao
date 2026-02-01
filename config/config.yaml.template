@@ -294,6 +294,57 @@ llm:
     max_tokens: 2048
 
 # -----------------------------------------------------------------------------
+# Virtual Model Routing Configuration
+# -----------------------------------------------------------------------------
+# Virtual models allow clients to control RAG behavior through model name suffixes.
+# Pattern: {base_model}-{suffix} (e.g., llama3.1-doc, qwen-coder-basic)
+#
+# Suffixes:
+#   - basic:   Pure LLM, no RAG context injected
+#   - context: RAG with filtered categories (code/config only)
+#   - doc:     Full RAG with all document categories
+#   - smart:   AI decides when to use RAG (future)
+#
+# Example usage:
+#   curl -X POST /v1/chat/completions -d '{"model": "llama3.1-doc", ...}'
+#   -> Uses llama3.1-local:latest with full RAG enabled
+#
+virtual_models:
+  # Enable/disable virtual model routing (default: true)
+  enabled: true
+  
+  # Suffix definitions - each suffix defines RAG behavior
+  suffixes:
+    basic:
+      rag_mode: disabled      # No RAG context injection
+      filter_categories: null
+      description: "Pure LLM without RAG context"
+    
+    context:
+      rag_mode: enabled       # RAG with filtered categories
+      filter_categories:
+        - code
+        - config
+      description: "RAG with code/config context only"
+    
+    doc:
+      rag_mode: enabled       # Full RAG with all documents
+      filter_categories: null
+      description: "Full RAG with all document categories"
+    
+    smart:
+      rag_mode: auto          # LLM decides when to use RAG (Sprint 7+)
+      filter_categories: null
+      description: "AI decides when to use RAG context"
+  
+  # Base model mappings: virtual_base -> real_ollama_model
+  # Define which real Ollama model each virtual base maps to
+  mappings:
+    llama3.1: "llama3.1-local:latest"
+    qwen-coder: "qwen2.5-coder-local:latest"
+    qwen-vl: "qwen3-vl:latest"
+
+# -----------------------------------------------------------------------------
 # API Configuration
 # -----------------------------------------------------------------------------
 # Configure the REST API server
