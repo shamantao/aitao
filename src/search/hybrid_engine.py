@@ -983,35 +983,30 @@ class HybridSearchEngine:
         
         try:
             # Search chunks using ChunkStore
-            raw_chunks = self.chunk_store.search(
+            # Returns List[Tuple[Chunk, float]]
+            raw_results = self.chunk_store.search(
                 query=query,
                 limit=limit * 2,  # Get more, filter by score
+                min_score=min_score,
             )
             
-            # Filter by minimum score and convert to ChunkSearchResult
+            # Convert to ChunkSearchResult
             chunks: List[ChunkSearchResult] = []
             seen_docs = set()
             
-            for chunk_data in raw_chunks:
-                score = chunk_data.get("_score", 0.0)
-                
-                # Apply minimum score threshold
-                if score < min_score:
-                    continue
-                
-                doc_id = chunk_data.get("doc_id", "")
-                seen_docs.add(doc_id)
+            for chunk, score in raw_results:
+                seen_docs.add(chunk.doc_id)
                 
                 chunks.append(ChunkSearchResult(
-                    chunk_id=chunk_data.get("chunk_id", ""),
-                    doc_id=doc_id,
-                    path=chunk_data.get("path", ""),
-                    title=chunk_data.get("title", ""),
-                    content=chunk_data.get("content", ""),
-                    chunk_index=chunk_data.get("chunk_index", 0),
-                    total_chunks=chunk_data.get("total_chunks", 1),
+                    chunk_id=chunk.chunk_id,
+                    doc_id=chunk.doc_id,
+                    path=chunk.path,
+                    title=chunk.title,
+                    content=chunk.content,
+                    chunk_index=chunk.chunk_index,
+                    total_chunks=chunk.total_chunks,
                     score=round(score, 4),
-                    metadata=chunk_data.get("metadata", {}),
+                    metadata=chunk.metadata,
                 ))
                 
                 if len(chunks) >= limit:

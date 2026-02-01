@@ -162,16 +162,25 @@ class ChunkStore:
     def _ensure_table(self) -> None:
         """Create chunks table if it doesn't exist."""
         try:
+            # list_tables() may return strings or table objects
             tables = self.db.list_tables()
-            if self.TABLE_NAME not in tables:
+            table_names = [str(t) for t in tables]
+            
+            if self.TABLE_NAME not in table_names:
                 self.db.create_table(
                     self.TABLE_NAME,
                     schema=self._get_schema(),
                     mode="create"
                 )
                 logger.info(f"Created table: {self.TABLE_NAME}")
+            else:
+                logger.debug(f"Table already exists: {self.TABLE_NAME}")
         except Exception as e:
-            raise ChunkStoreError(f"Failed to ensure table: {e}")
+            # Handle race condition: table created between check and create
+            if "already exists" in str(e).lower():
+                logger.debug(f"Table {self.TABLE_NAME} already exists (race)")
+            else:
+                raise ChunkStoreError(f"Failed to ensure table: {e}")
     
     def _embed_text(self, text: str) -> List[float]:
         """Generate embedding vector for text."""
@@ -332,10 +341,18 @@ class ChunkStore:
             # Convert to Chunk objects with scores
             chunks_with_scores = []
             for record in results:
-                # LanceDB returns _distance, convert to similarity score
+                # LanceDB returns _distance (L2 or cosine depending on config)
+                # For cosine distance: range is [0, 2], so similarity = 1 - distance/2
+                # For L2 distance: we use inverse formula
                 distance = record.get("_distance", 0.0)
-                # Cosine distance to similarity: score = 1 - distance (clamped)
-                score = max(0.0, min(1.0, 1.0 - distance))
+                
+                # Convert distance to similarity score (0-1)
+                # Assuming cosine distance (range 0-2)
+                if distance <= 2.0:
+                    score = max(0.0, 1.0 - distance / 2.0)
+                else:
+                    # L2 distance - use exponential decay
+                    score = max(0.0, 1.0 / (1.0 + distance))
                 
                 if score >= min_score:
                     chunk = self._record_to_chunk(record, score)
