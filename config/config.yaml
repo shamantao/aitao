@@ -148,10 +148,6 @@ llm:
     check_models: true
     auto_pull: false
     pull_timeout_minutes: 30
-  rag:
-    enabled: false
-    max_context_docs: 5
-    max_context_tokens: 2000
   generation:
     temperature: 0.7
     top_p: 0.9
@@ -213,3 +209,12 @@ logging:
   backup_count: 5
   format: json
   console_enabled: true
+
+# RAG Configuration (Retrieval-Augmented Generation)
+# Controls how document context is injected into LLM prompts
+rag:
+  enabled: true                  # Enable RAG context enrichment
+  max_context_docs: 5            # Max documents to include in context
+  context_max_tokens: 2000       # Max tokens for context section
+  min_relevance_score: 0.3       # Min score to include document (0-1)
+  include_metadata: true         # Include file path, category in context

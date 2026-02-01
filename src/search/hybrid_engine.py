@@ -4,9 +4,9 @@ Hybrid Search Engine for AItao.
 This module provides the HybridSearchEngine class that combines:
 - Semantic search via LanceDB (embeddings-based similarity)
 - Full-text search via Meilisearch (keyword matching with typo tolerance)
+- Query expansion for better recall on short queries
+- Reciprocal Rank Fusion (RRF) for robust result merging
 - Parallel execution for performance
-- Weighted result merging (configurable 60/40 default)
-- Comprehensive filtering support
 
 The hybrid approach ensures both conceptual matches (semantic) and 
 exact keyword matches (fulltext) are found.
@@ -111,14 +111,17 @@ class HybridSearchEngine:
     
     Uses LanceDB for semantic vector similarity search and Meilisearch
     for fast full-text search with typo tolerance. Results are merged
-    using configurable weighting (default: 60% semantic, 40% fulltext).
+    using Reciprocal Rank Fusion (RRF) for robust ranking.
     
-    Searches are executed in parallel for optimal performance, targeting
-    <3 second latency for 500K documents.
+    Features:
+    - Query expansion for short queries (CV → curriculum vitae, resume, 履歷)
+    - RRF fusion for better ranking than weighted average
+    - Adaptive scoring based on result quality
+    - Parallel execution targeting <3s latency for 500K documents
     
     Example:
         >>> engine = HybridSearchEngine()
-        >>> response = await engine.search("facture voyage Allemagne")
+        >>> response = await engine.search("où est mon CV ?")
         >>> for result in response.results:
         ...     print(f"{result.title}: {result.score:.2f}")
     """
@@ -127,10 +130,14 @@ class HybridSearchEngine:
     DEFAULT_SEMANTIC_WEIGHT = 0.6
     DEFAULT_FULLTEXT_WEIGHT = 0.4
     
+    # RRF constant (standard value, higher = smoother ranking)
+    RRF_K = 60
+    
     def __init__(
         self,
         semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT,
         max_workers: int = 2,
+        enable_query_expansion: bool = True,
     ):
         """
         Initialize hybrid search engine.
@@ -139,10 +146,12 @@ class HybridSearchEngine:
             semantic_weight: Weight for semantic (LanceDB) results (0-1).
                            Fulltext weight = 1 - semantic_weight.
             max_workers: Max threads for parallel search execution.
+            enable_query_expansion: Whether to expand short queries with synonyms.
         """
         self.semantic_weight = semantic_weight
         self.fulltext_weight = 1 - semantic_weight
         self.max_workers = max_workers
+        self.enable_query_expansion = enable_query_expansion
         
         # Lazy-loaded clients
         self._lancedb_client = None
@@ -155,6 +164,7 @@ class HybridSearchEngine:
                 "semantic_weight": self.semantic_weight,
                 "fulltext_weight": self.fulltext_weight,
                 "max_workers": max_workers,
+                "query_expansion": enable_query_expansion,
             }
         )
     
@@ -398,6 +408,159 @@ class HybridSearchEngine:
             return 1.0
         return 1.0 - (rank / total)
     
+    def _calculate_rrf_score(self, rank: int) -> float:
+        """
+        Calculate Reciprocal Rank Fusion score.
+        
+        RRF formula: 1 / (k + rank)
+        where k is a constant (default 60) and rank is 1-indexed.
+        
+        Args:
+            rank: 1-indexed rank in result list
+            
+        Returns:
+            RRF score (higher is better)
+        """
+        return 1.0 / (self.RRF_K + rank)
+    
+    def _merge_results_rrf(
+        self,
+        lancedb_results: List[Dict[str, Any]],
+        meilisearch_results: List[Dict[str, Any]],
+        limit: int,
+    ) -> List[SearchResult]:
+        """
+        Merge results using Reciprocal Rank Fusion (RRF).
+        
+        RRF is more robust than weighted average because it:
+        - Uses rank position, not raw scores (which vary by engine)
+        - Handles different score scales naturally
+        - Rewards documents appearing in both result sets
+        
+        Args:
+            lancedb_results: Results from semantic search
+            meilisearch_results: Results from full-text search
+            limit: Maximum results to return
+        
+        Returns:
+            Sorted list of SearchResult objects
+        """
+        # RRF score accumulator: doc_id -> {semantic_rrf, fulltext_rrf, doc, semantic_score, fulltext_score}
+        scores: Dict[str, Dict[str, Any]] = {}
+        
+        # Process LanceDB results with RRF
+        for rank, result in enumerate(lancedb_results, start=1):
+            doc_id = result.get("id", result.get("path", str(rank)))
+            rrf_score = self._calculate_rrf_score(rank)
+            
+            raw_score = result.get("_score", result.get("score", 0.0))
+            if raw_score is None:
+                raw_score = 0.0
+            
+            if doc_id not in scores:
+                scores[doc_id] = {
+                    "semantic_rrf": 0.0,
+                    "fulltext_rrf": 0.0,
+                    "semantic_score": 0.0,
+                    "fulltext_score": 0.0,
+                    "doc": result,
+                    "in_both": False,
+                }
+            scores[doc_id]["semantic_rrf"] = rrf_score
+            scores[doc_id]["semantic_score"] = float(raw_score) if raw_score else 0.0
+            scores[doc_id]["doc"] = result
+        
+        # Process Meilisearch results with RRF
+        for rank, result in enumerate(meilisearch_results, start=1):
+            doc_id = result.get("id", result.get("path", str(rank)))
+            rrf_score = self._calculate_rrf_score(rank)
+            
+            if doc_id not in scores:
+                scores[doc_id] = {
+                    "semantic_rrf": 0.0,
+                    "fulltext_rrf": 0.0,
+                    "semantic_score": 0.0,
+                    "fulltext_score": 0.0,
+                    "doc": result,
+                    "in_both": False,
+                }
+            else:
+                # Document appears in both - significant signal!
+                scores[doc_id]["in_both"] = True
+            
+            scores[doc_id]["fulltext_rrf"] = rrf_score
+            # Meilisearch rank-based score
+            scores[doc_id]["fulltext_score"] = 1.0 - (rank / max(len(meilisearch_results), 1))
+            
+            # Prefer Meilisearch doc if it has better content
+            if result.get("content"):
+                scores[doc_id]["doc"] = result
+        
+        # Calculate combined RRF scores with weighting
+        ranked: List[Tuple[float, float, float, Dict, bool]] = []
+        for doc_id, data in scores.items():
+            # Weighted RRF combination
+            combined_rrf = (
+                data["semantic_rrf"] * self.semantic_weight +
+                data["fulltext_rrf"] * self.fulltext_weight
+            )
+            
+            # Bonus for appearing in both result sets (30% boost)
+            if data["in_both"]:
+                combined_rrf *= 1.3
+            
+            ranked.append((
+                combined_rrf,
+                data["semantic_score"],
+                data["fulltext_score"],
+                data["doc"],
+                data["in_both"],
+            ))
+        
+        # Sort by combined RRF score descending
+        ranked.sort(key=lambda x: x[0], reverse=True)
+        
+        # Convert to SearchResult objects
+        results: List[SearchResult] = []
+        max_rrf = ranked[0][0] if ranked else 1.0
+        
+        for combined_rrf, semantic, fulltext, doc, in_both in ranked[:limit]:
+            # Normalize combined RRF to 0-1 for display
+            normalized_score = combined_rrf / max_rrf if max_rrf > 0 else 0.0
+            
+            # Extract content preview
+            content = doc.get("content", "")
+            summary = content[:500] + "..." if len(content) > 500 else content
+            
+            # Parse modified_at if string
+            modified_at = doc.get("modified_at") or doc.get("created_at")
+            if isinstance(modified_at, str):
+                try:
+                    modified_at = datetime.fromisoformat(modified_at.replace("Z", "+00:00"))
+                except ValueError:
+                    modified_at = None
+            
+            results.append(SearchResult(
+                id=doc.get("id", doc.get("path", "")),
+                path=doc.get("path", ""),
+                title=doc.get("title") or doc.get("path", "").split("/")[-1],
+                content=summary,
+                score=round(normalized_score, 4),
+                semantic_score=round(semantic, 4),
+                fulltext_score=round(fulltext, 4),
+                category=doc.get("category"),
+                language=doc.get("language"),
+                file_size=doc.get("file_size"),
+                modified_at=modified_at,
+                metadata={
+                    **doc.get("metadata", {}),
+                    "in_both_results": in_both,
+                    "rrf_score": round(combined_rrf, 6),
+                },
+            ))
+        
+        return results
+    
     def _merge_results(
         self,
         lancedb_results: List[Dict[str, Any]],
@@ -556,6 +719,24 @@ class HybridSearchEngine:
         if filters is None:
             filters = SearchFilter()
         
+        # Query expansion for better recall
+        search_query = query
+        expanded_query = None
+        if self.enable_query_expansion:
+            try:
+                from src.search.query_expansion import expand_query, should_expand
+                if should_expand(query):
+                    expanded = expand_query(query)
+                    if expanded.expansion_applied:
+                        search_query = expanded.expanded
+                        expanded_query = expanded
+                        logger.info(
+                            f"Query expanded: '{query}' -> '{search_query}'",
+                            metadata={"terms": expanded.terms}
+                        )
+            except ImportError:
+                logger.debug("Query expansion module not available")
+        
         # Adjust limit for offset handling (get more, then slice)
         fetch_limit = limit + offset
         
@@ -565,6 +746,7 @@ class HybridSearchEngine:
                 "limit": limit,
                 "offset": offset,
                 "mode": mode,
+                "expanded_query": search_query if search_query != query else None,
                 "filters": {
                     "path": filters.path_contains,
                     "category": filters.category,
@@ -573,13 +755,33 @@ class HybridSearchEngine:
             }
         )
         
-        # Execute parallel search
+        # Execute parallel search with expanded query
         lancedb_results, meilisearch_results, lance_time, meili_time = await self._search_parallel(
-            query=query,
+            query=search_query,
             limit=fetch_limit,
             filters=filters,
             mode=mode,
         )
+        
+        # Also search with original query if different (for exact matches)
+        if search_query != query:
+            orig_lance, orig_meili, lt, mt = await self._search_parallel(
+                query=query,
+                limit=fetch_limit // 2,
+                filters=filters,
+                mode=mode,
+            )
+            # Merge original results (dedup by id)
+            seen_ids = {r.get("id") for r in lancedb_results}
+            for r in orig_lance:
+                if r.get("id") not in seen_ids:
+                    lancedb_results.append(r)
+            seen_ids = {r.get("id") for r in meilisearch_results}
+            for r in orig_meili:
+                if r.get("id") not in seen_ids:
+                    meilisearch_results.append(r)
+            lance_time += lt
+            meili_time += mt
         
         # Adjust weights based on mode
         original_semantic = self.semantic_weight
@@ -592,8 +794,8 @@ class HybridSearchEngine:
             self.semantic_weight = 0.0
             self.fulltext_weight = 1.0
         
-        # Merge results
-        all_results = self._merge_results(
+        # Use RRF for better fusion
+        all_results = self._merge_results_rrf(
             lancedb_results,
             meilisearch_results,
             fetch_limit,

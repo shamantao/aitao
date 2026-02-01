@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD)
 # AI Tao 2.0 - Local-First Search & Translation Engine
 
-**Version:** 2.3.22  
-**Date:** January 29, 2026  
-**Status:** Active - Sprint Q&A (Quality Assurance)  
+**Version:** 2.4.23  
+**Date:** February 1, 2026  
+**Status:** Active - Sprint 4 Chunking & Quick Wins  
 **Author:** shamantao (AI Tao Project)  
 **Branch:** `pdr/v2-remodular`
 
@@ -16,7 +16,9 @@
 | Sprint 0: Foundation | ✅ Complete | v2.0.5 → v2.1.8 | 85 |
 | Sprint 1: Indexation | ✅ Complete | v2.1.9 → v2.1.11 | 218 |
 | Sprint 2: Recherche | ✅ Complete | v2.2.11 → v2.2.15 | 370 |
-| Sprint 3: RAG & LLM | 🔄 Starting | v2.3.x | - |
+| Sprint 2b: Search Optimization | ✅ Complete | v2.3.22 | +5 |
+| Sprint 3: RAG & LLM | ✅ Complete | v2.3.16 → v2.3.21 | 461 |
+| Sprint 4: Chunking & Quick Wins | 📋 Planned | v2.4.x | - |
 
 ### Completed Components
 - ✅ PathManager, Logger, ConfigManager (Core)
@@ -427,21 +429,68 @@ logging:
    - Full-text search with typo tolerance
    - Fast filtering (date, path, category)
    - Faceted search
+   - Best for: exact keyword matches, short queries
 
 2. **LanceDB** (local vector DB)
-   - Semantic embeddings (all-MiniLM-L6-v2)
+   - Semantic embeddings (BAAI/bge-m3, 1024 dimensions)
    - Similarity search
    - Metadata storage (file path, hash, OCR method, language)
+   - Best for: conceptual queries, multi-language understanding
+
+**Search Optimizations (v2.3.22):**
+
+1. **Query Expansion** (`src/search/query_expansion.py`)
+   - Short queries are automatically enriched with synonyms
+   - Multilingual support: French, English, Chinese (Traditional)
+   - Example: "CV" → "CV curriculum vitae resume résumé 履歷"
+   - Prevents semantic search failure on ambiguous terms
+
+2. **Reciprocal Rank Fusion (RRF)**
+   - Replaces simple weighted average for result merging
+   - Formula: `RRF(d) = Σ 1/(k + rank(d))` where k=60
+   - More robust than weighted scores (handles different score scales)
+   - Documents appearing in BOTH results get 30% boost
+
+3. **Adaptive Search Strategy**
+   - Searches with BOTH original query AND expanded query
+   - Deduplicates results by document ID
+   - Ensures exact matches are not lost
 
 **Search Workflow:**
 ```
 User query → API
+  │
+  ├─→ Query Expansion (if short query)
+  │     "où est mon CV ?" → "cv curriculum vitae resume 履歷"
+  │
   ├─→ Meilisearch (full-text + filters) [parallel]
   └─→ LanceDB (semantic vectors)        [parallel]
        ↓
-  Merge results (weighted ranking: 40% Meilisearch, 60% LanceDB)
+  Reciprocal Rank Fusion (RRF)
        ↓
-  Return top 10 with summaries
+  Boost documents in both result sets (+30%)
+       ↓
+  Return top N with summaries
+```
+
+**Configuration (`config.yaml`):**
+```yaml
+search:
+  meilisearch:
+    url: http://localhost:7700
+    api_key: ''
+    index_name: aitao_documents
+  lancedb:
+    embedding_model: BAAI/bge-m3
+    table_name: aitao_embeddings
+    dimension: 1024
+    top_k: 20
+    min_score: 0.45
+  hybrid:
+    semantic_weight: 0.6      # Weight for LanceDB
+    fulltext_weight: 0.4      # Weight for Meilisearch
+    rrf_k: 60                 # RRF smoothing constant
+    enable_query_expansion: true
 ```
 
 **API Endpoint:**
@@ -472,12 +521,21 @@ POST /api/search
         "date_modified": "2025-06-01T10:30:00Z",
         "category": "personal",
         "language": "en",
-        "ocr_method": "direct"
+        "ocr_method": "direct",
+        "in_both_results": true,
+        "rrf_score": 0.0312
       }
     }
   ],
   "query_time_ms": 234
 }
+```
+
+**Non-Regression Tests (Critical):**
+- `test_search_cv_french`: "Où est mon CV ?" must find CV document
+- `test_search_short_query`: Single-word queries must return relevant results
+- `test_rrf_ranking`: Documents in both results must rank higher
+- `test_query_expansion`: Synonyms must be correctly expanded
 ```
 
 ---

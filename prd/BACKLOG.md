@@ -1,9 +1,9 @@
 # AItao V2.0 - Backlog Agile
 
-**Date:** January 30, 2026  
+**Date:** February 1, 2026  
 **Branch:** `pdr/v2-remodular`  
 **Priorité:** MOSCOW (Must/Should/Could/Won't)  
-**Version actuelle:** 2.3.21.5 (Sprint Q&A Complete ✅)
+**Version actuelle:** 2.4.23 (Chunking Pipeline 🚧)
 
 ---
 
@@ -14,14 +14,30 @@
 | Sprint 0: Foundation | ✅ Complete | US-001 → US-007b | 85 | v2.0.5 → v2.1.8 |
 | Sprint 1: Indexation | ✅ Complete | US-008 → US-010 | 218 | v2.1.9 → v2.1.11 |
 | Sprint 2: Recherche | ✅ Complete | US-011 → US-015 | 370 | v2.2.11 → v2.2.15 |
+| **Sprint 2b: Search Optimization** | ✅ **Complete** | US-014b | +5 | **v2.3.22** |
 | Sprint 3: RAG & LLM | ✅ Complete | US-016 → US-021 | 461 | v2.3.16 → v2.3.20 |
-| **Sprint 3b: Model Management** | 📋 **PRIORITAIRE** | US-021b → US-021f | - | v2.3.22.x |
-| **Sprint 3c: Virtual Models** | 📋 Pending | US-021g → US-021i | - | v2.3.23.x |
+| **Sprint 3b: Model Management** | 📋 Pending | US-021b → US-021f | - | v2.3.22.x |
+| **Sprint 3c: Virtual Models** | ✅ Complete | US-021g → US-021i | - | v2.3.21.x |
 | Sprint Q&A: Vérifications | ✅ Complete | QA-001 → QA-006 | - | v2.3.21.x |
-| Sprint 4: OCR & Extraction | 📋 Pending | US-022 → US-026 | - | v2.4.x |
-| Sprint 5: Traduction | 📋 Pending | US-027 → US-029b | - | v2.5.x |
-| Sprint 6: Catégorisation | 📋 Pending | US-030 → US-032b | - | v2.6.x |
-| Sprint 7: Dashboard & Polish | 📋 Pending | US-033 → US-037b | - | v2.7.x |
+| **Sprint 4: Chunking & Quick Wins** | 🚧 **EN COURS** | US-023 → US-028 | - | **v2.4.x** |
+| Sprint 5: OCR & Extraction Avancée | 📋 Pending | US-029 → US-033 | - | v2.5.x |
+| Sprint 6: Traduction | 📋 Pending | US-034 → US-036b | - | v2.6.x |
+| Sprint 7: Catégorisation | 📋 Pending | US-037 → US-039b | - | v2.7.x |
+| Sprint 8: Dashboard & Polish | 📋 Pending | US-040 → US-044b | - | v2.8.x |
+
+### 🔧 Hotfix v2.3.22 (2026-02-01) - Search Optimization
+
+**Problème résolu:** La recherche échouait sur les requêtes courtes françaises ("Où est mon CV ?")
+
+**Cause racine:**
+1. Section `rag` mal placée dans config.yaml (sous `llm` au lieu du niveau racine)
+2. Weighted average (60/40) pénalisait les bons résultats Meilisearch
+3. Termes courts ("CV") incompris par la recherche sémantique
+
+**Solution:**
+- **Query Expansion** : "CV" → "cv curriculum vitae resume 履歷"
+- **Reciprocal Rank Fusion (RRF)** : Meilleure fusion que weighted average
+- **Config fix** : Section `rag` déplacée au niveau racine
 
 ---
 
@@ -377,6 +393,69 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
+#### US-014b: Optimisation recherche - Query Expansion + RRF [MUST] ✅ DONE
+**En tant que** utilisateur  
+**Je veux** que la recherche comprenne mes requêtes courtes et ambiguës  
+**Afin de** trouver mes documents même avec "Où est mon CV ?"
+
+**Contexte:**
+La recherche hybride v1 (US-014) échouait sur les requêtes courtes françaises comme "CV" car :
+1. La recherche sémantique (LanceDB) ne comprenait pas les termes courts/ambigus
+2. Le weighted average (60/40) pénalisait les bons résultats Meilisearch
+3. Le RAG injectait des documents non pertinents au LLM
+
+**Solution implémentée:**
+
+1. **Query Expansion** (`src/search/query_expansion.py`)
+   - Enrichit automatiquement les termes courts avec synonymes multilingues
+   - Ex: "CV" → "cv curriculum vitae resume résumé 履歷"
+   - Dictionnaire: termes travail/voyage/documents en FR/EN/ZH
+
+2. **Reciprocal Rank Fusion (RRF)**
+   - Remplace le weighted average pour la fusion des résultats
+   - Formule: `RRF(d) = 1/(k + rank)` avec k=60
+   - Documents présents dans les 2 moteurs: +30% boost
+   - Plus robuste que les scores bruts (échelles différentes)
+
+3. **Double recherche**
+   - Recherche avec requête étendue ET requête originale
+   - Évite de perdre les correspondances exactes
+
+**Critères d'acceptation:**
+- [x] Module `query_expansion.py` avec dictionnaire synonymes FR/EN/ZH
+- [x] Fonction `expand_query()` pour enrichissement automatique
+- [x] Méthode `_merge_results_rrf()` dans HybridSearchEngine
+- [x] Boost 30% pour documents dans les 2 résultats
+- [x] Double recherche (expanded + original)
+- [x] Test critique: "Où est mon CV ?" → trouve le CV en premier
+- [x] Test: recherche courte → résultats pertinents
+- [x] Metadata enrichie: `in_both_results`, `rrf_score`
+
+**Tests de non-régression (CRITIQUES):**
+```python
+def test_search_cv_french():
+    """'Où est mon CV ?' MUST find CV document as first result."""
+    response = search("Où est mon CV ?")
+    assert "CV" in response.results[0].path or "curriculum" in response.results[0].content
+
+def test_query_expansion():
+    """Short terms must be expanded with synonyms."""
+    expanded = expand_query("CV")
+    assert "curriculum vitae" in expanded.expanded
+    assert "履歷" in expanded.expanded
+```
+
+**Estimation:** 5 points  
+**Dépendances:** US-014 (HybridSearch)  
+**Version:** v2.3.22 - Date: 2026-02-01
+
+**Fichiers modifiés:**
+- `src/search/query_expansion.py` (NOUVEAU)
+- `src/search/hybrid_engine.py` (RRF + query expansion)
+- `config/config.yaml` (section `rag` au niveau racine)
+
+---
+
 #### US-015: Implémenter endpoint /api/health [MUST] ✅ DONE
 **En tant que** système externe  
 **Je veux** vérifier la santé d'AItao  
@@ -427,13 +506,30 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 - [x] Classe `RAGEngine` dans `src/llm/rag_engine.py`
 - [x] Méthodes: `search_context()`, `enrich_prompt()`, `enrich_messages()`
 - [x] Workflow: user prompt → search (LanceDB+Meilisearch) → enrich → return
-- [x] Config: max_context_docs, context_max_tokens (`config.toml` section [rag])
+- [x] Config: section `rag` au **niveau racine** de `config.yaml` (PAS sous `llm`)
 - [x] Retourne: enriched_prompt, context_docs (pour affichage)
 - [x] Tests unitaires (21 tests)
 
+**⚠️ ATTENTION - Configuration critique (v2.3.22):**
+```yaml
+# config.yaml - Section RAG au NIVEAU RACINE (pas sous llm!)
+rag:
+  enabled: true                  # DOIT être true pour que le RAG fonctionne
+  max_context_docs: 5            # Max documents injectés dans le prompt
+  context_max_tokens: 2000       # Max tokens pour la section contexte
+  min_relevance_score: 0.3       # Score minimum pour inclure un document
+  include_metadata: true         # Inclure path, category dans le contexte
+```
+
+**Bug corrigé (v2.3.22):**
+- La section `rag` était imbriquée sous `llm.rag` → RAGEngine ne la trouvait pas
+- Erreur: `Configuration section not found: rag`
+- Solution: Déplacer `rag` au niveau racine de config.yaml
+
 **Estimation:** 3 points  
-**Dépendances:** US-014 (HybridSearch), US-016 (OllamaClient)  
-**Commit:** Tag: v2.3.17 - Date: 2026-01-29
+**Dépendances:** US-014 (HybridSearch), US-014b (Query Expansion), US-016 (OllamaClient)  
+**Commit:** Tag: v2.3.17 - Date: 2026-01-29  
+**Hotfix:** v2.3.22 - Date: 2026-02-01 (config.yaml structure)
 
 ---
 
@@ -955,7 +1051,261 @@ Noms des modèles virtuels:
 
 ---
 
-## Sprint 4: OCR & Extraction (3 semaines - Mar-Apr 2026)
+## Sprint 4: Chunking & Quick Wins (3 semaines - Fév-Mar 2026)
+
+**Objectif:** Avant d'attaquer l'OCR (coûteux en ressources), maximiser ce qui est facilement indexable.  
+**Stratégie:** Quick Wins d'abord = résultats rapides, puis chunking = qualité RAG.
+
+```
+Priorités Sprint 4:
+├── 🎯 US-023: Chunking Pipeline (CRITIQUE - fixe le problème contexte RAG)
+├── ⚡ US-024: Extraction texte pur (.txt, .md, .json)
+├── ⚡ US-025: Extraction Office (.docx, .pptx, .xlsx, .ods)
+├── ⚡ US-026: Extraction emails (.eml)
+├── ⚡ US-027: Extraction EXIF images (métadonnées seulement)
+└── 🌐 US-028: Recherche web DuckDuckGo (tool pour LLM)
+```
+
+### 📊 Analyse Volumes Production
+
+| Type | Fichiers | Taille | Difficulté | Priorité |
+|------|----------|--------|------------|----------|
+| .txt/.md/.json | 1,653 | 60 MB | ⭐ Trivial | P0 - Quick Win |
+| .docx/.pptx/.xlsx/.ods | 287 | 880 MB | ⭐⭐ Facile | P0 - Quick Win |
+| .eml | 231 | 102 MB | ⭐⭐ Facile | P0 - Quick Win |
+| .jpg/.png (EXIF) | 2,206 | 2 GB | ⭐ Trivial | P1 - Métadonnées |
+| .pdf (texte) | ~500 | ~600 MB | ⭐⭐ Moyen | P1 - PDF extractibles |
+| .pdf (scannés) | ~600 | ~700 MB | ⭐⭐⭐⭐ OCR requis | P2 - Sprint 5 |
+| .mp4/.mkv | 36 | 3 GB | ⭐⭐⭐⭐⭐ Transcription | P3 - V3 |
+
+### Epic 5: Chunking Pipeline [MUST] 🎯
+
+#### US-023: Chunking Pipeline pour RAG [MUST] 📋 PRIORITAIRE
+**En tant que** utilisateur  
+**Je veux** que mes documents volumineux soient découpés en chunks  
+**Afin que** le RAG trouve l'information précise, pas juste le document
+
+**Intention:** RÉSOUT LE PROBLÈME CRITIQUE identifié le 2026-02-01.  
+Actuellement `context_max_tokens: 2000` = 0.7% d'un PDF moyen (285K tokens).  
+Le LLM reçoit un extrait aléatoire, pas la partie pertinente.
+
+**Problème démontré:**
+```
+Question: "Évènement Trump 4 juillet 2025"
+Document trouvé: ✅ 1140801經濟部ITIS團隊-川普對等關稅影響分析v2.1.pdf
+Contient: "4 juillet 〇 Trump signe la loi OBBBA"
+Réponse LLM: ❌ "Je n'ai pas trouvé de mention du 4 juillet"
+Cause: Le chunk envoyé au LLM ne contenait pas cette partie du document
+```
+
+**Architecture Chunking:**
+```
+src/indexation/
+├── chunker.py              # ChunkingPipeline - découpe documents
+├── chunk_store.py          # ChunkStore - stockage LanceDB
+└── interfaces.py           # Chunk dataclass
+
+Schéma LanceDB (nouveau):
+├── documents (existant)    # Métadonnées document parent
+└── chunks (nouveau)        # Chunks avec embeddings
+    ├── chunk_id: str       # "{doc_sha256}_{chunk_index}"
+    ├── doc_id: str         # SHA256 du document parent
+    ├── path: str           # Chemin fichier source
+    ├── title: str          # Titre document
+    ├── content: str        # Texte du chunk (512 tokens)
+    ├── chunk_index: int    # Position dans le document
+    ├── offset_start: int   # Caractère début
+    ├── offset_end: int     # Caractère fin
+    ├── embeddings: vector  # Vecteur 1024 dims (bge-m3)
+    └── metadata: dict      # category, language, etc.
+```
+
+**Paramètres configurables (config.yaml):**
+```yaml
+chunking:
+  enabled: true
+  chunk_size: 512          # tokens par chunk
+  chunk_overlap: 50        # tokens de chevauchement
+  min_chunk_size: 100      # ne pas créer de micro-chunks
+  embedding_model: "BAAI/bge-m3"
+```
+
+**Estimation stockage:**
+| Élément | Calcul | Taille |
+|---------|--------|--------|
+| Docs indexables | ~3000 fichiers | - |
+| Chunks/doc moyen | 100KB ÷ 2KB | 50 chunks |
+| Total chunks | 3000 × 50 | 150,000 |
+| Vecteurs | 150K × 4KB (1024×float32) | 600 MB |
+| Métadonnées | 150K × 500 bytes | 75 MB |
+| Texte chunks | 150K × 2KB | 300 MB |
+| **TOTAL** | + 20% overhead | **~1.2 GB** |
+| **Recommandé** | × 2 marge croissance | **2.5 GB** |
+
+**Critères d'acceptation:**
+- [ ] Dataclass `Chunk` dans `src/indexation/interfaces.py`
+- [ ] Classe `ChunkingPipeline` dans `src/indexation/chunker.py`
+  - `chunk_text(text: str, doc_id: str) -> list[Chunk]`
+  - Tokenizer: tiktoken ou sentence-transformers
+  - Overlap intelligent (coupe sur phrases, pas au milieu d'un mot)
+- [ ] Classe `ChunkStore` dans `src/indexation/chunk_store.py`
+  - CRUD chunks dans LanceDB table `chunks`
+  - `search_chunks(query: str, limit: int) -> list[Chunk]`
+- [ ] Migration: reindexer les documents existants en chunks
+- [ ] `HybridSearchEngine` modifié pour chercher dans `chunks` (pas `documents`)
+- [ ] RAG Engine modifié pour assembler les chunks pertinents
+- [ ] Config section `chunking` dans config.yaml
+- [ ] Tests unitaires (30+ tests)
+- [ ] Test E2E: "Trump 4 juillet" doit trouver le bon chunk
+
+**Estimation:** 8 points  
+**Dépendances:** US-006 (LanceDB), US-014b (HybridSearch)  
+**Version cible:** 2.4.23
+
+---
+
+### Epic 6: Quick Wins - Extraction Texte [MUST] ⚡
+
+#### US-024: Extraction texte pur (.txt, .md, .json) [MUST] 📋
+**En tant que** système  
+**Je veux** indexer directement les fichiers texte  
+**Afin d'** avoir une base de documents indexés sans aucun traitement complexe
+
+**Intention:** Le plus simple possible. Fichiers déjà en texte = 0 effort d'extraction.
+
+**Critères d'acceptation:**
+- [ ] `TextExtractor` dans `src/indexation/extractors/text_extractor.py`
+- [ ] Supporte: `.txt`, `.md`, `.json`, `.yaml`, `.csv`, `.log`
+- [ ] Détection encodage (utf-8, utf-16, latin-1)
+- [ ] Limite taille (config: `max_file_size_mb: 50`)
+- [ ] Pour JSON: extraction récursive des valeurs texte
+- [ ] Intégré dans `DocumentIndexer` + chunking
+- [ ] Tests avec fichiers variés
+
+**Estimation:** 2 points  
+**Dépendances:** US-023 (Chunking)
+
+---
+
+#### US-025: Extraction Office (.docx, .pptx, .xlsx) [MUST] 📋
+**En tant que** système  
+**Je veux** extraire le texte des documents Office  
+**Afin d'** indexer la majorité des documents bureautiques
+
+**Intention:** 287 fichiers Office = 880 MB de contenu facilement extractible.
+
+**Librairies:**
+- `python-docx` pour .docx
+- `python-pptx` pour .pptx
+- `openpyxl` pour .xlsx
+- `odfpy` pour .odt, .ods, .odp
+
+**Critères d'acceptation:**
+- [ ] `OfficeExtractor` dans `src/indexation/extractors/office_extractor.py`
+- [ ] Supporte: `.docx`, `.doc`, `.pptx`, `.ppt`, `.xlsx`, `.xls`, `.odt`, `.ods`, `.odp`
+- [ ] Extraction texte par sections/slides/feuilles
+- [ ] Métadonnées: auteur, date création, titre
+- [ ] Gestion fichiers corrompus (graceful error)
+- [ ] Intégré dans `DocumentIndexer` + chunking
+- [ ] Tests avec documents réels
+
+**Estimation:** 3 points  
+**Dépendances:** US-023 (Chunking)
+
+---
+
+#### US-026: Extraction emails (.eml) [SHOULD] 📋
+**En tant que** système  
+**Je veux** indexer mes emails exportés  
+**Afin de** rechercher dans ma correspondance
+
+**Intention:** 231 emails = 102 MB. Métadonnées riches (from, to, date, subject).
+
+**Critères d'acceptation:**
+- [ ] `EmailExtractor` dans `src/indexation/extractors/email_extractor.py`
+- [ ] Parse .eml avec `email` stdlib Python
+- [ ] Extraction: subject, from, to, cc, date, body (text + html→text)
+- [ ] Gestion pièces jointes: log le nom, indexer si supporté
+- [ ] Métadonnées structurées pour filtres Meilisearch
+- [ ] Intégré dans `DocumentIndexer` + chunking
+- [ ] Tests avec emails variés
+
+**Estimation:** 2 points  
+**Dépendances:** US-023 (Chunking)
+
+---
+
+#### US-027: Extraction EXIF images [SHOULD] 📋
+**En tant que** système  
+**Je veux** extraire les métadonnées EXIF de mes photos  
+**Afin de** rechercher par date, lieu, appareil
+
+**Intention:** 2206 images = métadonnées sans OCR. "Photos Berlin juin 2025" possible.
+
+**Critères d'acceptation:**
+- [ ] `EXIFExtractor` dans `src/indexation/extractors/exif_extractor.py`
+- [ ] Librairie: `piexif` ou `exifread` ou `Pillow`
+- [ ] Supporte: `.jpg`, `.jpeg`, `.heic`, `.png` (si EXIF présent)
+- [ ] Extraction: date_taken, camera_model, gps_lat/lon, dimensions
+- [ ] GPS → adresse lisible (reverse geocoding optionnel, local)
+- [ ] Pas de chunking (métadonnées courtes)
+- [ ] Indexe dans Meilisearch avec filtres: date, camera, location
+- [ ] Tests avec photos (avec/sans EXIF)
+
+**Estimation:** 3 points  
+**Dépendances:** US-012 (DocumentIndexer)
+
+---
+
+### Epic 7: Recherche Web [COULD] 🌐
+
+#### US-028: Recherche web DuckDuckGo [COULD] 📋
+**En tant que** utilisateur  
+**Je veux** que le LLM puisse chercher sur le web  
+**Afin d'** avoir des informations à jour quand mes documents ne suffisent pas
+
+**Intention:** Alternative privée à Google/Bing. Open WebUI utilise des moteurs non-privés par défaut.
+
+**Critères d'acceptation:**
+- [ ] Tool `web_search` dans `src/tools/web_search.py`
+- [ ] Utilise DuckDuckGo API (ou scraping léger)
+- [ ] Retourne: top 5 résultats avec title, snippet, url
+- [ ] Configurable: `tools.web_search.enabled`, `tools.web_search.max_results`
+- [ ] Intégré comme tool pour les modèles `-smart`
+- [ ] Rate limiting pour éviter blocage
+- [ ] Tests avec queries variées
+
+**Estimation:** 3 points  
+**Dépendances:** US-021g (Virtual Models)  
+**Note:** Could = nice-to-have si temps disponible après chunking
+
+---
+
+### Epic 8: PDF Texte Extractible [SHOULD]
+
+#### US-028b: Extraction PDF texte pur [SHOULD] 📋
+**En tant que** système  
+**Je veux** extraire le texte des PDF non-scannés  
+**Afin d'** indexer rapidement les PDF natifs (sans OCR)
+
+**Intention:** ~50% des PDF contiennent du texte extractible. OCR = Sprint 5.
+
+**Critères d'acceptation:**
+- [ ] `PDFExtractor` dans `src/indexation/extractors/pdf_extractor.py`
+- [ ] Librairie: `pdfplumber` ou `pypdf2`
+- [ ] Détection: PDF texte vs PDF scanné (image)
+- [ ] Si texte: extraction directe
+- [ ] Si scanné: flag `needs_ocr = True` pour Sprint 5
+- [ ] Métadonnées: auteur, title, page_count
+- [ ] Intégré dans `DocumentIndexer` + chunking
+- [ ] Tests avec PDF variés
+
+**Estimation:** 3 points  
+**Dépendances:** US-023 (Chunking)
+
+---
+
+## Sprint 5: OCR & Extraction Avancée (3 semaines - Mar-Apr 2026)
 
 **Architecture:** Pipeline OCR modulaire et multi-plateforme.  
 **Principe:** Le Router définit l'interface, les Providers implémentent selon la plateforme.
@@ -970,9 +1320,9 @@ src/ocr/
 │   └── qwen_vl_provider.py
 ```
 
-### Epic 6: OCR Pipeline [MUST]
+### Epic 9: OCR Pipeline [MUST]
 
-#### US-022: OCR Router + Interfaces [MUST] 📋
+#### US-029: OCR Router + Interfaces [MUST] 📋
 **En tant que** développeur  
 **Je veux** une architecture OCR modulaire avec interfaces claires  
 **Afin de** pouvoir remplacer n'importe quel provider sans casser le système
@@ -997,7 +1347,7 @@ src/ocr/
 
 ---
 
-#### US-023: Table Detector [SHOULD] 📋
+#### US-030: Table Detector [SHOULD] 📋
 **En tant que** système  
 **Je veux** détecter la présence de tableaux dans les documents  
 **Afin de** router vers Qwen-VL quand nécessaire
@@ -1006,117 +1356,73 @@ src/ocr/
 
 **Critères d'acceptation:**
 - [ ] Classe `TableDetector` dans `src/ocr/table_detector.py`
-- [ ] Utilise OpenCV pour détecter contours structurés
-- [ ] Seuil configurable (`config.yaml` → `ocr.table_detection_threshold`: 0.7)
-- [ ] Retourne: `TableDetectionResult(has_tables: bool, confidence: float, regions: list)`
-- [ ] Tests avec images de test (tableaux complexes, texte simple, mixte)
+- [ ] Utilise OpenCV pour détection de lignes/grilles
+- [ ] Méthode: `has_tables(image_path: Path) -> bool`
+- [ ] Seuils configurables (sensibilité)
+- [ ] Tests avec images avec/sans tableaux
 
 **Estimation:** 3 points  
-**Dépendances:** US-022 (interfaces)
+**Dépendances:** US-029 (OCR Router)
 
 ---
 
-#### US-024: Native OCR Provider (macOS/Linux) [MUST] 📋
+#### US-031: Native OCR Provider (macOS/Linux) [MUST] 📋
 **En tant que** système  
-**Je veux** un provider OCR natif multi-plateforme  
-**Afin d'** OCRer rapidement les documents simples sur toute plateforme
+**Je veux** un provider OCR natif selon la plateforme  
+**Afin d'** extraire le texte sans GPU ni modèle lourd
 
-**Intention:** Abstraction de l'OCR natif. macOS = AppleScript, Linux = Tesseract. Même interface, implémentation différente.
+**Intention:** OCR rapide pour texte simple. macOS = Vision Framework via AppleScript, Linux = Tesseract.
 
 **Critères d'acceptation:**
-- [ ] Classe `NativeOCRProvider` dans `src/ocr/providers/native_provider.py`
-- [ ] Implémente `OCRProvider` interface
-- [ ] Détection auto de la plateforme:
-  - macOS → AppleScript Vision framework
-  - Linux → Tesseract OCR (si installé)
-  - Windows → (Future: Windows OCR API)
-- [ ] Méthode `is_available() -> bool` pour vérifier disponibilité
-- [ ] Cache résultats (`${storage_root}/cache/ocr/{sha256}.json`)
-- [ ] Gestion erreurs avec messages clairs
-- [ ] Tests sur macOS (AppleScript) avec documents de test
+- [ ] `NativeProvider` dans `src/ocr/providers/native_provider.py`
+- [ ] macOS: AppleScript + Vision Framework
+- [ ] Linux: Tesseract via pytesseract
+- [ ] Implémente interface `OCRProvider`
+- [ ] Gestion des langues (fr, en, zh-TW)
+- [ ] Tests sur images simples
 
 **Estimation:** 5 points  
-**Dépendances:** US-022 (interfaces)  
-**Note:** V1 = macOS. Tesseract Linux = stub avec `NotImplementedError` clair.
+**Dépendances:** US-029 (OCR Router)
 
 ---
 
-#### US-025a: Benchmark OCR Vision Models [MUST] 📋
+#### US-032: Qwen-VL Provider (tableaux/complexe) [SHOULD] 📋
+**En tant que** système  
+**Je veux** utiliser Qwen-VL pour les documents complexes  
+**Afin d'** extraire les tableaux et layouts difficiles
+
+**Intention:** Fallback intelligent pour les cas où l'OCR natif échoue.
+
+**Critères d'acceptation:**
+- [ ] `QwenVLProvider` dans `src/ocr/providers/qwen_vl_provider.py`
+- [ ] Utilise Ollama avec modèle qwen2-vl
+- [ ] Implémente interface `OCRProvider`
+- [ ] Prompt optimisé pour extraction de tableaux
+- [ ] Conversion tableau → markdown ou JSON
+- [ ] Tests avec documents à tableaux
+
+**Estimation:** 5 points  
+**Dépendances:** US-029, US-030, US-016 (OllamaClient)
+
+---
+
+#### US-032b: Test E2E OCR Pipeline [MUST] 📋
 **En tant que** développeur  
-**Je veux** comparer Qwen2.5-VL (GGUF+mmproj) vs Ollama llava  
-**Afin de** choisir le meilleur modèle pour l'OCR de tableaux
-
-**Intention:** Valider expérimentalement quel modèle vision donne les meilleurs résultats avant d'implémenter le provider.
-
-**Contexte:**
-- Qwen2.5-VL en GGUF local avec mmproj (nécessite llama-cpp-python)
-- Ollama llava (facile à intégrer, gestion automatique)
-- Critères: qualité OCR tableaux, vitesse, consommation mémoire
+**Je veux** un test end-to-end du pipeline OCR complet  
+**Afin de** valider la chaîne : image → router → provider → texte
 
 **Critères d'acceptation:**
-- [ ] Script `scripts/benchmark_ocr_vlm.py`
-- [ ] Dataset de test: 10 images (5 tableaux complexes, 5 texte simple)
-  - Documents comptables, bulletins scolaires, formulaires
-- [ ] Métriques collectées:
-  - Précision OCR (vs ground truth manuel)
-  - Temps d'inférence (ms)
-  - RAM utilisée (MB)
-  - Qualité extraction tableaux (structure JSON)
-- [ ] Rapport Markdown généré: `docs/BENCHMARK_OCR_VLM.md`
-- [ ] Recommandation claire pour US-025
+- [ ] Test `tests/e2e/test_ocr_pipeline.py`
+- [ ] Scénarios: image simple, PDF scanné, document avec tableaux
+- [ ] Vérifie le routing correct vers le bon provider
+- [ ] Intégré dans CI
 
-**Estimation:** 3 points  
-**Dépendances:** Aucune (standalone benchmark)
+**Estimation:** 2 points  
+**Dépendances:** US-031, US-032
 
 ---
 
-#### US-025: Qwen-VL Provider [SHOULD] 📋
-**En tant que** système  
-**Je veux** utiliser Qwen-VL pour les documents complexes avec tableaux  
-**Afin d'** extraire texte + structure des tableaux avec précision
-
-**Intention:** Provider haute qualité pour documents complexes. Plus lent mais précis pour tableaux et layouts difficiles.
-
-**Critères d'acceptation:**
-- [ ] Classe `QwenVLProvider` dans `src/ocr/providers/qwen_vl_provider.py`
-- [ ] Implémente `OCRProvider` interface
-- [ ] Charge modèle via Ollama (`config.yaml` → `ocr.qwen_vl.model`)
-- [ ] Extraction tableaux: JSON structuré `{table_id, headers, rows}`
-- [ ] Prompt engineering pour extraction précise
-- [ ] Cache résultats
-- [ ] Tests avec documents de test (tableaux, chinois traditionnel)
-
-**Estimation:** 5 points  
-**Dépendances:** US-022 (interfaces), US-016 (OllamaClient)  
-**Note:** Script bench existant à refactorer en provider
-
----
-
-### Epic 7: Extraction Métadonnées [COULD]
-
-#### US-026: EXIF Extractor [COULD] 📋
-**En tant que** système  
-**Je veux** extraire les métadonnées EXIF des images  
-**Afin d'** enrichir l'indexation avec date, lieu, appareil
-
-**Intention:** Extraction de métadonnées directes (pas d'OCR nécessaire). Permet de rechercher "photos de Berlin juin 2025".
-
-**Critères d'acceptation:**
-- [ ] Classe `EXIFExtractor` dans `src/indexation/exif_extractor.py`
-- [ ] Librairies: `piexif` ou `exifread`
-- [ ] Extraction: date_taken, camera_model, gps_coordinates, dimensions, orientation
-- [ ] Convertit GPS → adresse lisible (reverse geocoding local, optionnel)
-- [ ] Retourne: `EXIFResult(date, location, camera, dimensions, raw_exif)`
-- [ ] Indexe dans LanceDB + Meilisearch (filtres par date, lieu)
-- [ ] Tests avec images JPG/HEIC (avec/sans EXIF)
-
-**Estimation:** 3 points  
-**Dépendances:** US-012 (DocumentIndexer)  
-**Note:** Indépendant de l'OCR - extraction directe de métadonnées binaires.
-
----
-
-## Sprint 5: Traduction (2 semaines - Avr-Mai 2026)
+## Sprint 6: Traduction (2 semaines - Avr-Mai 2026)
 
 **Architecture:** Pipeline de traduction modulaire via LLM.  
 **Principe:** Séparation claire entre traduction pure, extraction d'actions, et exposition API.
@@ -1131,9 +1437,9 @@ src/translation/
     └── extraction.txt     # Prompt extraction structurée
 ```
 
-### Epic 8: Translation Pipeline [MUST]
+### Epic 10: Translation Pipeline [MUST]
 
-#### US-027: Créer pipeline de traduction [MUST] 📋
+#### US-033: Créer pipeline de traduction [MUST] 📋
 **En tant que** utilisateur  
 **Je veux** traduire des documents chinois traditionnels  
 **Afin de** les comprendre en français/anglais
@@ -1154,7 +1460,7 @@ src/translation/
 
 ---
 
-#### US-028: Extraire actions/deadlines [MUST] 📋
+#### US-034: Extraire actions/deadlines [MUST] 📋
 **En tant que** utilisateur  
 **Je veux** extraire automatiquement les échéances d'un document  
 **Afin de** voir immédiatement mes tâches et deadlines
@@ -1174,11 +1480,11 @@ src/translation/
 - [ ] Tests avec documents de test variés
 
 **Estimation:** 5 points  
-**Dépendances:** US-027 (Translator), US-016 (OllamaClient)
+**Dépendances:** US-033 (Translator), US-016 (OllamaClient)
 
 ---
 
-#### US-029: API endpoint /api/translate [MUST] 📋
+#### US-035: API endpoint /api/translate [MUST] 📋
 **En tant que** utilisateur  
 **Je veux** traduire un document via l'API REST  
 **Afin de** l'intégrer dans mon workflow ou UI externe
@@ -1194,11 +1500,11 @@ src/translation/
 - [ ] Tests unitaires + test d'intégration E2E
 
 **Estimation:** 3 points  
-**Dépendances:** US-027, US-028, US-013 (API FastAPI)
+**Dépendances:** US-033, US-034, US-013 (API FastAPI)
 
 ---
 
-#### US-029b: Test E2E Translation Pipeline [MUST] 📋
+#### US-035b: Test E2E Translation Pipeline [MUST] 📋
 **En tant que** développeur  
 **Je veux** un test end-to-end du pipeline traduction  
 **Afin de** valider que tout fonctionne de bout en bout
@@ -1213,11 +1519,11 @@ src/translation/
 - [ ] Intégré dans CI
 
 **Estimation:** 2 points  
-**Dépendances:** US-029
+**Dépendances:** US-035
 
 ---
 
-## Sprint 6: Catégorisation (2 semaines - Mai 2026)
+## Sprint 7: Catégorisation (2 semaines - Mai-Juin 2026)
 
 **Architecture:** Catégorisation intelligente via LLM avec boucle de feedback.  
 **Principe:** L'utilisateur peut toujours corriger, et le système apprend de ses erreurs.
@@ -1231,9 +1537,9 @@ config/
 └── categories.yaml        # Définitions des catégories
 ```
 
-### Epic 9: Category Management [SHOULD]
+### Epic 11: Category Management [SHOULD]
 
-#### US-030: Auto-catégoriser documents [SHOULD] 📋
+#### US-036: Auto-catégoriser documents [SHOULD] 📋
 **En tant que** système  
 **Je veux** catégoriser automatiquement les documents lors de l'indexation  
 **Afin de** permettre des recherches filtrées par catégorie
@@ -1254,7 +1560,7 @@ config/
 
 ---
 
-#### US-031: API correction catégories [SHOULD] 📋
+#### US-037: API correction catégories [SHOULD] 📋
 **En tant que** utilisateur  
 **Je veux** corriger une catégorie erronée via l'API  
 **Afin que** le système apprenne de mes corrections
@@ -1271,11 +1577,11 @@ config/
 - [ ] Tests unitaires + intégration
 
 **Estimation:** 3 points  
-**Dépendances:** US-013 (API), US-030 (Categorizer)
+**Dépendances:** US-013 (API), US-036 (Categorizer)
 
 ---
 
-#### US-032: Feedback loop catégorisation [COULD] 📋
+#### US-038: Feedback loop catégorisation [COULD] 📋
 **En tant que** système  
 **Je veux** utiliser les corrections passées pour améliorer les futures catégorisations  
 **Afin d'** augmenter la précision au fil du temps
@@ -1291,12 +1597,12 @@ config/
 - [ ] Tests avec corrections simulées
 
 **Estimation:** 3 points  
-**Dépendances:** US-031  
-**Note:** Nice-to-have. Si temps limité, peut être différé au Sprint 7.
+**Dépendances:** US-037  
+**Note:** Nice-to-have. Si temps limité, peut être différé au Sprint 8.
 
 ---
 
-#### US-032b: Test E2E Catégorisation [SHOULD] 📋
+#### US-038b: Test E2E Catégorisation [SHOULD] 📋
 **En tant que** développeur  
 **Je veux** un test end-to-end du workflow catégorisation  
 **Afin de** valider la chaîne complète : index → catégoriser → corriger → re-catégoriser
@@ -1310,11 +1616,11 @@ config/
 - [ ] Intégré dans CI
 
 **Estimation:** 2 points  
-**Dépendances:** US-031
+**Dépendances:** US-037
 
 ---
 
-## Sprint 7: Dashboard & Polish (2 semaines - Juin 2026)
+## Sprint 8: Dashboard & Polish (2 semaines - Juin-Juil 2026)
 
 **Architecture:** Monitoring, automatisation et finalisation pour usage quotidien.  
 **Principe:** AItao doit "juste marcher" sans intervention manuelle.
@@ -1329,9 +1635,9 @@ scripts/
 └── daily_scan.sh          # Cronjob scan quotidien
 ```
 
-### Epic 10: CLI & Dashboard [SHOULD]
+### Epic 12: CLI & Dashboard [SHOULD]
 
-#### US-033: Dashboard TUI enrichi [SHOULD] 📋
+#### US-039: Dashboard TUI enrichi [SHOULD] 📋
 **En tant que** utilisateur  
 **Je veux** voir un dashboard complet du système en terminal  
 **Afin de** monitorer AItao d'un coup d'œil
@@ -1354,7 +1660,7 @@ scripts/
 
 ---
 
-#### US-034: Cronjob daily scan [MUST] 📋
+#### US-040: Cronjob daily scan [MUST] 📋
 **En tant que** système  
 **Je veux** scanner automatiquement les volumes configurés chaque jour  
 **Afin d'** indexer les nouveaux fichiers sans intervention
@@ -1375,7 +1681,7 @@ scripts/
 
 ---
 
-#### US-035: System load monitor [SHOULD] 📋
+#### US-041: System load monitor [SHOULD] 📋
 **En tant que** système  
 **Je veux** détecter la charge système et l'activité utilisateur  
 **Afin de** throttler les tâches background quand le Mac est utilisé
@@ -1398,9 +1704,9 @@ scripts/
 
 ---
 
-### Epic 11: Testing & Documentation [SHOULD]
+### Epic 13: Testing & Documentation [SHOULD]
 
-#### US-036: Tests end-to-end complets [MUST] 📋
+#### US-042: Tests end-to-end complets [MUST] 📋
 **En tant que** développeur  
 **Je veux** une suite de tests E2E couvrant tous les workflows critiques  
 **Afin de** garantir que AItao fonctionne en conditions réelles
@@ -1424,7 +1730,7 @@ scripts/
 
 ---
 
-#### US-037: Documentation utilisateur finale [SHOULD] 📋
+#### US-043: Documentation utilisateur finale [SHOULD] 📋
 **En tant que** nouvel utilisateur  
 **Je veux** une documentation claire et complète  
 **Afin d'** installer, configurer et utiliser AItao
@@ -1444,11 +1750,11 @@ scripts/
 - [ ] Capture d'écran du dashboard
 
 **Estimation:** 5 points  
-**Dépendances:** US-036
+**Dépendances:** US-042
 
 ---
 
-#### US-037b: Validation finale et release V2.4 [MUST] 📋
+#### US-043b: Validation finale et release V2.4 [MUST] 📋
 **En tant que** développeur  
 **Je veux** une checklist de validation complète avant release  
 **Afin de** m'assurer que V2.4 est prête pour usage quotidien
@@ -1475,19 +1781,19 @@ scripts/
 
 ## Backlog (Future - V3+)
 
-### Epic 12: Multi-platform [WON'T - V3]
+### Epic 14: Multi-platform [WON'T - V3]
 
-- **US-032:** Support Linux
-- **US-033:** Support Windows
-- **US-034:** Docker full stack
+- **US-044:** Support Linux
+- **US-045:** Support Windows
+- **US-046:** Docker full stack
 
-### Epic 13: Advanced Features [WON'T - V3]
+### Epic 15: Advanced Features [WON'T - V3]
 
-- **US-035:** Email indexing (Gmail, Outlook)
-- **US-036:** Audio/Video transcription
-- **US-037:** Image generation (local)
-- **US-038:** Encryption at-rest
-- **US-039:** Multi-user support
+- **US-047:** Email indexing (Gmail, Outlook)
+- **US-048:** Audio/Video transcription
+- **US-049:** Image generation (local)
+- **US-050:** Encryption at-rest
+- **US-051:** Multi-user support
 
 ---
 
