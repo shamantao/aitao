@@ -61,8 +61,8 @@ class ModelConfigItem:
         if not self.name or not isinstance(self.name, str):
             raise ValueError(f"Model name must be non-empty string, got: {self.name}")
         
-        # Validate roles
-        valid_roles = {"chat", "rag", "code", "translation", "extraction"}
+        # Validate roles - must match ModelRole enum values
+        valid_roles = {"chat", "rag", "code", "vision", "embedding", "ocr"}
         for role in self.roles:
             if role not in valid_roles:
                 logger.warning(

@@ -719,7 +719,7 @@ Noms des modèles virtuels:
 
 ### Epic 4b: Virtual Model Routing [MUST]
 
-#### US-021g: Implémenter le routage des modèles virtuels [MUST] 📋
+#### US-021g: Implémenter le routage des modèles virtuels [MUST] ✅ DONE
 **En tant que** utilisateur de Continue.dev ou autre client  
 **Je veux** choisir mon niveau de RAG via le nom du modèle  
 **Afin de** ne pas avoir à modifier la configuration selon le contexte
@@ -736,18 +736,26 @@ Noms des modèles virtuels:
 | `llama3.1-smart` | L'IA décide (Sprint 7+) | llama3.1-local:latest |
 
 **Critères d'acceptation:**
-- [ ] Parser le suffixe du modèle dans `src/api/routes/chat.py`
-- [ ] Mapper vers le modèle réel Ollama
-- [ ] Configurer le mode RAG selon le suffixe:
+- [x] Parser le suffixe du modèle dans `src/api/routes/chat.py`
+- [x] Mapper vers le modèle réel Ollama
+- [x] Configurer le mode RAG selon le suffixe:
   - `-basic` → `rag_enabled = False`
   - `-context` → `rag_enabled = True, filter_category = "code"`
   - `-doc` → `rag_enabled = True, filter_category = None`
   - `-smart` → `rag_enabled = "auto"` (détection automatique - Sprint 7)
-- [ ] `/v1/models` expose les modèles virtuels aux clients
-- [ ] Tests unitaires pour chaque mode
+- [x] `/v1/models` expose les modèles virtuels aux clients
+- [x] Tests unitaires pour chaque mode (30 tests)
 
 **Estimation:** 5 points  
 **Dépendances:** US-021b (OllamaClient), US-016 (RAG Engine)
+
+**Validation (obligatoire):**
+- [x] Tests unitaires: 30 tests pour virtual_models.py
+- [x] Tous les tests unitaires passent: 483/483
+- [x] Conformité PRD (doc en anglais, code cohérent)
+- [x] Backlog mis à jour: US marquée ✅ DONE
+
+**Version finale:** 2.3.21.7 ✅
 
 ---
 

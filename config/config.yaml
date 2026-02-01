@@ -141,8 +141,9 @@ llm:
     required: false
     size_gb: 6.1
     roles:
-    - OCR
-    description: Qwen3-VL pour vision & OCR
+    - ocr
+    - vision
+    description: Qwen3-VL for vision & OCR tasks
   startup:
     check_models: true
     auto_pull: false

@@ -312,6 +312,7 @@ class ModelRole(str, Enum):
     VISION = "vision"
     EMBEDDING = "embedding"
     RAG = "rag"
+    OCR = "ocr"
 
 
 @dataclass

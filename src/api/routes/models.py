@@ -3,10 +3,11 @@ Models API route for AItao.
 
 Provides model listing endpoints compatible with both Ollama and OpenAI formats.
 Fetches available models from the Ollama backend and exposes them via API.
+Also exposes virtual models that map to real Ollama models with RAG configuration.
 
 Endpoints:
 - GET /api/tags    - Ollama-compatible model list
-- GET /v1/models   - OpenAI-compatible model list
+- GET /v1/models   - OpenAI-compatible model list (includes virtual models)
 
 These endpoints allow clients (Continue.dev, AnythingLLM, etc.) to discover
 which models are available for chat and completion requests.
@@ -21,6 +22,7 @@ from pydantic import BaseModel, Field
 from src.core.config import ConfigManager
 from src.core.logger import get_logger
 from src.llm.ollama_client import OllamaClient, OllamaConnectionError
+from src.api.virtual_models import get_virtual_router, resolve_model
 
 logger = get_logger("api.models")
 
@@ -168,24 +170,39 @@ async def list_models_openai():
     """
     List available models (OpenAI-compatible format).
     
-    Converts Ollama models to OpenAI format for compatibility with
-    OpenAI API clients like Continue.dev.
+    Includes both real Ollama models and virtual models.
+    Virtual models are prefixed with their RAG behavior (e.g., llama3.1-doc).
+    
+    Clients like Continue.dev can select virtual models to control RAG:
+    - llama3.1-basic: Pure LLM, no RAG
+    - llama3.1-doc: Full RAG with all documents
+    - qwen-coder-context: RAG filtered to code/config
     """
-    logger.info("Listing models (OpenAI format)")
+    logger.info("Listing models (OpenAI format, including virtual)")
     
     try:
-        ollama = get_ollama_client()
-        ollama_models = ollama.list_models()  # Returns List[OllamaModel]
-        
-        # Convert OllamaModel objects to OpenAI format
         models = []
+        
+        # 1. Add virtual models first (primary user interface)
+        virtual_router = get_virtual_router()
+        for vm in virtual_router.list_virtual_models():
+            models.append(OpenAIModel(
+                id=vm["id"],
+                object="model",
+                created=int(time.time()),
+                owned_by="aitao-virtual",
+            ))
+        
+        # 2. Add real Ollama models (for direct access)
+        ollama = get_ollama_client()
+        ollama_models = ollama.list_models()
+        
         for model_obj in ollama_models:
             # Parse modified_at to timestamp if available
             created = int(time.time())
             if model_obj.modified_at:
                 try:
                     from datetime import datetime
-                    # Ollama uses ISO format
                     dt = datetime.fromisoformat(
                         model_obj.modified_at.replace("Z", "+00:00")
                     )
@@ -200,7 +217,7 @@ async def list_models_openai():
                 owned_by="ollama",
             ))
         
-        logger.info(f"Returning {len(models)} models in OpenAI format")
+        logger.info(f"Returning {len(models)} models (virtual + real)")
         return OpenAIModelsResponse(object="list", data=models)
         
     except OllamaConnectionError as e:
@@ -217,10 +234,22 @@ async def get_model_openai(model_id: str):
     Get a specific model (OpenAI-compatible format).
     
     Returns model info in OpenAI format.
+    Supports both virtual and real model IDs.
     """
     logger.info(f"Getting model: {model_id}")
     
     try:
+        # Check if it's a virtual model
+        resolved = resolve_model(model_id)
+        if resolved.is_virtual:
+            return OpenAIModel(
+                id=model_id,
+                object="model",
+                created=int(time.time()),
+                owned_by="aitao-virtual",
+            )
+        
+        # Real model - check with Ollama
         ollama = get_ollama_client()
         model_info = ollama.show_model(model_id)
         

@@ -33,6 +33,7 @@ from src.llm.ollama_client import (
     OllamaModelNotFound,
 )
 from src.llm.rag_engine import RAGEngine, ContextDocument
+from src.api.virtual_models import resolve_model, ResolvedModel
 
 logger = get_logger("api.chat")
 
@@ -167,16 +168,33 @@ async def chat_completion(request: ChatRequest):
     
     Enriches the conversation with RAG context before forwarding to Ollama.
     Supports both streaming and non-streaming responses.
+    
+    Virtual Model Support:
+        Model names with suffixes like -basic, -context, -doc control RAG behavior:
+        - llama3.1-basic: No RAG, pure LLM
+        - llama3.1-doc: Full RAG with all documents
+        - qwen-coder-context: RAG filtered to code/config categories
     """
     start_time = time.time()
+    
+    # Resolve virtual model to real model + RAG config
+    resolved = resolve_model(request.model)
+    
+    # Determine effective RAG settings
+    # Virtual model config overrides request if it's a virtual model
+    effective_rag_enabled = resolved.rag_enabled if resolved.is_virtual else request.rag_enabled
+    effective_filter = resolved.filter_categories if resolved.is_virtual else None
     
     logger.info(
         "Chat request received",
         metadata={
             "model": request.model,
+            "real_model": resolved.real_model,
+            "is_virtual": resolved.is_virtual,
             "message_count": len(request.messages),
             "stream": request.stream,
-            "rag_enabled": request.rag_enabled,
+            "rag_enabled": effective_rag_enabled,
+            "filter_categories": effective_filter,
         }
     )
     
@@ -189,16 +207,19 @@ async def chat_completion(request: ChatRequest):
             for m in request.messages
         ]
         
-        # RAG enrichment
+        # RAG enrichment (controlled by virtual model or request)
         context_docs = []
-        if request.rag_enabled and messages:
+        if effective_rag_enabled and messages:
             try:
                 rag = get_rag_engine()
                 # Convert to dict format for enrich_messages
                 msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
+                # Build filters dict if category filter specified
+                filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(
                     msg_dicts,
                     max_context_docs=request.rag_max_docs,
+                    filters=filters,
                 )
                 # Convert back to OllamaChatMessage
                 messages = [
@@ -212,17 +233,17 @@ async def chat_completion(request: ChatRequest):
             except Exception as e:
                 logger.warning(f"RAG enrichment failed, proceeding without: {e}")
         
-        # Streaming response
+        # Streaming response - use real model
         if request.stream:
             return StreamingResponse(
-                _stream_chat_response(ollama, messages, request, context_docs),
+                _stream_chat_response(ollama, messages, request, context_docs, resolved),
                 media_type="application/x-ndjson",
             )
         
-        # Non-streaming response
+        # Non-streaming response - use real model
         response = ollama.chat(
             messages=messages,
-            model=request.model,
+            model=resolved.real_model,
             stream=False,
             options=request.options,
         )
@@ -234,7 +255,7 @@ async def chat_completion(request: ChatRequest):
         )
         
         return ChatResponse(
-            model=request.model,
+            model=request.model,  # Return original name (virtual or real)
             message=ChatResponseMessage(
                 role="assistant",
                 content=response.get("message", {}).get("content", ""),
@@ -259,6 +280,7 @@ async def _stream_chat_response(
     messages: List[OllamaChatMessage],
     request: ChatRequest,
     context_docs: List[ContextDocument],
+    resolved: ResolvedModel,
 ) -> AsyncGenerator[str, None]:
     """Generate streaming chat response in Ollama format."""
     try:
@@ -270,10 +292,10 @@ async def _stream_chat_response(
             }
             yield json.dumps(rag_info) + "\n"
         
-        # Stream from Ollama
+        # Stream from Ollama using real model
         for chunk in ollama.chat(
             messages=messages,
-            model=request.model,
+            model=resolved.real_model,
             stream=True,
             options=request.options,
         ):
@@ -297,15 +319,26 @@ async def openai_chat_completion(request: OpenAIChatRequest):
     OpenAI-compatible chat completion endpoint.
     
     Allows tools expecting OpenAI API format to work with AItao.
+    Supports virtual model routing for RAG control.
     """
     start_time = time.time()
+    
+    # Resolve virtual model to real model + RAG config
+    resolved = resolve_model(request.model)
+    
+    # Determine effective RAG settings
+    effective_rag_enabled = resolved.rag_enabled if resolved.is_virtual else request.rag_enabled
+    effective_filter = resolved.filter_categories if resolved.is_virtual else None
     
     logger.info(
         "OpenAI-format chat request",
         metadata={
             "model": request.model,
+            "real_model": resolved.real_model,
+            "is_virtual": resolved.is_virtual,
             "message_count": len(request.messages),
             "stream": request.stream,
+            "rag_enabled": effective_rag_enabled,
         }
     )
     
@@ -318,13 +351,18 @@ async def openai_chat_completion(request: OpenAIChatRequest):
             for m in request.messages
         ]
         
-        # RAG enrichment
+        # RAG enrichment (controlled by virtual model or request)
         context_docs = []
-        if request.rag_enabled and messages:
+        if effective_rag_enabled and messages:
             try:
                 rag = get_rag_engine()
                 msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
-                enriched_msgs, context_docs, _ = rag.enrich_messages(msg_dicts)
+                # Build filters dict if category filter specified
+                filters = {"category": effective_filter} if effective_filter else None
+                enriched_msgs, context_docs, _ = rag.enrich_messages(
+                    msg_dicts,
+                    filters=filters,
+                )
                 messages = [
                     OllamaChatMessage(role=m["role"], content=m["content"])
                     for m in enriched_msgs
@@ -342,14 +380,14 @@ async def openai_chat_completion(request: OpenAIChatRequest):
         # Streaming response
         if request.stream:
             return StreamingResponse(
-                _stream_openai_response(ollama, messages, request, options, context_docs),
+                _stream_openai_response(ollama, messages, request, options, context_docs, resolved),
                 media_type="text/event-stream",
             )
         
-        # Non-streaming response
+        # Non-streaming response - use real model
         response = ollama.chat(
             messages=messages,
-            model=request.model,
+            model=resolved.real_model,
             stream=False,
             options=options if options else None,
         )
@@ -365,7 +403,7 @@ async def openai_chat_completion(request: OpenAIChatRequest):
         return OpenAIChatResponse(
             id=f"chatcmpl-{int(time.time())}",
             created=int(time.time()),
-            model=request.model,
+            model=request.model,  # Return original name (virtual or real)
             choices=[
                 OpenAIChoice(
                     index=0,
@@ -391,13 +429,14 @@ async def _stream_openai_response(
     request: OpenAIChatRequest,
     options: Dict[str, Any],
     context_docs: List[ContextDocument],
+    resolved: ResolvedModel,
 ) -> AsyncGenerator[str, None]:
     """Generate streaming response in OpenAI SSE format."""
     try:
-        # Stream from Ollama
+        # Stream from Ollama using real model
         for chunk in ollama.chat(
             messages=messages,
-            model=request.model,
+            model=resolved.real_model,
             stream=True,
             options=options if options else None,
         ):
@@ -411,7 +450,7 @@ async def _stream_openai_response(
                     "id": f"chatcmpl-{int(time.time())}",
                     "object": "chat.completion.chunk",
                     "created": int(time.time()),
-                    "model": request.model,
+                    "model": request.model,  # Return original name
                     "choices": [
                         {
                             "index": 0,
