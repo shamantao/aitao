@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
+from src.llm.ollama_client import OllamaModel
+
 
 # ============================================================================
 # Fixtures
@@ -27,7 +29,7 @@ def mock_ollama_client():
 
 @pytest.fixture
 def mock_models_list():
-    """Create mock models data from Ollama."""
+    """Create mock models data from Ollama (raw dict format for /api/tags)."""
     return {
         "models": [
             {
@@ -59,11 +61,34 @@ def mock_models_list():
 
 
 @pytest.fixture
+def mock_ollama_model_objects():
+    """Create mock OllamaModel objects (for list_models return)."""
+    return [
+        OllamaModel(
+            name="qwen2.5-coder:7b",
+            modified_at="2026-01-28T12:00:00Z",
+            size=4500000000,
+            digest="sha256:abc123",
+        ),
+        OllamaModel(
+            name="llama3.1:8b",
+            modified_at="2026-01-25T10:00:00Z",
+            size=5000000000,
+            digest="sha256:def456",
+        ),
+    ]
+
+
+@pytest.fixture
 def models_app():
     """Create test client for the main app."""
     # Reset global state
     import src.api.routes.models as models_module
     models_module._ollama_client = None
+    
+    # Reset virtual router singleton
+    from src.api.virtual_models import reset_router
+    reset_router()
     
     from src.api.main import app
     return TestClient(app)
@@ -164,9 +189,9 @@ class TestOllamaModelsEndpoint:
 class TestOpenAIModelsEndpoint:
     """Tests for /v1/models (OpenAI-compatible)."""
     
-    def test_list_models_openai_format(self, models_app, mock_ollama_client, mock_models_list):
-        """Test OpenAI format model listing."""
-        mock_ollama_client.list_models.return_value = mock_models_list
+    def test_list_models_openai_format(self, models_app, mock_ollama_client, mock_ollama_model_objects):
+        """Test OpenAI format model listing includes virtual + real models."""
+        mock_ollama_client.list_models.return_value = mock_ollama_model_objects
         
         response = models_app.get("/v1/models")
         
@@ -174,31 +199,65 @@ class TestOpenAIModelsEndpoint:
         data = response.json()
         assert data["object"] == "list"
         assert "data" in data
-        assert len(data["data"]) == 2
+        # Should have virtual models + 2 real Ollama models
+        assert len(data["data"]) >= 2
     
-    def test_list_models_openai_model_format(self, models_app, mock_ollama_client, mock_models_list):
-        """Test individual model format in OpenAI response."""
-        mock_ollama_client.list_models.return_value = mock_models_list
+    def test_list_models_openai_has_virtual_models(self, models_app, mock_ollama_client, mock_ollama_model_objects):
+        """Test OpenAI response includes virtual models from config."""
+        mock_ollama_client.list_models.return_value = mock_ollama_model_objects
         
         response = models_app.get("/v1/models")
         data = response.json()
         
-        model = data["data"][0]
-        assert model["id"] == "qwen2.5-coder:7b"
-        assert model["object"] == "model"
-        assert "created" in model
-        assert isinstance(model["created"], int)
-        assert model["owned_by"] == "ollama"
+        model_ids = [m["id"] for m in data["data"]]
+        
+        # Should have virtual models
+        assert "llama3.1-basic" in model_ids
+        assert "llama3.1-doc" in model_ids
+        assert "qwen-coder-basic" in model_ids
     
-    def test_list_models_openai_empty(self, models_app, mock_ollama_client):
-        """Test empty models list in OpenAI format."""
-        mock_ollama_client.list_models.return_value = {"models": []}
+    def test_list_models_openai_has_real_models(self, models_app, mock_ollama_client, mock_ollama_model_objects):
+        """Test OpenAI response includes real Ollama models."""
+        mock_ollama_client.list_models.return_value = mock_ollama_model_objects
+        
+        response = models_app.get("/v1/models")
+        data = response.json()
+        
+        model_ids = [m["id"] for m in data["data"]]
+        
+        # Should have real Ollama models
+        assert "qwen2.5-coder:7b" in model_ids
+        assert "llama3.1:8b" in model_ids
+    
+    def test_list_models_openai_model_format(self, models_app, mock_ollama_client, mock_ollama_model_objects):
+        """Test individual model format in OpenAI response."""
+        mock_ollama_client.list_models.return_value = mock_ollama_model_objects
+        
+        response = models_app.get("/v1/models")
+        data = response.json()
+        
+        # Find a real Ollama model
+        ollama_model = next((m for m in data["data"] if m["id"] == "qwen2.5-coder:7b"), None)
+        assert ollama_model is not None
+        assert ollama_model["object"] == "model"
+        assert "created" in ollama_model
+        assert isinstance(ollama_model["created"], int)
+        assert ollama_model["owned_by"] == "ollama"
+    
+    def test_list_models_openai_empty_ollama(self, models_app, mock_ollama_client):
+        """Test with no Ollama models still returns virtual models."""
+        mock_ollama_client.list_models.return_value = []
         
         response = models_app.get("/v1/models")
         
         assert response.status_code == 200
         data = response.json()
-        assert data["data"] == []
+        # Should still have virtual models even with empty Ollama
+        assert len(data["data"]) > 0
+        
+        # All should be virtual (owned by aitao-virtual)
+        for model in data["data"]:
+            assert model["owned_by"] == "aitao-virtual"
     
     def test_list_models_openai_connection_error(self, models_app, mock_ollama_client):
         """Test connection error in OpenAI endpoint."""
