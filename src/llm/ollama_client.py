@@ -404,6 +404,54 @@ class OllamaClient:
             )
             raise
     
+    def delete_model(self, model: str) -> bool:
+        """
+        Delete a model from Ollama.
+        
+        Uses DELETE /api/delete endpoint to remove model files.
+        This frees up disk space but doesn't remove from config.yaml.
+        
+        Args:
+            model: Model name to delete (e.g., "llama3.1:8b")
+        
+        Returns:
+            True if successful
+        
+        Raises:
+            OllamaConnectionError: If server is unreachable
+            Exception: If deletion fails
+        """
+        if not self._check_connection():
+            raise OllamaConnectionError(
+                f"Cannot delete model: Ollama not reachable at {self.host}"
+            )
+        
+        try:
+            response = self.client.delete(
+                f"{self.host}/api/delete",
+                json={"name": model}
+            )
+            response.raise_for_status()
+            self.logger.info(
+                "Model deleted from Ollama",
+                metadata={"model": model}
+            )
+            return True
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                self.logger.warning(
+                    "Model not found in Ollama",
+                    metadata={"model": model}
+                )
+                return False
+            raise
+        except Exception as e:
+            self.logger.error(
+                "Model deletion error",
+                metadata={"error": str(e), "model": model}
+            )
+            raise
+
     def is_healthy(self) -> bool:
         """
         Check if Ollama server is healthy.

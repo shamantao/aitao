@@ -38,6 +38,14 @@ from core.logger import get_logger
 from core.config import get_config
 from llm.model_manager import ModelManager
 from llm.ollama_client import OllamaConnectionError
+from cli.commands._models_helpers import (
+    validate_model_name,
+    get_model_from_config,
+    load_config_yaml,
+    save_config_yaml,
+    prompt_model_metadata,
+    check_model_dependencies,
+)
 
 logger = get_logger(__name__)
 console = Console()
@@ -346,39 +354,250 @@ def pull():
 
 
 @app.command()
-def add(model_name: str):
+def add(
+    model_name: str = typer.Argument(..., help="Model name (e.g., llama3.1:8b)"),
+    role: Optional[str] = typer.Option(None, "--role", "-r", help="Model role (rag, code, extraction, chat)"),
+    required: bool = typer.Option(False, "--required", help="Mark as required for startup"),
+    no_pull: bool = typer.Option(False, "--no-pull", help="Add to config but don't pull")
+):
     """
-    Add a model to config.yaml (future: US-021e).
+    Add a model to config.yaml and optionally download it.
     
-    Example:
+    Examples:
       ./aitao.sh models add llama3.1:8b
+      ./aitao.sh models add qwen3-vl:latest --role rag
+      ./aitao.sh models add mistral:7b --required --no-pull
     """
-    console.print("[yellow]Feature not yet implemented (US-021e)[/yellow]")
-    console.print(f"To add '{model_name}' manually:")
+    import subprocess
+    
     console.print()
-    console.print("1. Edit config/config.yaml")
-    console.print("2. Add to 'llm.models' section:")
-    console.print(f"   - name: {model_name}")
-    console.print("     required: false")
-    console.print("3. Save and reload")
+    logger.info("Adding model to config", metadata={"model": model_name})
+    
+    # Validate model name
+    try:
+        normalized_name = validate_model_name(model_name)
+    except typer.BadParameter as e:
+        console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
+        raise typer.Exit(code=1)
+    
+    # Check if already in config
+    if get_model_from_config(normalized_name):
+        console.print(
+            f"[yellow]⚠ Model '{normalized_name}' is already configured[/yellow]"
+        )
+        raise typer.Exit(code=1)
+    
+    # Prompt for metadata if not provided via options
+    if role or required:
+        roles_list = [r.strip() for r in role.split(",")] if role else ["rag"]
+        metadata = {"role": roles_list, "required": required}
+    else:
+        metadata = prompt_model_metadata()
+    
+    # Load current config
+    try:
+        config = load_config_yaml()
+    except FileNotFoundError as e:
+        console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
+        raise typer.Exit(code=1)
+    
+    # Ensure llm.models section exists
+    if "llm" not in config:
+        config["llm"] = {}
+    if "models" not in config["llm"]:
+        config["llm"]["models"] = []
+    
+    # Add model entry
+    new_model = {
+        "name": normalized_name,
+        "required": metadata.get("required", False),
+        "roles": metadata.get("role", ["rag"]),
+        "description": "Added via CLI"
+    }
+    config["llm"]["models"].append(new_model)
+    
+    # Save config
+    try:
+        save_config_yaml(config)
+    except Exception as e:
+        console.print(f"[red]ERROR: Cannot write config.yaml[/red]\n{str(e)}")
+        logger.error("Failed to save config", metadata={"error": str(e)})
+        raise typer.Exit(code=1)
+    
+    console.print(f"[green]✓ Added {normalized_name} to config.yaml[/green]")
+    console.print(f"  Roles: {', '.join(metadata.get('role', ['rag']))}")
+    console.print(f"  Required: {'Yes' if metadata.get('required') else 'No'}")
+    console.print()
+    
+    # Pull model unless --no-pull
+    if not no_pull:
+        console.print("[cyan]Downloading model from Ollama hub...[/cyan]")
+        
+        manager = _get_model_manager()
+        if not manager:
+            console.print(
+                "[yellow]⚠ Model added to config but could not download[/yellow]\n"
+                f"Ollama is not running. To download manually:\n"
+                f"  ollama pull {normalized_name}"
+            )
+            raise typer.Exit(code=0)
+        
+        try:
+            result = subprocess.run(
+                ["ollama", "pull", normalized_name],
+                capture_output=True,
+                text=True,
+                timeout=600
+            )
+            
+            if result.returncode == 0:
+                console.print(f"[green]✓ Downloaded {normalized_name}[/green]")
+            else:
+                console.print(f"[yellow]⚠ Download failed: {result.stderr}[/yellow]")
+                logger.warning(
+                    "Model download failed",
+                    metadata={"model": normalized_name, "stderr": result.stderr}
+                )
+        except FileNotFoundError:
+            console.print(
+                "[red]ERROR: ollama command not found[/red]\n"
+                "Please install Ollama: https://ollama.ai"
+            )
+            raise typer.Exit(code=1)
+        except subprocess.TimeoutExpired:
+            console.print("[red]ERROR: Download timed out (10 min limit)[/red]")
+            raise typer.Exit(code=1)
+    
+    console.print()
+    status_msg = "✓ Ready to use" if not no_pull else "✓ Added to config (download later)"
+    console.print(f"[green]{status_msg}[/green]")
+    console.print("[dim]Next: ./aitao.sh models status[/dim]")
+    
+    logger.info(
+        "Model added successfully",
+        metadata={
+            "model": normalized_name,
+            "roles": metadata.get("role"),
+            "required": metadata.get("required"),
+            "pulled": not no_pull
+        }
+    )
 
 
 @app.command()
-def remove(model_name: str):
+def remove(
+    model_name: str = typer.Argument(..., help="Model name to remove"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
+    delete_ollama: bool = typer.Option(False, "--delete-ollama", help="Also remove from Ollama")
+):
     """
-    Remove a model from config.yaml (future: US-021e).
+    Remove a model from config.yaml (optionally from Ollama too).
     
-    Example:
+    Examples:
       ./aitao.sh models remove llama3.1:8b
+      ./aitao.sh models remove mistral:7b --force
+      ./aitao.sh models remove qwen:latest --delete-ollama
     """
-    console.print("[yellow]Feature not yet implemented (US-021e)[/yellow]")
-    console.print(f"To remove '{model_name}' manually:")
     console.print()
-    console.print("1. Edit config/config.yaml")
-    console.print("2. Remove from 'llm.models' section:")
-    console.print(f"   (delete the entry for {model_name})")
-    console.print("3. Optionally, remove from Ollama:")
-    console.print(f"   ollama rm {model_name}")
+    logger.info("Removing model from config", metadata={"model": model_name})
+    
+    # Validate model name
+    try:
+        normalized_name = validate_model_name(model_name)
+    except typer.BadParameter as e:
+        console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
+        raise typer.Exit(code=1)
+    
+    # Find model in config
+    model = get_model_from_config(normalized_name)
+    if not model:
+        console.print(f"[yellow]⚠ Model '{normalized_name}' not found in config[/yellow]")
+        raise typer.Exit(code=1)
+    
+    # Check dependencies
+    deps = check_model_dependencies(normalized_name)
+    
+    # Show warnings
+    if deps["is_required"]:
+        console.print(
+            "[red]⚠ WARNING: This model is marked REQUIRED[/red]\n"
+            "[dim]Removing it may break startup checks[/dim]"
+        )
+    
+    if deps["only_model_for_roles"]:
+        console.print(
+            f"[red]⚠ WARNING: This is the ONLY model for roles:[/red]\n"
+            f"[yellow]  {', '.join(deps['only_model_for_roles'])}[/yellow]\n"
+            f"[dim]Removing it may break functionality[/dim]"
+        )
+    
+    console.print()
+    
+    # Prompt for confirmation unless --force
+    if not force and (deps["has_warnings"] or delete_ollama):
+        if not typer.confirm("Continue?"):
+            console.print("[dim]Cancelled[/dim]")
+            raise typer.Exit(code=0)
+    
+    # Load and modify config
+    try:
+        config = load_config_yaml()
+    except FileNotFoundError as e:
+        console.print(f"[red]ERROR: {str(e)}[/red]", file=sys.stderr)
+        raise typer.Exit(code=1)
+    
+    # Remove from models list
+    base_name = normalized_name.split(":")[0]
+    original_count = len(config.get("llm", {}).get("models", []))
+    
+    config["llm"]["models"] = [
+        m for m in config["llm"]["models"]
+        if m.get("name", "").split(":")[0] != base_name
+    ]
+    
+    if len(config["llm"]["models"]) == original_count:
+        console.print("[red]ERROR: Could not find model to remove[/red]")
+        raise typer.Exit(code=1)
+    
+    # Save config
+    try:
+        save_config_yaml(config)
+    except Exception as e:
+        console.print(f"[red]ERROR: Cannot write config.yaml[/red]\n{str(e)}")
+        raise typer.Exit(code=1)
+    
+    console.print(f"[green]✓ Removed {normalized_name} from config.yaml[/green]")
+    
+    # Delete from Ollama if requested
+    if delete_ollama:
+        manager = _get_model_manager()
+        if not manager:
+            console.print(
+                "[yellow]⚠ Could not connect to Ollama to delete model[/yellow]\n"
+                f"[dim]To delete manually: ollama rm {normalized_name}[/dim]"
+            )
+            raise typer.Exit(code=0)
+        
+        try:
+            if manager.ollama_client.delete_model(normalized_name):
+                console.print("[green]✓ Removed from Ollama[/green]")
+            else:
+                console.print("[yellow]⚠ Model not found in Ollama (may already be deleted)[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Could not delete from Ollama: {str(e)}[/yellow]")
+            logger.warning(
+                "Failed to delete model from Ollama",
+                metadata={"model": normalized_name, "error": str(e)}
+            )
+    
+    console.print()
+    console.print("[green]✓ Model removed[/green]")
+    console.print("[dim]Next: ./aitao.sh models status[/dim]")
+    
+    logger.info(
+        "Model removed successfully",
+        metadata={"model": normalized_name, "deleted_from_ollama": delete_ollama}
+    )
 
 
 if __name__ == "__main__":

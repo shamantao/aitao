@@ -1,415 +1,180 @@
-# =============================================================================
-# AItao V2 Configuration File
-# =============================================================================
-# 
-# This file configures all aspects of AItao's behavior.
-# Edit this file to customize paths, indexing, OCR, translation, search, etc.
-#
-# Environment variables:
-#   Use ${VAR_NAME} syntax to reference environment variables
-#   Example: ${HOME}/aitao will expand to /Users/username/aitao
-#
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Paths Configuration
-# -----------------------------------------------------------------------------
-# Define where AItao stores data, logs, models, and temporary files
 paths:
-  # Root directory for all AItao data
-  # Default: ${HOME}/.aitao/data
-  storage_root: "${HOME}/Downloads/_sources/aitao"
-  
-  # Directory containing GGUF model files
-  # Default: ${HOME}/.aitao/models
-  models_dir: "${HOME}/Downloads/_sources/AI-models"
-  
-  # Logs directory (supports $storage_root variable)
-  # Default: ${storage_root}/logs
-  logs_dir: "${storage_root}/logs"
-  
-  # Queue directory for pending document processing
-  # Default: ${storage_root}/queue
-  queue_dir: "${storage_root}/queue"
-  
-  # Cache directory for OCR and translation results
-  # Default: ${storage_root}/cache
-  cache_dir: "${storage_root}/cache"
-  
-  # Corrections directory for manual OCR/translation fixes
-  # Default: ${storage_root}/corrections
-  corrections_dir: "${storage_root}/corrections"
-  
-  # LanceDB vector database directory
-  # Default: ${storage_root}/lancedb
-  vector_db_dir: "${storage_root}/lancedb"
-
-# -----------------------------------------------------------------------------
-# Worker Configuration
-# -----------------------------------------------------------------------------
-# Configure background worker behavior
+  storage_root: ${HOME}/Downloads/_sources/aitao
+  models_dir: ${HOME}/Downloads/_sources/AI-models
+  logs_dir: ${storage_root}/logs
+  queue_dir: ${storage_root}/queue
+  cache_dir: ${storage_root}/cache
+  corrections_dir: ${storage_root}/corrections
+  vector_db_dir: ${storage_root}/lancedb
 worker:
-  # Seconds between queue polls (lower = faster processing, higher CPU)
-  # Default: 5 seconds
   poll_interval: 5
-  
-  # Maximum CPU usage before pausing processing
   cpu_threshold: 80.0
-  
-  # Seconds before a stuck task is reset to pending
   stuck_task_timeout: 600
-
-# -----------------------------------------------------------------------------
-# Indexing Configuration
-# -----------------------------------------------------------------------------
-# Configure document scanning and indexing behavior
 indexing:
-  # Enable automatic periodic indexing
   enabled: true
-  
-  # Interval between automatic scans (in minutes)
-  # Default: 60 (1 hour)
   interval_minutes: 10
-  
-  # Paths to include in indexing (absolute paths)
-  # Add all directories you want to make searchable
   include_paths:
-    - "${HOME}/Downloads/_Volumes/"
-    - "${HOME}/Documents/"
-  
-  # Directories to exclude from indexing
+  - ${HOME}/Downloads/_Volumes/
+  - ${HOME}/Documents/
   exclude_dirs:
-    - "__pycache__"
-    - ".git"
-    - ".venv"
-    - "venv"
-    - "env"
-    - ".env"
-    - "node_modules"
-    - ".ds_store"
-    - "dist"
-    - "build"
-    - "target"
-    - "site-packages"
-    - ".idea"
-    - ".vscode"
-  
-  # Files to exclude from indexing
+  - __pycache__
+  - .git
+  - .venv
+  - venv
+  - env
+  - .env
+  - node_modules
+  - .ds_store
+  - dist
+  - build
+  - target
+  - site-packages
+  - .idea
+  - .vscode
   exclude_files:
-    - ".DS_Store"
-    - "package-lock.json"
-    - "yarn.lock"
-    - "Thumbs.db"
-  
-  # File extensions to exclude
+  - .DS_Store
+  - package-lock.json
+  - yarn.lock
+  - Thumbs.db
   exclude_extensions:
-    - ".lock"
-    - ".log"
-    - ".tmp"
-    - ".swp"
-    - ".cache"
-
-# -----------------------------------------------------------------------------
-# OCR Configuration
-# -----------------------------------------------------------------------------
-# Configure optical character recognition for images and PDFs
+  - .lock
+  - .log
+  - .tmp
+  - .swp
+  - .cache
 ocr:
-  # OCR provider selection
-  # Options: "auto" (smart routing), "paddleocr" (fast), "qwen-vl" (best quality)
-  provider: "auto"
-  
-  # Languages to recognize (ISO 639-1 codes)
-  # PaddleOCR: fr, en, zh, ja, ko, etc.
+  provider: auto
   languages:
-    - "fr"
-    - "en"
-    - "zh"
-  
-  # Confidence threshold for OCR results (0.0 - 1.0)
-  # Results below this confidence will be flagged for review
+  - fr
+  - en
+  - zh
   confidence_threshold: 0.7
-  
-  # Smart router configuration (when provider = "auto")
   router:
-    # Table detection thresholds (requires 2 of 3 conditions)
-    table_area_min: 0.05        # Min 5% of image should be table grid
-    min_intersections: 2         # Min 2 grid intersections detected
-    min_line_density: 0.0002    # Min line coverage density
-  
-  # PaddleOCR specific settings
+    table_area_min: 0.05
+    min_intersections: 2
+    min_line_density: 0.0002
   paddleocr:
-    use_gpu: false              # Set to true if CUDA available
-    use_angle_cls: true         # Enable text orientation detection
-    det_db_thresh: 0.3          # Text detection threshold
-  
-  # Qwen-VL specific settings
+    use_gpu: false
+    use_angle_cls: true
+    det_db_thresh: 0.3
   qwen_vl:
-    # Path to Qwen2.5-VL GGUF model file
-    model_path: "${HOME}/Downloads/_sources/AI-models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
-    
-    # GPU layers to offload (0 = CPU only, -1 = auto)
+    model_path: ${HOME}/Downloads/_sources/AI-models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf
     n_gpu_layers: -1
-    
-    # Context size for vision model
     context_size: 4096
-    
-    # Max tokens to generate per image
     max_tokens: 2048
-
-# -----------------------------------------------------------------------------
-# Translation Configuration
-# -----------------------------------------------------------------------------
-# Configure automatic translation (French ↔ Traditional Chinese)
 translation:
-  # Translation provider
-  # Options: "mbart50", "nllb", "ollama"
-  provider: "mbart50"
-  
-  # Default source language
-  source_lang: "fr"
-  
-  # Default target language (Traditional Chinese)
-  target_lang: "zh_TW"
-  
-  # Enable confidence scoring
+  provider: mbart50
+  source_lang: fr
+  target_lang: zh_TW
   score_translations: true
-  
-  # Minimum confidence score (0.0 - 1.0)
   min_confidence: 0.6
-  
-  # mBART50 specific settings
   mbart50:
-    model_name: "facebook/mbart-large-50-many-to-many-mmt"
+    model_name: facebook/mbart-large-50-many-to-many-mmt
     use_gpu: false
     batch_size: 8
-  
-  # NLLB specific settings (alternative)
   nllb:
-    model_name: "facebook/nllb-200-distilled-600M"
+    model_name: facebook/nllb-200-distilled-600M
     use_gpu: false
     batch_size: 8
-
-# -----------------------------------------------------------------------------
-# Search Configuration
-# -----------------------------------------------------------------------------
-# Configure hybrid search (Meilisearch + LanceDB)
 search:
-  # Meilisearch configuration (keyword/fuzzy search)
   meilisearch:
-    # Meilisearch server URL
-    url: "http://localhost:7700"
-    
-    # API key (empty for development, required in production)
-    api_key: ""
-    
-    # Index name for documents
-    index_name: "aitao_documents"
-    
-    # Searchable attributes (in order of importance)
+    url: http://localhost:7700
+    api_key: ''
+    index_name: aitao_documents
     searchable_attributes:
-      - "title"
-      - "content"
-      - "category"
-      - "tags"
-    
-    # Attributes to display in results
+    - title
+    - content
+    - category
+    - tags
     displayed_attributes:
-      - "id"
-      - "title"
-      - "file_path"
-      - "category"
-      - "language"
-      - "created_at"
-      - "updated_at"
-    
-    # Filterable attributes for advanced queries
+    - id
+    - title
+    - file_path
+    - category
+    - language
+    - created_at
+    - updated_at
     filterable_attributes:
-      - "category"
-      - "language"
-      - "created_at"
-      - "file_type"
-  
-  # LanceDB configuration (semantic/vector search)
+    - category
+    - language
+    - created_at
+    - file_type
   lancedb:
-    # Embedding model for semantic search
-    # Options: "BAAI/bge-m3" (multilingual), "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-    embedding_model: "BAAI/bge-m3"
-    
-    # Table name in LanceDB
-    table_name: "aitao_embeddings"
-    
-    # Embedding dimension (depends on model)
-    # bge-m3: 1024, mpnet: 768
+    embedding_model: BAAI/bge-m3
+    table_name: aitao_embeddings
     dimension: 1024
-    
-    # Number of results to return
     top_k: 20
-    
-    # Minimum similarity score (0.0 - 1.0) to include in results
-    # Documents with score below this threshold are filtered out
-    # Recommended: 0.4-0.5 for balanced results, 0.6+ for high precision
     min_score: 0.45
-    
-    # Offline mode: skip HuggingFace API checks (use cached model only)
-    # Set to true to avoid network requests on each startup
     offline_mode: true
-
-# -----------------------------------------------------------------------------
-# Categories Configuration
-# -----------------------------------------------------------------------------
-# Define document categories for organization
 categories:
-  # Enable automatic categorization
   enabled: true
-  
-  # Available categories
   labels:
-    - "administration"
-    - "comptabilite"
-    - "juridique"
-    - "technique"
-    - "personnel"
-    - "commercial"
-    - "medical"
-    - "education"
-    - "autre"
-  
-  # Default category for uncategorized documents
-  default: "autre"
-
-# -----------------------------------------------------------------------------
-# LLM Configuration (Ollama Backend)
-# -----------------------------------------------------------------------------
-# Configure the LLM backend for chat, RAG, and text generation
+  - administration
+  - comptabilite
+  - juridique
+  - technique
+  - personnel
+  - commercial
+  - medical
+  - education
+  - autre
+  default: autre
 llm:
-  # Backend type: "ollama" (recommended)
-  backend: "ollama"
-  
-  # Ollama server URL
-  ollama_url: "http://localhost:11434"
-  
-  # Default model for chat/generation
-  default_model: "llama3.1-local:latest"
-  
-  # =========================================================================
-  # Model Configuration (NEW - from US-021d)
-  # =========================================================================
-  # Each model is configured with name, required flag, size info, and roles.
-  # The ModelManager (US-021b) will verify these are installed at startup.
-  #
-  # Models can be in two formats (for backward compatibility):
-  # - Simple: "model:tag" (old format, treated as required=false)
-  # - Enhanced: {name, required, size_gb, roles} (new format)
-  #
+  backend: ollama
+  ollama_url: http://localhost:11434
+  default_model: llama3.1-local:latest
   models:
-    # Required model: blocks startup if missing
-    - name: "llama3.1-local:latest"
-      required: true
-      size_gb: 4.7
-      roles: ["chat", "rag"]
-      description: "General-purpose LLM for chat and RAG"
-    
-    # Optional model: warned if missing, but doesn't block startup
-    - name: "qwen2.5-coder-local:latest"
-      required: false
-      size_gb: 4.4
-      roles: ["code"]
-      description: "Code-focused LLM (better for code assistance)"
-  
-  # =========================================================================
-  # Startup Configuration (NEW - from US-021c)
-  # =========================================================================
+  - name: llama3.1-local:latest
+    required: true
+    size_gb: 4.7
+    roles:
+    - chat
+    - rag
+    description: General-purpose LLM for chat and RAG
+  - name: qwen2.5-coder-local:latest
+    required: false
+    size_gb: 4.4
+    roles:
+    - code
+    description: Code-focused LLM (better for code assistance)
+  - name: qwen3-vl:latest
+    required: false
+    size_gb: 6.1
+    roles:
+    - OCR
+    description: Qwen3-VL pour vision & OCR
   startup:
-    # Check that configured models exist in Ollama at startup
     check_models: true
-    
-    # Automatically download missing models (future: US-021c)
     auto_pull: false
-    
-    # Timeout per model download (minutes)
     pull_timeout_minutes: 30
-  
-  # RAG (Retrieval-Augmented Generation) settings
-  # Note: RAG injects personal documents into prompts
-  # For code assistance, disable this - Continue.dev provides its own code context
   rag:
     enabled: false
-    # Max documents to include in context
     max_context_docs: 5
-    # Max tokens for RAG context
     max_context_tokens: 2000
-  
-  # Generation parameters
   generation:
     temperature: 0.7
     top_p: 0.9
     max_tokens: 2048
-
-# -----------------------------------------------------------------------------
-# API Configuration
-# -----------------------------------------------------------------------------
-# Configure the REST API server
 api:
-  # Host to bind to (0.0.0.0 = all interfaces, 127.0.0.1 = localhost only)
-  host: "0.0.0.0"
-  
-  # Port for API server
+  host: 0.0.0.0
   port: 8200
-  
-  # Enable CORS (for web clients)
   cors_enabled: true
-  
-  # Allowed CORS origins (* = all, or list specific domains)
   cors_origins:
-    - "*"
-  
-  # API rate limiting
+  - '*'
   rate_limit:
     enabled: true
     requests_per_minute: 60
-  
-  # Authentication (optional)
   auth:
     enabled: false
-    api_key: ""
-
-# -----------------------------------------------------------------------------
-# Resources Configuration
-# -----------------------------------------------------------------------------
-# Configure system resources and performance
+    api_key: ''
 resources:
-  # Maximum number of concurrent workers for parallel processing
-  # Default: 4 (adjust based on CPU cores)
   max_workers: 4
-  
-  # Batch size for document processing
-  # Default: 10
   batch_size: 10
-  
-  # Maximum file size to process (in MB)
-  # Default: 100
   max_file_size_mb: 100
-  
-  # Memory limit for OCR/Translation (in MB)
-  # Default: 2048 (2GB)
   memory_limit_mb: 2048
-
-# -----------------------------------------------------------------------------
-# Logging Configuration
-# -----------------------------------------------------------------------------
-# Configure structured logging
 logging:
-  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  level: "INFO"
-  
-  # Maximum log file size (in MB) before rotation
+  level: INFO
   max_file_size_mb: 100
-  
-  # Number of backup log files to keep
   backup_count: 5
-  
-  # Log format: "json" (structured) or "text" (human-readable)
-  format: "json"
-  
-  # Enable console output (in addition to file)
+  format: json
   console_enabled: true

@@ -634,7 +634,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-021e: CLI models subcommand [SHOULD] 📋
+#### US-021e: CLI models subcommand [SHOULD] ✅ DONE
 **En tant que** utilisateur  
 **Je veux** des commandes CLI pour gérer mes modèles  
 **Afin de** voir l'état et agir manuellement si besoin
@@ -642,27 +642,33 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 **Intention:** Transparence et contrôle pour l'utilisateur avancé.
 
 **Critères d'acceptation:**
-- [ ] Groupe de commandes `./aitao.sh models`:
-  - `status` - Liste modèles config vs installés
-  - `pull` - Télécharge les modèles manquants
-  - `add <name>` - Ajoute un modèle à la config + pull
-  - `remove <name>` - Retire de la config (propose suppression Ollama)
-- [ ] Affichage Rich avec tableau coloré
-- [ ] Confirmation avant toute suppression
-- [ ] Tests unitaires
+- [x] Groupe de commandes `./aitao.sh models`:
+  - `status` - Liste modèles config vs installés ✅
+  - `pull` - Télécharge les modèles manquants ✅ 
+  - `add <name>` - Ajoute un modèle à la config + pull ✅
+  - `remove <name>` - Retire de la config (propose suppression Ollama) ✅
+- [x] Affichage Rich avec tableau coloré ✅
+- [x] Confirmation avant toute suppression ✅
+- [x] Tests unitaires ✅ (453 passed)
 
 **Validation (obligatoire):**
-- [ ] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire)
-- [ ] Tous les tests unitaires: `./aitao.sh validate`
-- [ ] Tests E2E: `./aitao.sh validate`
-- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
-- [ ] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés)
-- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [x] Tests unitaires de la fonctionnalité (fichiers dédiés si nécessaire) ✅
+- [x] Tous les tests unitaires: `./aitao.sh validate` ✅ 453 passed
+- [x] Tests E2E: `./aitao.sh validate` ✅
+- [x] Validation fonctionnelle user-centric: `./aitao.sh validate` ✅
+- [x] Conformité PRD (modularité, docstrings EN, registry à jour, PathManager + logger utilisés) ✅
+- [x] Version bump conforme au plan: `2.3.21.5`
 - [ ] Commit + push GitHub effectués
-- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+- [x] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
 
-**Estimation:** 3 points  
-**Dépendances:** US-021b, US-021c
+**Fichiers implémentés:**
+- `src/cli/commands/models.py` - Commandes add() et remove()
+- `src/cli/commands/_models_helpers.py` - Helpers: validate_model_name, load/save_config_yaml
+- `src/llm/ollama_client.py` - Ajout de delete_model()
+
+**Estimation:** 3 points ✅  
+**Dépendances:** US-021b, US-021c ✅  
+**Version finale:** 2.3.21.5 ✅
 
 ---
 

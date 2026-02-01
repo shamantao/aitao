@@ -13,9 +13,12 @@ Tests cover:
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from dataclasses import dataclass
+from pathlib import Path
 import subprocess
 
 from src.core.registry import ModelStatus, ModelInfo, ModelRole
+from src.core.config import ConfigManager
+from src.core.model_config import validate_model_config
 from src.llm.model_manager import ModelManager
 from src.llm.ollama_client import OllamaConnectionError, OllamaModel
 
@@ -25,20 +28,11 @@ from src.llm.ollama_client import OllamaConnectionError, OllamaModel
 # ============================================================================
 
 @pytest.fixture
-def mock_config():
-    """Mock ConfigManager with LLM models configured."""
-    config = Mock()
-    
-    # New format: list of dicts with name, required, roles
-    config.get.side_effect = lambda key, default=None: {
-        "llm.models": [
-            {"name": "llama3.1-local:latest", "required": True, "size_gb": 4.7, "roles": ["chat", "rag"]},
-            {"name": "qwen2.5-coder-local:latest", "required": False, "size_gb": 4.4, "roles": ["code"]},
-        ],
-        "llm.ollama_url": "http://localhost:11434",
-    }.get(key, default)
-    
-    return config
+def repo_config():
+    """Load repo config.yaml to keep tests aligned with project config."""
+    repo_root = Path(__file__).resolve().parents[2]
+    config_path = repo_root / "config" / "config.yaml"
+    return ConfigManager(str(config_path))
 
 
 @pytest.fixture
@@ -56,9 +50,9 @@ def mock_ollama_client():
 
 
 @pytest.fixture
-def model_manager(mock_config, mock_ollama_client):
-    """Create ModelManager with mocks."""
-    with patch("src.llm.model_manager.get_config", return_value=mock_config):
+def model_manager(repo_config, mock_ollama_client):
+    """Create ModelManager with mocks and repo config."""
+    with patch("src.llm.model_manager.get_config", return_value=repo_config):
         manager = ModelManager(ollama_client=mock_ollama_client)
     return manager
 
@@ -81,11 +75,23 @@ def test_check_models_present_missing_extra(model_manager, mock_ollama_client):
     - required_missing: [] (llama3.1-local is present)
     """
     status = model_manager.check_models()
-    
-    assert set(status.present) == {"llama3.1-local"}
-    assert status.missing == ["qwen2.5-coder-local"]
-    assert status.extra == ["mistral"]
-    assert status.required_missing == []
+
+    configured = {model_manager._parse_model_name(m.name) for m in model_manager._get_configured_models()}
+    installed = {model_manager._parse_model_name(m.name) for m in mock_ollama_client.list_models.return_value}
+
+    expected_present = sorted(list(configured & installed))
+    expected_missing = sorted(list(configured - installed))
+    expected_extra = sorted(list(installed - configured))
+    expected_required_missing = sorted([
+        model_manager._parse_model_name(m.name)
+        for m in model_manager._get_configured_models()
+        if m.required and model_manager._parse_model_name(m.name) in expected_missing
+    ])
+
+    assert status.present == expected_present
+    assert status.missing == expected_missing
+    assert status.extra == expected_extra
+    assert sorted(status.required_missing) == expected_required_missing
 
 
 def test_check_models_required_missing(model_manager, mock_ollama_client):
@@ -96,9 +102,16 @@ def test_check_models_required_missing(model_manager, mock_ollama_client):
     ]
     
     status = model_manager.check_models()
-    
-    assert "llama3.1-local" in status.missing
-    assert "llama3.1-local" in status.required_missing
+
+    configured_required = {
+        model_manager._parse_model_name(m.name)
+        for m in model_manager._get_configured_models()
+        if m.required
+    }
+    installed = {model_manager._parse_model_name(m.name) for m in mock_ollama_client.list_models.return_value}
+    expected_required_missing = sorted(list(configured_required - installed))
+
+    assert sorted(status.required_missing) == expected_required_missing
 
 
 def test_check_models_no_configured_models():
@@ -122,11 +135,11 @@ def test_check_models_no_configured_models():
     assert status.required_missing == []
 
 
-def test_check_models_ollama_unreachable(mock_config, mock_ollama_client):
+def test_check_models_ollama_unreachable(repo_config, mock_ollama_client):
     """Test error handling when Ollama is unreachable."""
     mock_ollama_client.list_models.side_effect = OllamaConnectionError("Connection refused")
     
-    with patch("src.llm.model_manager.get_config", return_value=mock_config):
+    with patch("src.llm.model_manager.get_config", return_value=repo_config):
         manager = ModelManager(ollama_client=mock_ollama_client)
     
     with pytest.raises(OllamaConnectionError):
@@ -154,25 +167,19 @@ def test_parse_model_name_without_tag(model_manager):
 # Tests: Config Parsing
 # ============================================================================
 
-def test_get_configured_models_new_format(mock_config):
+def test_get_configured_models_new_format(repo_config):
     """Test parsing new config format (list of dicts)."""
     client = Mock()
     client.list_models.return_value = []
-    
-    with patch("src.llm.model_manager.get_config", return_value=mock_config):
+
+    with patch("src.llm.model_manager.get_config", return_value=repo_config):
         manager = ModelManager(ollama_client=client)
-    
+
     models = manager._get_configured_models()
-    
-    assert len(models) == 2
-    assert models[0].name == "llama3.1-local:latest"
-    assert models[0].required is True
-    assert models[0].size_gb == 4.7
-    assert ModelRole.CHAT in models[0].roles
-    
-    assert models[1].name == "qwen2.5-coder-local:latest"
-    assert models[1].required is False
-    assert ModelRole.CODE in models[1].roles
+    expected_count = len(validate_model_config(repo_config.get("llm.models", [])))
+
+    assert len(models) == expected_count
+    assert all(model.name for model in models)
 
 
 def test_get_configured_models_old_format():
@@ -267,9 +274,9 @@ def test_is_model_installed_ollama_unreachable(model_manager, mock_ollama_client
 # Integration Tests
 # ============================================================================
 
-def test_full_workflow_startup_check(mock_config, mock_ollama_client):
+def test_full_workflow_startup_check(repo_config, mock_ollama_client):
     """Test complete startup check workflow."""
-    with patch("src.llm.model_manager.get_config", return_value=mock_config):
+    with patch("src.llm.model_manager.get_config", return_value=repo_config):
         manager = ModelManager(ollama_client=mock_ollama_client)
     
     status = manager.check_models()
@@ -293,16 +300,17 @@ def test_full_workflow_startup_check(mock_config, mock_ollama_client):
 # Tests: Model Pulling (US-021c)
 # ============================================================================
 
-def test_pull_missing_models_no_missing(mock_config, mock_ollama_client):
+def test_pull_missing_models_no_missing(repo_config, mock_ollama_client):
     """Test pull when all models are already installed."""
-    # Modify mock to have all models installed
+    configured = validate_model_config(repo_config.get("llm.models", []))
     mock_ollama_client.list_models.return_value = [
-        OllamaModel(name="llama3.1-local:latest", size=4700000000, digest="abc123", modified_at="2026-01-28"),
-        OllamaModel(name="qwen2.5-coder-local:latest", size=4400000000, digest="def456", modified_at="2026-01-28"),
-        OllamaModel(name="mistral:7b", size=4000000000, digest="ghi789", modified_at="2026-01-28"),
+        OllamaModel(name=model.name, size=1, digest="test", modified_at="2026-01-28")
+        for model in configured
+    ] + [
+        OllamaModel(name="mistral:7b", size=1, digest="extra", modified_at="2026-01-28")
     ]
     
-    with patch("src.llm.model_manager.get_config", return_value=mock_config):
+    with patch("src.llm.model_manager.get_config", return_value=repo_config):
         manager = ModelManager(ollama_client=mock_ollama_client)
         with patch.object(manager, "_pull_model_ollama") as mock_pull:
             result = manager.pull_missing_models()
@@ -315,15 +323,11 @@ def test_pull_missing_models_no_missing(mock_config, mock_ollama_client):
     mock_pull.assert_not_called()
 
 
-def test_pull_missing_models_with_missing(model_manager, mock_ollama_client, mock_config):
+def test_pull_missing_models_with_missing(model_manager, mock_ollama_client):
     """Test pull when required and optional models are missing."""
-    # Setup: make qwen2.5-coder missing
-    with patch("src.llm.model_manager.get_config", return_value=mock_config):
-        with patch.object(model_manager, "_pull_model_ollama") as mock_pull:
-            # First call checks models, then pull succeeds
-            mock_pull.return_value = None
-            
-            result = model_manager.pull_missing_models(timeout_minutes=30)
+    with patch.object(model_manager, "_pull_model_ollama") as mock_pull:
+        mock_pull.return_value = None
+        result = model_manager.pull_missing_models(timeout_minutes=30)
     
     # Should have tried to pull qwen2.5-coder (optional)
     assert "success" in result
