@@ -672,7 +672,7 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 
 ---
 
-#### US-021f: Documentation migration GGUF → Ollama [SHOULD] 📋
+#### US-021f: Documentation migration GGUF → Ollama [SHOULD] ✅ DONE
 **En tant que** utilisateur existant  
 **Je veux** comprendre pourquoi mes GGUF locaux ne sont plus nécessaires  
 **Afin de** libérer de l'espace disque et éviter la confusion
@@ -680,26 +680,27 @@ Le PRD stipule clairement: "uv-first: All Python dependencies managed via `uv` (
 **Intention:** Clarifier la transition et éviter la duplication de stockage.
 
 **Critères d'acceptation:**
-- [ ] Section dans README.md expliquant:
+- [x] Section dans README.md expliquant:
   - Les modèles Ollama sont gérés automatiquement
   - Les GGUF locaux (`models_dir`) ne sont plus nécessaires pour les modèles standard
   - Comment migrer (supprimer les GGUF après vérification)
   - Exception: modèles custom/fine-tuned restent en GGUF
-- [ ] Guide de migration dans `docs/MIGRATION_MODELS.md`
-- [ ] Mise à jour `config.yaml.template`
+- [x] Guide de migration dans `docs/MIGRATION_MODELS.md`
+- [x] Mise à jour `config.yaml.template`
 
 **Validation (obligatoire):**
-- [ ] Documentation mise à jour (README + guide migration)
-- [ ] Tous les tests unitaires: `./aitao.sh validate`
-- [ ] Tests E2E: `./aitao.sh validate`
-- [ ] Validation fonctionnelle user-centric: `./aitao.sh validate`
-- [ ] Conformité PRD (doc en anglais, cohérence config)
-- [ ] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
-- [ ] Commit + push GitHub effectués
-- [ ] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
+- [x] Documentation mise à jour (README + guide migration)
+- [x] Tous les tests unitaires: `./aitao.sh validate`
+- [x] Tests E2E: `./aitao.sh validate`
+- [x] Validation fonctionnelle user-centric: `./aitao.sh validate`
+- [x] Conformité PRD (doc en anglais, cohérence config)
+- [x] Version bump conforme au plan: `2.${SPRINT}.${US}.${CORRECTIF}`
+- [x] Commit + push GitHub effectués
+- [x] Backlog mis à jour: US marquée ✅ DONE + validation renseignée
 
 **Estimation:** 1 point  
 **Dépendances:** Aucune
+**Version finale:** 2.3.21.6 ✅
 
 ---
 

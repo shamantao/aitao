@@ -92,6 +92,9 @@ ollama pull llama3.1:8b
 ollama pull qwen2.5-coder:7b
 ```
 
+> **📖 Migrating from GGUF files?** If you previously used local GGUF model files,
+> see our [Migration Guide](docs/MIGRATION_MODELS.md) for the transition to Ollama.
+
 ### Step 4: Install AItao
 
 ```bash
@@ -259,6 +262,59 @@ Now Continue will use your local AI enhanced with your indexed documents!
 2. Add a new OpenAI-compatible provider:
    - **API Base**: `http://localhost:8200/v1`
    - **API Key**: `any-value`
+
+---
+
+## Managing AI Models
+
+AItao uses [Ollama](https://ollama.ai/) as its AI engine. Models are managed through Ollama and configured in AItao.
+
+### Viewing Available Models
+
+```bash
+# See all Ollama models and their status in AItao
+./aitao.sh models status
+```
+
+### Adding a New Model
+
+```bash
+# Add a model (automatically downloads from Ollama if needed)
+./aitao.sh models add mistral:7b --role chat
+
+# Add without downloading (if you already have it)
+./aitao.sh models add llama3.1:8b --role chat --no-pull
+
+# Mark a model as required for AItao to function
+./aitao.sh models add qwen2.5-coder:7b --role code --required
+```
+
+**Available Roles:**
+- `chat` - General conversation
+- `code` - Code generation and analysis
+- `embedding` - Document embeddings (for search)
+
+### Removing a Model
+
+```bash
+# Remove from AItao config only (keeps model in Ollama)
+./aitao.sh models remove mistral:7b
+
+# Also delete from Ollama to free disk space
+./aitao.sh models remove mistral:7b --delete-ollama
+
+# Force removal without confirmation
+./aitao.sh models remove mistral:7b --force
+```
+
+### Recommended Models
+
+| Use Case | Model | Size | Command |
+|----------|-------|------|---------|
+| General chat | `llama3.1:8b` | 4.7GB | `ollama pull llama3.1:8b` |
+| Coding | `qwen2.5-coder:7b` | 4.7GB | `ollama pull qwen2.5-coder:7b` |
+| Fast responses | `llama3.2:3b` | 2.0GB | `ollama pull llama3.2:3b` |
+| Embeddings | `nomic-embed-text` | 274MB | `ollama pull nomic-embed-text` |
 
 ---
 

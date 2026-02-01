@@ -15,15 +15,11 @@
 # -----------------------------------------------------------------------------
 # Paths Configuration
 # -----------------------------------------------------------------------------
-# Define where AItao stores data, logs, models, and temporary files
+# Define where AItao stores data, logs, and temporary files
 paths:
   # Root directory for all AItao data
   # Default: ${HOME}/.aitao/data
   storage_root: "${HOME}/.aitao/data"
-  
-  # Directory containing GGUF model files
-  # Default: ${HOME}/.aitao/models
-  models_dir: "${HOME}/.aitao/models"
   
   # Logs directory
   logs_dir: "${storage_root}/logs"
@@ -239,26 +235,45 @@ categories:
 # -----------------------------------------------------------------------------
 # LLM Configuration (Ollama Backend)
 # -----------------------------------------------------------------------------
-# Configure the LLM backend for chat, RAG, and text generation
+# Configure the LLM backend for chat, RAG, and text generation.
+# AItao uses Ollama to manage AI models. Models are downloaded and stored
+# by Ollama itself (usually in ~/.ollama/models).
+#
+# To manage models via CLI:
+#   ./aitao.sh models status    - View all models
+#   ./aitao.sh models add       - Add a new model
+#   ./aitao.sh models remove    - Remove a model
+#
+# See docs/MIGRATION_MODELS.md for migration from GGUF files.
 llm:
-  # Backend type: "ollama" (recommended)
+  # Backend type: "ollama" (recommended, only supported backend)
   backend: "ollama"
   
   # Ollama server URL
   ollama_url: "http://localhost:11434"
   
-  # Default model for chat/generation (will be auto-downloaded if missing)
+  # Default model for chat/generation
   default_model: "llama3.1:8b"
   
-  # Available models (auto-downloaded at startup if missing)
-  # Format: name, required (blocks startup), size_gb (info only)
+  # Available models configuration
+  # Each model has:
+  #   - name: Ollama model identifier (e.g., "llama3.1:8b")
+  #   - role: Model purpose ("chat", "code", "embedding")
+  #   - required: If true, AItao won't start without this model
+  #   - size_gb: Approximate download size (informational only)
   models:
     - name: "llama3.1:8b"
+      role: "chat"
       required: true
       size_gb: 4.7
     - name: "qwen2.5-coder:7b"
+      role: "code"
       required: false
       size_gb: 4.4
+    - name: "nomic-embed-text"
+      role: "embedding"
+      required: false
+      size_gb: 0.3
   
   # Model management at startup
   startup:
