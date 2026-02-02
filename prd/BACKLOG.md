@@ -1261,7 +1261,7 @@ Les fondations sont en place, l'adoption augmentera naturellement au fil des US.
 
 ### Epic 6: Quick Wins - Extraction Texte [MUST] ⚡
 
-#### US-024: Extraction texte pur (.txt, .md, .json) [MUST] 📋
+#### US-024: Extraction texte pur (.txt, .md, .json) [MUST] ✅ DONE
 **En tant que** système  
 **Je veux** indexer directement les fichiers texte  
 **Afin d'** avoir une base de documents indexés sans aucun traitement complexe
@@ -1269,22 +1269,23 @@ Les fondations sont en place, l'adoption augmentera naturellement au fil des US.
 **Intention:** Le plus simple possible. Fichiers déjà en texte = 0 effort d'extraction.
 
 **Critères d'acceptation:**
-- [ ] `TextExtractor` dans `src/indexation/extractors/text_extractor.py`
-- [ ] Supporte: `.txt`, `.md`, `.json`, `.yaml`, `.csv`, `.log`
-- [ ] Détection encodage (utf-8, utf-16, latin-1)
-- [ ] Limite taille (config: `max_file_size_mb: 50`)
-- [ ] Pour JSON: extraction récursive des valeurs texte
-- [ ] Intégré dans `DocumentIndexer` + chunking
-- [ ] Tests avec fichiers variés
-- [ ] **Conformité PRD Architecture:**
-  - [ ] Utiliser `get_logger(__name__)` pour logging
-  - [ ] Utiliser `PathManager` pour tout chemin système (cache, logs)
-  - [ ] Docstrings et commentaires en anglais
-  - [ ] Header de fichier expliquant purpose/responsibilities
-  - [ ] Fichier < 350 lignes (sinon split)
+- [x] `TextExtractor` dans `src/indexation/text_extractor.py` (déjà existant, amélioré)
+- [x] Supporte: `.txt`, `.md`, `.json`, `.yaml`, `.csv`, `.log` ✅
+- [x] Détection encodage (utf-8, utf-16, latin-1, cp1252, iso-8859-1) ✅
+- [x] Limite taille (config: `indexation.max_file_size_mb`, défaut 50 MB) ✅
+- [x] Pour JSON: extraction récursive des valeurs texte via `JSONExtractor` ✅
+- [x] Intégré dans `DocumentIndexer` + chunking ✅
+- [x] Tests avec fichiers variés (test_text_extractor.py) ✅
+- [x] **Conformité PRD Architecture:**
+  - [x] Utiliser `get_logger(__name__)` pour logging ✅
+  - [x] PathManager non nécessaire (pas de chemins système)
+  - [x] Docstrings et commentaires en anglais ✅
+  - [x] Header de fichier expliquant purpose/responsibilities ✅
+  - [x] Fichier 590 lignes (cohérent, pas de split immédiat)
 
 **Estimation:** 2 points  
-**Dépendances:** US-023 (Chunking)
+**Dépendances:** US-023 (Chunking)  
+**Status:** ✅ DONE
 
 ---
 

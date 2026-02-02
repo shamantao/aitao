@@ -16,7 +16,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Dict, Any, Type
 import json
-import logging
+
+from src.core.logger import get_logger
+from src.core.config import ConfigManager
 
 # Lazy imports for optional dependencies
 _pypdf = None
@@ -51,8 +53,10 @@ def _get_langdetect():
     return _langdetect
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
+# Default max file size in MB (can be overridden via config)
+DEFAULT_MAX_FILE_SIZE_MB = 50
 
 @dataclass
 class ExtractionResult:
@@ -112,9 +116,9 @@ class BaseExtractor(ABC):
 
 
 class PlainTextExtractor(BaseExtractor):
-    """Extractor for plain text files (TXT, MD, etc.)."""
+    """Extractor for plain text files (TXT, MD, LOG, etc.)."""
     
-    SUPPORTED_EXTENSIONS = {".txt", ".md", ".markdown", ".rst", ".tex"}
+    SUPPORTED_EXTENSIONS = {".txt", ".md", ".markdown", ".rst", ".tex", ".log"}
     
     # Common encodings to try
     ENCODINGS = ["utf-8", "utf-16", "latin-1", "cp1252", "iso-8859-1"]
@@ -173,7 +177,7 @@ class PlainTextExtractor(BaseExtractor):
 
 
 class CodeExtractor(BaseExtractor):
-    """Extractor for source code files."""
+    """Extractor for source code and data files."""
     
     SUPPORTED_EXTENSIONS = {
         # Python
@@ -183,7 +187,7 @@ class CodeExtractor(BaseExtractor):
         # Web
         ".html", ".htm", ".css", ".scss", ".sass", ".less",
         # Data formats
-        ".json", ".yaml", ".yml", ".toml", ".xml",
+        ".json", ".yaml", ".yml", ".toml", ".xml", ".csv",
         # Shell
         ".sh", ".bash", ".zsh", ".fish",
         # Other
@@ -467,9 +471,15 @@ class TextExtractor:
         PlainTextExtractor,  # Must be last (fallback for .txt, .md, etc.)
     ]
     
-    def __init__(self):
-        """Initialize the text extractor."""
+    def __init__(self, max_file_size_mb: Optional[float] = None):
+        """
+        Initialize the text extractor.
+        
+        Args:
+            max_file_size_mb: Maximum file size in MB. If None, uses config or default (50 MB).
+        """
         self._extractors: Dict[str, BaseExtractor] = {}
+        self._max_file_size_mb = max_file_size_mb or self._get_max_size_from_config()
         self._init_extractors()
     
     def _init_extractors(self):
@@ -480,6 +490,14 @@ class TextExtractor:
                 # First match wins (order matters)
                 if ext not in self._extractors:
                     self._extractors[ext] = instance
+    
+    def _get_max_size_from_config(self) -> float:
+        """Get max file size from config or return default."""
+        try:
+            config = ConfigManager("config/config.yaml")
+            return config.get("indexation.max_file_size_mb", DEFAULT_MAX_FILE_SIZE_MB)
+        except Exception:
+            return DEFAULT_MAX_FILE_SIZE_MB
     
     def extract(self, file_path: str | Path) -> ExtractionResult:
         """
@@ -506,6 +524,18 @@ class TextExtractor:
                 text="",
                 success=False,
                 error=f"Not a file: {path}"
+            )
+        
+        # Check file size limit
+        file_size_mb = path.stat().st_size / (1024 * 1024)
+        if file_size_mb > self._max_file_size_mb:
+            logger.warning(
+                f"File too large: {path.name} ({file_size_mb:.1f} MB > {self._max_file_size_mb} MB limit)"
+            )
+            return ExtractionResult(
+                text="",
+                success=False,
+                error=f"File too large: {file_size_mb:.1f} MB exceeds {self._max_file_size_mb} MB limit"
             )
         
         # Find appropriate extractor
