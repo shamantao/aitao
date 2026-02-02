@@ -23,6 +23,9 @@ from src.core.config import ConfigManager
 # Lazy imports for optional dependencies
 _pypdf = None
 _docx = None
+_pptx = None
+_openpyxl = None
+_odfpy = None
 _langdetect = None
 
 
@@ -42,6 +45,34 @@ def _get_docx():
         import docx
         _docx = docx
     return _docx
+
+
+def _get_pptx():
+    """Lazy load python-pptx."""
+    global _pptx
+    if _pptx is None:
+        import pptx
+        _pptx = pptx
+    return _pptx
+
+
+def _get_openpyxl():
+    """Lazy load openpyxl."""
+    global _openpyxl
+    if _openpyxl is None:
+        import openpyxl
+        _openpyxl = openpyxl
+    return _openpyxl
+
+
+def _get_odfpy():
+    """Lazy load odfpy."""
+    global _odfpy
+    if _odfpy is None:
+        from odf import text as odf_text
+        from odf import opendocument
+        _odfpy = {"text": odf_text, "opendocument": opendocument}
+    return _odfpy
 
 
 def _get_langdetect():
@@ -446,6 +477,210 @@ class DOCXExtractor(BaseExtractor):
             return None
 
 
+class PPTXExtractor(BaseExtractor):
+    """Extractor for PowerPoint files using python-pptx."""
+    
+    SUPPORTED_EXTENSIONS = {".pptx"}
+    
+    def extract(self, file_path: Path) -> ExtractionResult:
+        """Extract text from PowerPoint file."""
+        try:
+            pptx = _get_pptx()
+        except ImportError:
+            return ExtractionResult(
+                text="",
+                success=False,
+                error="python-pptx not installed. Run: uv pip install python-pptx"
+            )
+        
+        try:
+            prs = pptx.Presentation(str(file_path))
+            slides_text = []
+            
+            for slide_num, slide in enumerate(prs.slides, 1):
+                slide_content = [f"--- Slide {slide_num} ---"]
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        slide_content.append(shape.text.strip())
+                    # Extract text from tables
+                    if shape.has_table:
+                        for row in shape.table.rows:
+                            row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                            if row_text:
+                                slide_content.append(" | ".join(row_text))
+                if len(slide_content) > 1:
+                    slides_text.append("\n".join(slide_content))
+            
+            text = "\n\n".join(slides_text)
+            word_count = len(text.split())
+            language = self._detect_language(text)
+            
+            return ExtractionResult(
+                text=text,
+                metadata={
+                    "word_count": word_count,
+                    "slides": len(prs.slides),
+                    "language": language,
+                    "file_type": "pptx",
+                }
+            )
+        except Exception as e:
+            return ExtractionResult(
+                text="",
+                success=False,
+                error=f"Failed to extract PPTX: {e}"
+            )
+    
+    def _detect_language(self, text: str) -> Optional[str]:
+        """Detect language of text."""
+        if not text or len(text.strip()) < 20:
+            return None
+        try:
+            langdetect = _get_langdetect()
+            return langdetect.detect(text[:5000])
+        except Exception:
+            return None
+
+
+class XLSXExtractor(BaseExtractor):
+    """Extractor for Excel files using openpyxl."""
+    
+    SUPPORTED_EXTENSIONS = {".xlsx"}
+    
+    def extract(self, file_path: Path) -> ExtractionResult:
+        """Extract text from Excel file."""
+        try:
+            openpyxl = _get_openpyxl()
+        except ImportError:
+            return ExtractionResult(
+                text="",
+                success=False,
+                error="openpyxl not installed. Run: uv pip install openpyxl"
+            )
+        
+        try:
+            wb = openpyxl.load_workbook(str(file_path), read_only=True, data_only=True)
+            sheets_text = []
+            total_rows = 0
+            
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                sheet_content = [f"--- Sheet: {sheet_name} ---"]
+                
+                for row in sheet.iter_rows(values_only=True):
+                    # Filter out empty cells and convert to strings
+                    row_values = [str(cell) for cell in row if cell is not None]
+                    if row_values:
+                        sheet_content.append(" | ".join(row_values))
+                        total_rows += 1
+                
+                if len(sheet_content) > 1:
+                    sheets_text.append("\n".join(sheet_content))
+            
+            wb.close()
+            
+            text = "\n\n".join(sheets_text)
+            word_count = len(text.split())
+            language = self._detect_language(text)
+            
+            return ExtractionResult(
+                text=text,
+                metadata={
+                    "word_count": word_count,
+                    "sheets": len(wb.sheetnames),
+                    "rows": total_rows,
+                    "language": language,
+                    "file_type": "xlsx",
+                }
+            )
+        except Exception as e:
+            return ExtractionResult(
+                text="",
+                success=False,
+                error=f"Failed to extract XLSX: {e}"
+            )
+    
+    def _detect_language(self, text: str) -> Optional[str]:
+        """Detect language of text."""
+        if not text or len(text.strip()) < 20:
+            return None
+        try:
+            langdetect = _get_langdetect()
+            return langdetect.detect(text[:5000])
+        except Exception:
+            return None
+
+
+class ODFExtractor(BaseExtractor):
+    """Extractor for OpenDocument files using odfpy."""
+    
+    SUPPORTED_EXTENSIONS = {".odt", ".ods", ".odp"}
+    
+    def extract(self, file_path: Path) -> ExtractionResult:
+        """Extract text from OpenDocument file."""
+        try:
+            odfpy = _get_odfpy()
+        except ImportError:
+            return ExtractionResult(
+                text="",
+                success=False,
+                error="odfpy not installed. Run: uv pip install odfpy"
+            )
+        
+        try:
+            doc = odfpy["opendocument"].load(str(file_path))
+            
+            # Extract all text elements
+            paragraphs = []
+            for element in doc.getElementsByType(odfpy["text"].P):
+                text_content = self._get_text_recursive(element)
+                if text_content.strip():
+                    paragraphs.append(text_content.strip())
+            
+            text = "\n\n".join(paragraphs)
+            word_count = len(text.split())
+            language = self._detect_language(text)
+            
+            ext = file_path.suffix.lower()
+            file_type = {".odt": "odt", ".ods": "ods", ".odp": "odp"}.get(ext, "odf")
+            
+            return ExtractionResult(
+                text=text,
+                metadata={
+                    "word_count": word_count,
+                    "paragraphs": len(paragraphs),
+                    "language": language,
+                    "file_type": file_type,
+                }
+            )
+        except Exception as e:
+            return ExtractionResult(
+                text="",
+                success=False,
+                error=f"Failed to extract ODF: {e}"
+            )
+    
+    def _get_text_recursive(self, element) -> str:
+        """Recursively extract text from ODF element."""
+        result = []
+        if hasattr(element, "data"):
+            result.append(element.data)
+        if hasattr(element, "childNodes"):
+            for child in element.childNodes:
+                result.append(self._get_text_recursive(child))
+        return "".join(result)
+    
+    def _detect_language(self, text: str) -> Optional[str]:
+        """Detect language of text."""
+        if not text or len(text.strip()) < 20:
+            return None
+        try:
+            langdetect = _get_langdetect()
+            return langdetect.detect(text[:5000])
+        except Exception:
+            return None
+
+
 class TextExtractor:
     """
     Main text extractor that delegates to specialized extractors.
@@ -466,6 +701,9 @@ class TextExtractor:
     EXTRACTORS: list[Type[BaseExtractor]] = [
         PDFExtractor,
         DOCXExtractor,
+        PPTXExtractor,
+        XLSXExtractor,
+        ODFExtractor,
         JSONExtractor,
         CodeExtractor,
         PlainTextExtractor,  # Must be last (fallback for .txt, .md, etc.)
