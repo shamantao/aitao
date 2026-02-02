@@ -38,6 +38,9 @@ data/
 *.log
 .DS_Store
 
+# Backlog archive (local only)
+prd/backlog-done.md
+
 # User Data (External mounts)
 _sources/
-
+.README.md
