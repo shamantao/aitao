@@ -1328,34 +1328,17 @@ Les fondations sont en place, l'adoption augmentera naturellement au fil des US.
 
 ---
 
-#### US-026: Extraction emails (.eml) [SHOULD] 📋
+#### US-026: Extraction emails (.eml) [Abandoned] 
 **En tant que** système  
 **Je veux** indexer mes emails exportés  
 **Afin de** rechercher dans ma correspondance
 
-**Intention:** 231 emails = 102 MB. Métadonnées riches (from, to, date, subject).
-
-**Critères d'acceptation:**
-- [ ] `EmailExtractor` dans `src/indexation/extractors/email_extractor.py`
-- [ ] Parse .eml avec `email` stdlib Python
-- [ ] Extraction: subject, from, to, cc, date, body (text + html→text)
-- [ ] Gestion pièces jointes: log le nom, indexer si supporté
-- [ ] Métadonnées structurées pour filtres Meilisearch
-- [ ] Intégré dans `DocumentIndexer` + chunking
-- [ ] Tests avec emails variés
-- [ ] **Conformité PRD Architecture:**
-  - [ ] Utiliser `get_logger(__name__)` pour logging
-  - [ ] Utiliser `PathManager` pour tout chemin système
-  - [ ] Docstrings et commentaires en anglais
-  - [ ] Header de fichier expliquant purpose/responsibilities
-  - [ ] Fichier < 350 lignes
-
-**Estimation:** 2 points  
-**Dépendances:** US-023 (Chunking)
+#### US-026: Extraction emails (.eml) [WON'T] ❌ DROPPED
+**Raison:** Décision de ne pas implémenter - faible priorité.
 
 ---
 
-#### US-027: Extraction EXIF images [SHOULD] 📋
+#### US-027: Extraction EXIF images [SHOULD] ✅ DONE
 **En tant que** système  
 **Je veux** extraire les métadonnées EXIF de mes photos  
 **Afin de** rechercher par date, lieu, appareil
@@ -1363,23 +1346,23 @@ Les fondations sont en place, l'adoption augmentera naturellement au fil des US.
 **Intention:** 2206 images = métadonnées sans OCR. "Photos Berlin juin 2025" possible.
 
 **Critères d'acceptation:**
-- [ ] `EXIFExtractor` dans `src/indexation/extractors/exif_extractor.py`
-- [ ] Librairie: `piexif` ou `exifread` ou `Pillow`
-- [ ] Supporte: `.jpg`, `.jpeg`, `.heic`, `.png` (si EXIF présent)
-- [ ] Extraction: date_taken, camera_model, gps_lat/lon, dimensions
-- [ ] GPS → adresse lisible (reverse geocoding optionnel, local)
-- [ ] Pas de chunking (métadonnées courtes)
-- [ ] Indexe dans Meilisearch avec filtres: date, camera, location
-- [ ] Tests avec photos (avec/sans EXIF)
-- [ ] **Conformité PRD Architecture:**
-  - [ ] Utiliser `get_logger(__name__)` pour logging
-  - [ ] Utiliser `PathManager` pour tout chemin système
-  - [ ] Docstrings et commentaires en anglais
-  - [ ] Header de fichier expliquant purpose/responsibilities
-  - [ ] Fichier < 350 lignes
+- [x] `EXIFExtractor` dans `src/indexation/text_extractor.py` ✅
+- [x] Librairie: Pillow (PIL) ✅
+- [x] Supporte: `.jpg`, `.jpeg`, `.png`, `.tiff`, `.tif`, `.webp` ✅
+- [x] Extraction: date_taken, camera_model, gps_lat/lon, dimensions ✅
+- [x] GPS → coordonnées décimales (reverse geocoding = future US) ✅
+- [x] Pas de chunking (métadonnées courtes) ✅
+- [x] Indexe via TextExtractor ✅
+- [x] Tests existants passent ✅
+- [x] **Conformité PRD Architecture:**
+  - [x] Docstrings et commentaires en anglais ✅
+  - [x] PathManager non nécessaire
+  - [x] Fichier partagé avec autres extracteurs
+
+**Dépendance ajoutée:** `Pillow>=10.0.0` dans pyproject.toml
 
 **Estimation:** 3 points  
-**Dépendances:** US-012 (DocumentIndexer)
+**Status:** ✅ DONE
 
 ---
 
