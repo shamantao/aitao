@@ -79,6 +79,56 @@ class ConfigKeys:
 
 
 # ============================================================================
+# Statistics Keys (prevent document_count vs total_documents bugs)
+# ============================================================================
+
+class StatsKeys:
+    """
+    Centralized keys for statistics dictionaries.
+    
+    Prevents bugs like:
+    - Producer returns {"total_documents": 100}
+    - Consumer expects {"document_count": 100}
+    
+    Usage:
+        from src.core.registry import StatsKeys
+        
+        # Producer (lancedb_client.py, meilisearch_client.py)
+        return {StatsKeys.TOTAL_DOCUMENTS: count}
+        
+        # Consumer (cli/commands/index.py)
+        count = stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)
+    """
+    # Document/Chunk counts
+    TOTAL_DOCUMENTS = "total_documents"
+    TOTAL_CHUNKS = "total_chunks"
+    UNIQUE_DOCUMENTS = "unique_documents"
+    
+    # Database info
+    TABLE_NAME = "table_name"
+    INDEX_NAME = "index_name"
+    DB_PATH = "db_path"
+    
+    # Server/Connection
+    HOST = "host"
+    URL = "url"
+    IS_INDEXING = "is_indexing"
+    
+    # Embedding/Vector
+    EMBEDDING_DIMENSION = "embedding_dimension"
+    EMBEDDING_MODEL = "embedding_model"
+    
+    # Size info
+    TOTAL_SIZE_BYTES = "total_size_bytes"
+    TOTAL_SIZE_MB = "total_size_mb"
+    
+    # Categories/Languages distribution
+    CATEGORIES = "categories"
+    LANGUAGES = "languages"
+    FIELD_DISTRIBUTION = "field_distribution"
+
+
+# ============================================================================
 # Task & Queue Structures
 # ============================================================================
 

@@ -21,9 +21,13 @@ from sentence_transformers import SentenceTransformer
 try:
     from src.core.logger import get_logger
     from src.core.config import ConfigManager, get_config
+    from src.core.registry import StatsKeys
+    from src.core.pathmanager import path_manager
 except ImportError:
     from core.logger import get_logger
     from core.config import ConfigManager, get_config
+    from core.registry import StatsKeys
+    from core.pathmanager import path_manager
 
 
 class LanceDBError(Exception):
@@ -89,19 +93,9 @@ class LanceDBClient:
         # Determine paths and settings
         if db_path:
             self.db_path = Path(db_path)
-        elif self._config:
-            vector_db_dir = self._config.get("paths.vector_db_dir")
-            if vector_db_dir:
-                self.db_path = Path(vector_db_dir)
-            else:
-                # Fallback to storage_root/lancedb if vector_db_dir not set
-                storage_root = self._config.get("paths.storage_root")
-                if storage_root:
-                    self.db_path = Path(storage_root) / "lancedb"
-                else:
-                    raise LanceDBError("No vector_db_dir or storage_root configured")
         else:
-            raise LanceDBError("No configuration available for LanceDB path")
+            # Use PathManager for vector DB path resolution
+            self.db_path = path_manager.get_vector_db_path()
         
         self.table_name = table_name or (
             self._config.get("search.lancedb.table_name", "aitao_embeddings")
@@ -544,14 +538,14 @@ class LanceDBClient:
                 total_size += size
             
             return {
-                "total_documents": total_count,
-                "categories": categories,
-                "languages": languages,
-                "total_size_bytes": total_size,
-                "total_size_mb": round(total_size / (1024 * 1024), 2),
-                "table_name": self.table_name,
-                "embedding_dimension": self.dimension,
-                "db_path": str(self.db_path),
+                StatsKeys.TOTAL_DOCUMENTS: total_count,
+                StatsKeys.CATEGORIES: categories,
+                StatsKeys.LANGUAGES: languages,
+                StatsKeys.TOTAL_SIZE_BYTES: total_size,
+                StatsKeys.TOTAL_SIZE_MB: round(total_size / (1024 * 1024), 2),
+                StatsKeys.TABLE_NAME: self.table_name,
+                StatsKeys.EMBEDDING_DIMENSION: self.dimension,
+                StatsKeys.DB_PATH: str(self.db_path),
             }
             
         except Exception as e:

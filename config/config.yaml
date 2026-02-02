@@ -1,235 +1,345 @@
+# ==============================================================================
+# AITAO - FICHIER DE CONFIGURATION PRINCIPAL
+# ==============================================================================
+# Ce fichier contrôle le comportement de l'assistant IA local AiTao.
+# Modifiez les valeurs selon vos besoins. Les lignes commençant par # sont
+# des commentaires explicatifs.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# CHEMINS DE STOCKAGE
+# ------------------------------------------------------------------------------
+# Où sont stockées les données d'AiTao (fichiers temporaires, logs, base de 
+# données vectorielle). ${HOME} représente votre dossier utilisateur.
 paths:
-  storage_root: ${HOME}/Downloads/_sources/aitao
-  models_dir: ${HOME}/Downloads/_sources/AI-models
-  logs_dir: ${storage_root}/logs
-  queue_dir: ${storage_root}/queue
-  cache_dir: ${storage_root}/cache
-  corrections_dir: ${storage_root}/corrections
-  vector_db_dir: ${storage_root}/lancedb
+  storage_root: ${HOME}/Downloads/_sources/aitao     # Dossier principal de stockage
+  models_dir: ${HOME}/Downloads/_sources/AI-models  # Dossier des modèles IA téléchargés
+  logs_dir: ${storage_root}/logs                    # Journaux d'activité
+  queue_dir: ${storage_root}/queue                  # File d'attente des tâches
+  cache_dir: ${storage_root}/cache                  # Cache temporaire
+  corrections_dir: ${storage_root}/corrections      # Corrections OCR manuelles
+  vector_db_dir: ${storage_root}/lancedb            # Base de données vectorielle (recherche)
+
+# ------------------------------------------------------------------------------
+# WORKER (Travailleur en arrière-plan)
+# ------------------------------------------------------------------------------
+# Paramètres du processus qui traite les fichiers en arrière-plan.
 worker:
-  poll_interval: 5
-  cpu_threshold: 80.0
-  stuck_task_timeout: 600
+  poll_interval: 5          # Fréquence de vérification des nouvelles tâches (en secondes)
+  cpu_threshold: 80.0       # Seuil CPU (%) au-delà duquel le worker ralentit
+  stuck_task_timeout: 600   # Durée (secondes) avant qu'une tâche bloquée soit annulée
+
+# ------------------------------------------------------------------------------
+# INDEXATION DES DOCUMENTS
+# ------------------------------------------------------------------------------
+# Quels dossiers sont scannés pour alimenter la mémoire de l'IA.
+# L'IA pourra répondre à vos questions en se basant sur ces documents.
 indexing:
-  enabled: true
-  interval_minutes: 10
+  enabled: true             # Activer/désactiver l'indexation automatique
+  interval_minutes: 10      # Intervalle entre chaque scan (en minutes)
+  
+  # DOSSIERS À INDEXER
+  # Ajoutez ici les chemins vers vos documents importants.
+  # ATTENTION : Les chemins avec espaces ou accents doivent être entre guillemets.
   include_paths:
-  - ${HOME}/Downloads/_Volumes/
-  - ${HOME}/Documents/
+    - "${HOME}/Downloads/_Volumes/"
+    - "${HOME}/Documents/"
+    - "${HOME}/pCloudSync/_Business/Création d'entreprise/Taiwan/Aurica Circular"
+  
+  # DOSSIERS À IGNORER (ne pas indexer)
+  # Dossiers système ou temporaires qui ne contiennent pas de documents utiles.
   exclude_dirs:
-  - __pycache__
-  - .git
-  - .venv
-  - venv
-  - env
-  - .env
-  - node_modules
-  - .ds_store
-  - dist
-  - build
-  - target
-  - site-packages
-  - .idea
-  - .vscode
+    - __pycache__      # Cache Python
+    - .git             # Historique Git
+    - .venv            # Environnement virtuel Python
+    - venv
+    - env
+    - .env
+    - node_modules     # Dépendances JavaScript
+    - .ds_store        # Fichiers système macOS
+    - dist             # Dossiers de build
+    - build
+    - target
+    - site-packages
+    - .idea            # Configuration IDE
+    - .vscode
+  
+  # FICHIERS À IGNORER
   exclude_files:
-  - .DS_Store
-  - package-lock.json
-  - yarn.lock
-  - Thumbs.db
+    - .DS_Store
+    - package-lock.json
+    - yarn.lock
+    - Thumbs.db
+  
+  # EXTENSIONS DE FICHIERS À IGNORER
   exclude_extensions:
-  - .lock
-  - .log
-  - .tmp
-  - .swp
-  - .cache
+    - .lock
+    - .log
+    - .tmp
+    - .swp
+    - .cache
+
+# ------------------------------------------------------------------------------
+# OCR (Reconnaissance de texte dans les images/PDF)
+# ------------------------------------------------------------------------------
+# Permet d'extraire le texte des images et PDF scannés.
 ocr:
-  provider: auto
-  languages:
-  - fr
-  - en
-  - zh
-  confidence_threshold: 0.7
+  provider: auto           # "auto" = choix automatique du meilleur outil OCR
+  languages:               # Langues à reconnaître
+    - fr                   # Français
+    - en                   # Anglais
+    - zh                   # Chinois
+  confidence_threshold: 0.7  # Seuil de confiance (0-1, plus haut = plus strict)
+  
+  # Configuration avancée du routeur OCR
   router:
     table_area_min: 0.05
     min_intersections: 2
     min_line_density: 0.0002
+  
+  # PaddleOCR (moteur OCR rapide)
   paddleocr:
-    use_gpu: false
-    use_angle_cls: true
+    use_gpu: false         # Utiliser le GPU (plus rapide si disponible)
+    use_angle_cls: true    # Détecter l'orientation du texte
     det_db_thresh: 0.3
+  
+  # Qwen-VL (modèle vision IA, plus précis mais plus lent)
   qwen_vl:
     model_path: ${HOME}/Downloads/_sources/AI-models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf
-    n_gpu_layers: -1
+    n_gpu_layers: -1       # -1 = utiliser tous les layers GPU disponibles
     context_size: 4096
     max_tokens: 2048
+
+# ------------------------------------------------------------------------------
+# TRADUCTION AUTOMATIQUE
+# ------------------------------------------------------------------------------
+# Traduit automatiquement les documents si nécessaire.
 translation:
-  provider: mbart50
-  source_lang: fr
-  target_lang: zh_TW
-  score_translations: true
-  min_confidence: 0.6
+  provider: mbart50        # Moteur de traduction (mbart50 ou nllb)
+  source_lang: fr          # Langue source
+  target_lang: zh_TW       # Langue cible (chinois traditionnel)
+  score_translations: true # Évaluer la qualité des traductions
+  min_confidence: 0.6      # Confiance minimale pour accepter une traduction
+  
+  # Configuration mBART-50 (modèle multilingue Facebook)
   mbart50:
     model_name: facebook/mbart-large-50-many-to-many-mmt
     use_gpu: false
     batch_size: 8
+  
+  # Configuration NLLB (No Language Left Behind)
   nllb:
     model_name: facebook/nllb-200-distilled-600M
     use_gpu: false
     batch_size: 8
-search:
-  meilisearch:
-    url: http://localhost:7700
-    api_key: ''
-    index_name: aitao_documents
-    searchable_attributes:
-    - title
-    - content
-    - category
-    - tags
-    displayed_attributes:
-    - id
-    - title
-    - file_path
-    - category
-    - language
-    - created_at
-    - updated_at
-    filterable_attributes:
-    - category
-    - language
-    - created_at
-    - file_type
-  lancedb:
-    embedding_model: BAAI/bge-m3
-    table_name: aitao_embeddings
-    dimension: 1024
-    top_k: 20
-    min_score: 0.45
-    offline_mode: true
 
-# Chunking Configuration for RAG
-# Documents are split into overlapping chunks for precise retrieval.
-# Without chunking, context_max_tokens=2000 is only 0.7% of a typical PDF.
-chunking:
-  enabled: true
-  chunk_size: 512          # Target size in tokens per chunk
-  chunk_overlap: 50        # Overlap between chunks in tokens
-  min_chunk_size: 100      # Minimum chunk size (smaller chunks merged)
-  max_chunk_size: 1024     # Maximum chunk size in tokens
-  split_on_sentences: true # Prefer breaking at sentence boundaries
-  embedding_model: BAAI/bge-m3
+# ------------------------------------------------------------------------------
+# MOTEURS DE RECHERCHE
+# ------------------------------------------------------------------------------
+# Comment AiTao retrouve vos documents.
+search:
+  # Meilisearch : Recherche textuelle rapide (mots-clés)
+  meilisearch:
+    url: http://localhost:7700       # Adresse du serveur Meilisearch
+    api_key: ''                      # Clé API (vide = pas d'authentification)
+    index_name: aitao_documents      # Nom de l'index
+    searchable_attributes:           # Champs où chercher
+      - title
+      - content
+      - category
+      - tags
+    displayed_attributes:            # Champs affichés dans les résultats
+      - id
+      - title
+      - file_path
+      - category
+      - language
+      - created_at
+      - updated_at
+    filterable_attributes:           # Champs pour filtrer les résultats
+      - category
+      - language
+      - created_at
+      - file_type
   
+  # LanceDB : Recherche sémantique (par sens, pas seulement mots-clés)
+  lancedb:
+    embedding_model: BAAI/bge-m3     # Modèle pour créer les vecteurs
+    table_name: aitao_embeddings
+    dimension: 1024                  # Dimension des vecteurs
+    top_k: 20                        # Nombre max de résultats
+    min_score: 0.45                  # Score minimum de pertinence
+    offline_mode: true               # Mode hors-ligne (pas de téléchargement)
+
+# ------------------------------------------------------------------------------
+# DÉCOUPAGE DES DOCUMENTS (Chunking)
+# ------------------------------------------------------------------------------
+# Les longs documents sont découpés en morceaux pour une recherche plus précise.
+# Imaginez couper un livre en paragraphes pour trouver l'info exacte.
+chunking:
+  enabled: true            # Activer le découpage
+  chunk_size: 512          # Taille cible par morceau (en tokens, ~350 mots)
+  chunk_overlap: 50        # Chevauchement entre morceaux (évite de couper des phrases)
+  min_chunk_size: 100      # Taille minimum (les petits morceaux sont fusionnés)
+  max_chunk_size: 1024     # Taille maximum
+  split_on_sentences: true # Couper de préférence aux fins de phrases
+  embedding_model: BAAI/bge-m3
+
+# ------------------------------------------------------------------------------
+# CATÉGORIES DE DOCUMENTS
+# ------------------------------------------------------------------------------
+# AiTao classe automatiquement vos documents par catégorie.
 categories:
   enabled: true
-  labels:
-  - administration
-  - comptabilite
-  - juridique
-  - technique
-  - personnel
-  - commercial
-  - medical
-  - education
-  - autre
-  default: autre
-llm:
-  backend: ollama
-  ollama_url: http://localhost:11434
-  default_model: llama3.1-local:latest
-  models:
-  - name: llama3.1-local:latest
-    required: true
-    size_gb: 4.7
-    roles:
-    - chat
-    - rag
-    description: General-purpose LLM for chat and RAG
-  - name: qwen2.5-coder-local:latest
-    required: false
-    size_gb: 4.4
-    roles:
-    - code
-    description: Code-focused LLM (better for code assistance)
-  - name: qwen3-vl:latest
-    required: false
-    size_gb: 6.1
-    roles:
-    - ocr
-    - vision
-    description: Qwen3-VL for vision & OCR tasks
-  startup:
-    check_models: true
-    auto_pull: false
-    pull_timeout_minutes: 30
-  generation:
-    temperature: 0.7
-    top_p: 0.9
-    max_tokens: 2048
+  labels:                  # Catégories disponibles
+    - administration       # Documents administratifs
+    - comptabilite         # Factures, comptabilité
+    - juridique            # Contrats, documents légaux
+    - technique            # Documentation technique
+    - personnel            # Documents personnels
+    - commercial           # Devis, offres commerciales
+    - medical              # Documents médicaux
+    - education            # Cours, formations
+    - autre                # Autres documents
+  default: autre           # Catégorie par défaut
 
-# Virtual Model Routing Configuration
-# Allows clients to control RAG behavior through model name suffixes.
-# Pattern: {base_model}-{suffix} (e.g., llama3.1-doc, qwen-coder-basic)
+# ------------------------------------------------------------------------------
+# MODÈLES D'INTELLIGENCE ARTIFICIELLE (LLM)
+# ------------------------------------------------------------------------------
+# Configuration des modèles IA utilisés par AiTao.
+llm:
+  backend: ollama                          # Serveur IA local (Ollama)
+  ollama_url: http://localhost:11434       # Adresse du serveur Ollama
+  default_model: llama3.1-local:latest     # Modèle par défaut pour les conversations
+  
+  # Liste des modèles disponibles
+  models:
+    - name: llama3.1-local:latest
+      required: true                       # Indispensable au fonctionnement
+      size_gb: 4.7                         # Taille sur disque
+      roles:
+        - chat                             # Conversations
+        - rag                              # Recherche augmentée
+      description: Modèle polyvalent pour conversations et recherche
+    
+    - name: qwen2.5-coder-local:latest
+      required: false                      # Optionnel
+      size_gb: 4.4
+      roles:
+        - code                             # Assistance programmation
+      description: Spécialisé pour le code (meilleur pour l'aide au développement)
+    
+    - name: qwen3-vl:latest
+      required: false
+      size_gb: 6.1
+      roles:
+        - ocr                              # Lecture d'images
+        - vision
+      description: Modèle vision pour OCR et analyse d'images
+  
+  # Configuration au démarrage
+  startup:
+    check_models: true                     # Vérifier que les modèles sont présents
+    auto_pull: false                       # Télécharger automatiquement les modèles manquants
+    pull_timeout_minutes: 30               # Timeout pour le téléchargement
+  
+  # Paramètres de génération de texte
+  generation:
+    temperature: 0.7       # Créativité (0=strict, 1=créatif)
+    top_p: 0.9             # Diversité des réponses
+    max_tokens: 2048       # Longueur max des réponses
+
+# ------------------------------------------------------------------------------
+# MODÈLES VIRTUELS (Routage intelligent)
+# ------------------------------------------------------------------------------
+# Permet de choisir comment l'IA utilise vos documents selon le suffixe du modèle.
+# Exemple : "llama3.1-doc" = avec tous vos documents
+#           "llama3.1-basic" = sans documents (réponses génériques)
 virtual_models:
   enabled: true
   
-  # Suffix definitions - each suffix defines RAG behavior
+  # Suffixes disponibles (ajoutez-les au nom du modèle)
   suffixes:
     basic:
-      rag_mode: disabled      # No RAG context injection
+      rag_mode: disabled                   # Pas d'accès aux documents
       filter_categories: null
-      description: Pure LLM without RAG context
+      description: IA pure sans contexte documentaire
+    
     context:
-      rag_mode: enabled       # RAG with filtered categories
+      rag_mode: enabled                    # Accès limité
       filter_categories:
         - code
         - config
-      description: RAG with code/config context only
+      description: Contexte code/config uniquement
+    
     doc:
-      rag_mode: enabled       # Full RAG with all documents
+      rag_mode: enabled                    # Accès à tous les documents
       filter_categories: null
-      description: Full RAG with all document categories
+      description: Accès complet à tous vos documents
+    
     smart:
-      rag_mode: auto          # LLM decides when to use RAG (Sprint 7+)
+      rag_mode: auto                       # L'IA décide quand chercher
       filter_categories: null
-      description: AI decides when to use RAG context
+      description: L'IA décide quand consulter vos documents
   
-  # Base model mappings: virtual_base -> real_ollama_model
+  # Correspondance nom virtuel → modèle réel
   mappings:
     llama3.1: llama3.1-local:latest
     qwen-coder: qwen2.5-coder-local:latest
     qwen-vl: qwen3-vl:latest
 
+# ------------------------------------------------------------------------------
+# SERVEUR API
+# ------------------------------------------------------------------------------
+# Configuration du serveur web d'AiTao (pour les applications clientes).
 api:
-  host: 0.0.0.0
-  port: 8200
-  cors_enabled: true
+  host: 0.0.0.0            # Écouter sur toutes les interfaces réseau
+  port: 8200               # Port du serveur
+  cors_enabled: true       # Autoriser les requêtes cross-origin
   cors_origins:
-  - '*'
+    - '*'                  # Autoriser toutes les origines
+  
+  # Limite de requêtes (protection contre les abus)
   rate_limit:
     enabled: true
     requests_per_minute: 60
+  
+  # Authentification
   auth:
-    enabled: false
-    api_key: ''
-resources:
-  max_workers: 4
-  batch_size: 10
-  max_file_size_mb: 100
-  memory_limit_mb: 2048
-logging:
-  level: INFO
-  max_file_size_mb: 100
-  backup_count: 5
-  format: json
-  console_enabled: true
+    enabled: false         # Activer l'authentification par clé API
+    api_key: ''            # Clé API (à définir si auth activée)
 
-# RAG Configuration (Retrieval-Augmented Generation)
-# Controls how document context is injected into LLM prompts
+# ------------------------------------------------------------------------------
+# RESSOURCES SYSTÈME
+# ------------------------------------------------------------------------------
+# Limites pour protéger votre ordinateur.
+resources:
+  max_workers: 4           # Nombre max de tâches en parallèle
+  batch_size: 10           # Taille des lots de traitement
+  max_file_size_mb: 100    # Taille max par fichier (Mo)
+  memory_limit_mb: 2048    # Limite mémoire (Mo)
+
+# ------------------------------------------------------------------------------
+# JOURNALISATION (Logs)
+# ------------------------------------------------------------------------------
+# Configuration des journaux d'activité pour le débogage.
+logging:
+  level: INFO              # Niveau de détail (DEBUG, INFO, WARNING, ERROR)
+  max_file_size_mb: 100    # Taille max d'un fichier de log
+  backup_count: 5          # Nombre de fichiers de log conservés
+  format: json             # Format (json ou text)
+  console_enabled: true    # Afficher aussi dans la console
+
+# ------------------------------------------------------------------------------
+# RAG (Génération Augmentée par Récupération)
+# ------------------------------------------------------------------------------
+# Comment l'IA utilise vos documents pour enrichir ses réponses.
+# C'est ce qui permet à l'IA de "connaître" vos documents personnels.
 rag:
-  enabled: true                  # Enable RAG context enrichment
-  use_chunks: true               # Use chunk-based retrieval (US-023, recommended)
-  max_context_chunks: 5          # Max chunks to include (preferred mode)
-  max_context_docs: 5            # Max documents (fallback if no chunks)
-  context_max_tokens: 4000       # Max tokens for context section (increased for chunks)
-  min_relevance_score: 0.3       # Min score to include document/chunk (0-1)
-  include_metadata: true         # Include file path, position in context
+  enabled: true                    # Activer le RAG
+  use_chunks: true                 # Utiliser le découpage (recommandé)
+  max_context_chunks: 5            # Nombre max de morceaux à inclure
+  max_context_docs: 5              # Nombre max de documents (si pas de chunks)
+  context_max_tokens: 4000         # Longueur max du contexte
+  min_relevance_score: 0.3         # Score minimum de pertinence (0-1)
+  include_metadata: true           # Inclure les métadonnées (chemin, date...)

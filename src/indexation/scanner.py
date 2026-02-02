@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import ConfigManager
 from core.logger import get_logger
+from core.pathmanager import path_manager
 
 logger = get_logger("scanner")
 
@@ -117,9 +118,8 @@ class FilesystemScanner:
         if config_path:
             self.config = ConfigManager(config_path)
         else:
-            # Try to find config relative to project root
-            project_root = Path(__file__).parent.parent.parent
-            config_file = project_root / "config" / "config.yaml"
+            # Use PathManager for config discovery
+            config_file = path_manager.root / "config" / "config.yaml"
             self.config = ConfigManager(str(config_file))
         
         # Get indexing configuration
@@ -159,9 +159,8 @@ class FilesystemScanner:
         if state_file:
             self.state_file = Path(state_file)
         else:
-            storage_root = self.config.get("paths.storage_root", "data")
-            storage_path = Path(os.path.expandvars(storage_root)).expanduser()
-            self.state_file = storage_path / "scanner_state.json"
+            # Use PathManager for state file location
+            self.state_file = path_manager.get_scanner_state_file()
         
         # Load previous state
         self._file_state: Dict[str, Dict[str, Any]] = {}

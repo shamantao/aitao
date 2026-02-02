@@ -22,6 +22,7 @@ from cli.utils import (
     console, print_header, success, error, warning, info,
     status_line, create_table, get_config_path, spinner
 )
+from core.registry import StatsKeys
 
 
 def show_status():
@@ -110,7 +111,7 @@ def _show_meilisearch_status():
             # Get stats
             stats = client.get_stats()
             status_line("Index", client.index_name)
-            status_line("Documents", str(stats.get("total_documents", 0)))
+            status_line("Documents", str(stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)))
         else:
             status_line("Server", "Not responding", ok=False)
             
@@ -177,8 +178,8 @@ def _show_lancedb_status():
         
         status_line("Database", str(client.db_path))
         status_line("Table", client.table_name)
-        status_line("Documents", str(stats.get("total_documents", 0)))
-        status_line("Embedding dim", str(stats.get("embedding_dimension", 0)))
+        status_line("Documents", str(stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)))
+        status_line("Embedding dim", str(stats.get(StatsKeys.EMBEDDING_DIMENSION, 0)))
         
     except Exception as e:
         status_line("Database", f"Error: {e}", ok=False)

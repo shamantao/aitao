@@ -23,6 +23,7 @@ from cli.utils import (
     console, success, error, warning, info,
     print_header, status_line, confirm, create_progress
 )
+from core.registry import StatsKeys
 
 
 app = typer.Typer(help="Meilisearch management")
@@ -44,9 +45,9 @@ def ms_status():
             
             stats = client.get_stats()
             status_line("Index", client.index_name)
-            status_line("Documents", str(stats.get("total_documents", 0)))
+            status_line("Documents", str(stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)))
             
-            if stats.get("is_indexing"):
+            if stats.get(StatsKeys.IS_INDEXING):
                 warning("Server is currently indexing...")
         else:
             status_line("Server", "Not responding", ok=False)
@@ -244,7 +245,7 @@ def ms_rebuild(
             raise typer.Exit(1)
         
         stats = client.get_stats()
-        doc_count = stats.get("total_documents", 0)
+        doc_count = stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)
         
         if doc_count > 0:
             warning(f"This will delete {doc_count} documents from the index.")

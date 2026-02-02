@@ -8,10 +8,15 @@
 # All commands are implemented in Python (src/cli/) for maintainability.
 #
 # Usage:
-#   ./aitao.sh status
-#   ./aitao.sh ms upgrade
-#   ./aitao.sh db stats
-#   ./aitao.sh config show
+#   ./aitao.sh status          # System status
+#   ./aitao.sh ms upgrade      # Meilisearch management
+#   ./aitao.sh db stats        # LanceDB stats
+#   ./aitao.sh config show     # Configuration
+#   ./aitao.sh test            # Run unit tests
+#   ./aitao.sh test -v         # Run unit tests (verbose)
+#   ./aitao.sh validate        # Full validation (unit + e2e + functional)
+#   ./aitao.sh contracts       # Check architecture contracts
+#   ./aitao.sh contracts --stats  # Show adoption metrics only
 #
 # =============================================================================
 #clear
@@ -47,17 +52,28 @@ fi
 if [ "${1:-}" = "validate" ]; then
     echo "🔍 Running full validation pipeline..."
 
-    echo "✅ Step 1: Unit tests"
+    echo "✅ Step 1: Architecture contracts"
+    "$PYTHON" "$SCRIPT_DIR/scripts/check_contracts.py" --stats
+    
+    echo ""
+    echo "✅ Step 2: Unit tests"
     "$PYTHON" -m pytest "$SCRIPT_DIR/tests/unit" -v
 
-    echo "✅ Step 2: E2E tests"
+    echo "✅ Step 3: E2E tests"
     "$PYTHON" -m pytest "$SCRIPT_DIR/tests/e2e" -v
 
-    echo "✅ Step 3: Functional check (models status)"
+    echo "✅ Step 4: Functional check (models status)"
     "$PYTHON" -m src.cli.main models status > /dev/null
 
     echo -e "${GREEN}✓ Validation complete${NC}"
     exit 0
+fi
+
+# --- Contracts check (architecture validation) ---
+if [ "${1:-}" = "contracts" ]; then
+    shift
+    "$PYTHON" "$SCRIPT_DIR/scripts/check_contracts.py" "$@"
+    exit $?
 fi
 
 # --- Delegate to Python CLI ---

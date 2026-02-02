@@ -14,6 +14,7 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 from cli.utils import status_line, spinner
+from core.registry import StatsKeys
 
 console = Console()
 app = typer.Typer(help="Index documents into search databases")
@@ -223,9 +224,13 @@ def index_status():
         if "error" in ldb:
             status_line("Status", f"Error: {ldb['error']}", ok=False)
         else:
-            status_line("Documents", str(ldb.get("document_count", 0)))
-            status_line("Table", ldb.get("table_name", "unknown"))
-            status_line("Embedding model", ldb.get("embedding_model", "unknown"))
+            # Use StatsKeys for consistent key access
+            doc_count = ldb.get(StatsKeys.TOTAL_DOCUMENTS, 0)
+            status_line("Documents", str(doc_count))
+            status_line("Table", ldb.get(StatsKeys.TABLE_NAME, "unknown"))
+            status_line("Embedding dimension", str(ldb.get(StatsKeys.EMBEDDING_DIMENSION, "unknown")))
+            if ldb.get(StatsKeys.DB_PATH):
+                status_line("Database path", ldb.get(StatsKeys.DB_PATH))
     else:
         status_line("Status", "Not available", ok=False)
     
@@ -238,9 +243,12 @@ def index_status():
         if "error" in ms:
             status_line("Status", f"Error: {ms['error']}", ok=False)
         else:
-            status_line("Documents", str(ms.get("document_count", 0)))
-            status_line("Index", ms.get("index_name", "unknown"))
-            status_line("Server", ms.get("url", "unknown"))
+            # Use StatsKeys for consistent key access
+            doc_count = ms.get(StatsKeys.TOTAL_DOCUMENTS, 0)
+            status_line("Documents", str(doc_count))
+            status_line("Index", ms.get(StatsKeys.INDEX_NAME, "unknown"))
+            server = ms.get(StatsKeys.HOST, "unknown")
+            status_line("Server", server)
     else:
         status_line("Status", "Not available", ok=False)
 

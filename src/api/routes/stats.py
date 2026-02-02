@@ -13,6 +13,7 @@ from typing import Optional
 
 from src.api.schemas import StatsResponse, IndexStats
 from src.core.logger import get_logger
+from src.core.registry import StatsKeys
 
 logger = get_logger("api.stats")
 
@@ -26,7 +27,7 @@ async def get_lancedb_stats() -> Optional[IndexStats]:
         
         return IndexStats(
             name="lancedb",
-            document_count=stats.get("total_documents", 0),
+            document_count=stats.get(StatsKeys.TOTAL_DOCUMENTS, 0),
             size_bytes=stats.get("size_bytes"),
             last_updated=stats.get("last_updated"),
         )

@@ -1308,6 +1308,7 @@ def _default_handler(file_path: Path) -> IndexResult:
 
 **Registry contains:**
 - `ConfigKeys`: All config.yaml key paths (prevents typos)
+- `StatsKeys`: All statistics dictionary keys (prevents `document_count` vs `total_documents`)
 - `TaskStatus`, `TaskPriority`, `TaskType`: Queue enums
 - `Task`, `IndexResult`, `SearchResult`: Data structures
 - `Defaults`: Timeout values, ports, model names
@@ -1320,12 +1321,56 @@ def _default_handler(file_path: Path) -> IndexResult:
 class IndexResult:
     error_message: str  # Wrong name!
 
+# ❌ FORBIDDEN - Hardcoded dict keys
+stats = {"document_count": 100}  # In one module
+stats = {"total_documents": 100}  # In another module - INCONSISTENT!
+
 # ✅ REQUIRED - Import from registry
-from src.core.registry import IndexResult, ConfigKeys
+from src.core.registry import IndexResult, ConfigKeys, StatsKeys
 
 result = IndexResult(success=True, error=None)  # Correct attribute
 path = config.get(ConfigKeys.LANCEDB_PATH)  # No typos
+stats = {StatsKeys.TOTAL_DOCUMENTS: 100}  # Consistent everywhere
 ```
+
+### AC-006: PathManager Mandatory Usage 🆕
+**Rule:** ALL file path construction in `src/` MUST use PathManager. Direct use of `Path()`, `os.path.join()`, or f-strings for paths is FORBIDDEN.
+
+**Rationale:** Manual path construction leads to inconsistent paths, missing directories, and platform-specific bugs. PathManager ensures all paths are validated, created if needed, and consistent.
+
+**Exceptions:** 
+- Test files in `tests/` may use `Path()` for test fixtures
+- PathManager implementation itself (`src/core/pathmanager.py`)
+
+**Example:**
+```python
+# ❌ FORBIDDEN
+from pathlib import Path
+db_path = Path(config.get("paths.lancedb_path"))
+log_file = f"{storage_root}/logs/app.log"
+
+# ✅ REQUIRED
+from src.core.pathmanager import PathManager
+pm = PathManager()
+db_path = pm.get_lancedb_path()
+log_file = pm.get_log_path("app.log")
+```
+
+### AC-007: Automated Contract Verification 🆕
+**Rule:** CI/CD pipeline MUST run contract verification. PRs that violate AC-001 through AC-006 MUST be blocked automatically.
+
+**Implementation:** `scripts/check_contracts.py` must verify:
+1. No direct `ConfigManager()` instantiation (AC-001)
+2. No hardcoded paths in `src/` (AC-002)
+3. No `print()` in `src/` (AC-003)
+4. No placeholder functions (AC-004)
+5. Registry usage for shared structures (AC-005)
+6. PathManager usage for all paths (AC-006)
+
+**Metrics to track:**
+- Registry adoption rate: Target ≥ 80%
+- PathManager adoption rate: Target ≥ 90%
+- Contract violations per sprint: Target = 0
 def _default_handler(file_path: Path) -> IndexResult:
     """Handle files without specific extractor."""
     raise NotImplementedError("Default handler not implemented")

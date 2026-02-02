@@ -106,6 +106,14 @@ class AitaoPathManager(GenericPathManager):
         """Get queue directory for task management."""
         return self.system_paths["storage_root"] / "queue"
 
+    def get_queue_file(self) -> Path:
+        """Get path to the task queue JSON file."""
+        return self.get_queue_dir() / "tasks.json"
+
+    def get_scanner_state_file(self) -> Path:
+        """Get path to scanner state file for incremental scans."""
+        return self.system_paths["storage_root"] / "scanner_state.json"
+
     def get_cache_dir(self, cache_type: str = None) -> Path:
         """
         Get cache directory.

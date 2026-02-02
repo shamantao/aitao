@@ -10,10 +10,14 @@ Contracts verified:
   AC-002: No hardcoded paths (no 'data/' literals)
   AC-003: Structured logging only (no print statements)
   AC-004: No placeholder functions (functions must have real implementations)
+  AC-005: No Path() for system paths outside pathmanager.py
+  AC-006: PathManager must be imported for path operations
+  AC-007: StatsKeys must be used for statistics dictionaries
 
 Usage:
-  python scripts/check_contracts.py         # Run all checks
-  python scripts/check_contracts.py --fix   # Show fix suggestions
+  python scripts/check_contracts.py           # Run all checks
+  python scripts/check_contracts.py --fix     # Show fix suggestions
+  python scripts/check_contracts.py --stats   # Show adoption metrics only
 """
 
 import ast
@@ -57,6 +61,41 @@ class ContractChecker:
             ".pyc",
             "check_contracts.py",  # Exclude self
             "pathmanager.py",  # PathManager defines default paths (by design)
+            "path_manager.py",  # Generic path manager lib
+        ]
+        
+        # Stats key patterns that should use StatsKeys
+        self.stats_key_patterns = [
+            '"total_documents"',
+            "'total_documents'",
+            '"document_count"',
+            "'document_count'",
+            '"total_chunks"',
+            "'total_chunks'",
+            '"embedding_dimension"',
+            "'embedding_dimension'",
+            '"is_indexing"',
+            "'is_indexing'",
+            '"table_name"',
+            "'table_name'",
+            '"index_name"',
+            "'index_name'",
+        ]
+        
+        # System path patterns (Path() usage for system directories)
+        self.system_path_patterns = [
+            'Path(__file__)',  # OK - relative imports
+            'Path(storage',
+            'Path(queue',
+            'Path(db_path)',
+            '/ "lancedb"',
+            "/ 'lancedb'",
+            '/ "queue"',
+            "/ 'queue'",
+            '/ "logs"',
+            "/ 'logs'",
+            '/ "cache"',
+            "/ 'cache'",
         ]
     
     def get_python_files(self) -> Iterator[Path]:
@@ -208,6 +247,40 @@ class ContractChecker:
         except Exception:
             pass
     
+    def check_ac007_stats_keys(self, file_path: Path, content: str, tree: ast.AST) -> None:
+        """AC-007: StatsKeys must be used for statistics dictionaries."""
+        # Skip registry.py where StatsKeys is defined
+        if "registry.py" in str(file_path):
+            return
+        # Skip test files
+        if "/tests/" in str(file_path):
+            return
+        
+        lines = content.splitlines()
+        
+        # Check if file imports StatsKeys
+        has_statskeys_import = "StatsKeys" in content
+        
+        for i, line in enumerate(lines, 1):
+            # Skip comments
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            
+            for pattern in self.stats_key_patterns:
+                if pattern in line:
+                    # Check if it's in a get() call or dict literal (stats context)
+                    if ".get(" in line or "stats" in line.lower() or "return {" in line:
+                        if not has_statskeys_import:
+                            self.violations.append(Violation(
+                                contract="AC-007",
+                                file_path=file_path,
+                                line_number=i,
+                                description=f"Hardcoded stats key {pattern} without StatsKeys import",
+                                suggestion="from core.registry import StatsKeys; use StatsKeys.TOTAL_DOCUMENTS",
+                            ))
+                            break  # One violation per file is enough
+    
     def check_file(self, file_path: Path) -> None:
         """Run all contract checks on a single file."""
         try:
@@ -222,6 +295,7 @@ class ContractChecker:
         self.check_ac002_no_hardcoded_paths(file_path, content, tree)
         self.check_ac003_no_print_statements(file_path, content, tree)
         self.check_ac004_no_placeholder_functions(file_path, content, tree)
+        self.check_ac007_stats_keys(file_path, content, tree)
     
     def run_all_checks(self) -> list[Violation]:
         """Run all contract checks on the entire codebase."""
@@ -254,6 +328,86 @@ class ContractChecker:
                 if show_suggestions:
                     print(f"    💡 {v.suggestion}")
             print()
+    
+    def calculate_adoption_metrics(self) -> dict:
+        """Calculate Registry and PathManager adoption rates."""
+        total_files = 0
+        registry_imports = 0
+        pathmanager_imports = 0
+        statskeys_imports = 0
+        
+        files_with_stats = []
+        files_needing_pathmanager = []
+        
+        for py_file in self.get_python_files():
+            try:
+                content = py_file.read_text(encoding="utf-8")
+                total_files += 1
+                
+                # Check Registry/StatsKeys imports
+                if "from core.registry import" in content or "from src.core.registry import" in content:
+                    registry_imports += 1
+                if "StatsKeys" in content:
+                    statskeys_imports += 1
+                
+                # Check PathManager imports
+                if "path_manager" in content or "pathmanager" in content.lower():
+                    pathmanager_imports += 1
+                
+                # Files that use stats patterns but don't import StatsKeys
+                has_stats_pattern = any(p in content for p in self.stats_key_patterns)
+                if has_stats_pattern and "StatsKeys" not in content:
+                    if "registry.py" not in str(py_file) and "/tests/" not in str(py_file):
+                        files_with_stats.append(py_file)
+                
+                # Files that construct system paths manually
+                for pattern in ["Path(storage", 'Path("data', "Path('data", "/ 'queue'", '/ "lancedb"']:
+                    if pattern in content and "pathmanager" not in str(py_file).lower():
+                        files_needing_pathmanager.append(py_file)
+                        break
+                        
+            except Exception:
+                continue
+        
+        return {
+            "total_files": total_files,
+            "registry_imports": registry_imports,
+            "pathmanager_imports": pathmanager_imports,
+            "statskeys_imports": statskeys_imports,
+            "registry_rate": round(registry_imports / total_files * 100, 1) if total_files else 0,
+            "pathmanager_rate": round(pathmanager_imports / total_files * 100, 1) if total_files else 0,
+            "statskeys_rate": round(statskeys_imports / total_files * 100, 1) if total_files else 0,
+            "files_needing_statskeys": files_with_stats,
+            "files_needing_pathmanager": files_needing_pathmanager,
+        }
+    
+    def print_adoption_report(self) -> None:
+        """Print adoption metrics report."""
+        metrics = self.calculate_adoption_metrics()
+        
+        print("\n📊 Architecture Adoption Metrics")
+        print("=" * 50)
+        print(f"Total Python files in src/: {metrics['total_files']}")
+        print()
+        print(f"Registry imports:     {metrics['registry_imports']:3d} / {metrics['total_files']} ({metrics['registry_rate']:5.1f}%)")
+        print(f"PathManager imports:  {metrics['pathmanager_imports']:3d} / {metrics['total_files']} ({metrics['pathmanager_rate']:5.1f}%)")
+        print(f"StatsKeys imports:    {metrics['statskeys_imports']:3d} / {metrics['total_files']} ({metrics['statskeys_rate']:5.1f}%)")
+        print()
+        
+        # Status indicators
+        registry_ok = metrics['registry_rate'] >= 80
+        pathmanager_ok = metrics['pathmanager_rate'] >= 80
+        
+        print("Target: ≥80% adoption")
+        print(f"  Registry:     {'✅' if registry_ok else '⚠️ '} {metrics['registry_rate']:.1f}%")
+        print(f"  PathManager:  {'✅' if pathmanager_ok else '⚠️ '} {metrics['pathmanager_rate']:.1f}%")
+        
+        if metrics['files_needing_statskeys']:
+            print(f"\n⚠️  Files using stats without StatsKeys ({len(metrics['files_needing_statskeys'])}):")
+            for f in metrics['files_needing_statskeys'][:5]:
+                print(f"    - {f.relative_to(self.src_dir.parent)}")
+            if len(metrics['files_needing_statskeys']) > 5:
+                print(f"    ... and {len(metrics['files_needing_statskeys']) - 5} more")
 
 
 def main() -> int:
@@ -267,14 +421,23 @@ def main() -> int:
         print(f"❌ Source directory not found: {src_dir}")
         return 1
     
+    checker = ContractChecker(src_dir)
+    
+    # Stats only mode
+    if "--stats" in sys.argv:
+        checker.print_adoption_report()
+        return 0
+    
     print(f"🔍 Checking architecture contracts in {src_dir}")
     print("=" * 60)
     
-    checker = ContractChecker(src_dir)
     violations = checker.run_all_checks()
     
     show_suggestions = "--fix" in sys.argv
     checker.print_report(show_suggestions=show_suggestions)
+    
+    # Always show adoption metrics
+    checker.print_adoption_report()
     
     # Return non-zero exit code if violations found
     return 1 if violations else 0

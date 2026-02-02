@@ -25,9 +25,11 @@ except ImportError:
 try:
     from src.core.logger import get_logger
     from src.core.config import ConfigManager
+    from src.core.registry import StatsKeys
 except ImportError:
     from core.logger import get_logger
     from core.config import ConfigManager
+    from core.registry import StatsKeys
 
 
 class MeilisearchError(Exception):
@@ -125,7 +127,7 @@ class MeilisearchClient:
         if not MEILISEARCH_AVAILABLE:
             raise MeilisearchError(
                 "meilisearch-python package not installed. "
-                "Run: pip install meilisearch"
+                "Run: uv pip install meilisearch"
             )
         
         self.logger = get_logger("meilisearch")
@@ -569,14 +571,14 @@ class MeilisearchClient:
                 }
             
             return {
-                "total_documents": stats_dict.get("number_of_documents", 
+                StatsKeys.TOTAL_DOCUMENTS: stats_dict.get("number_of_documents", 
                                    stats_dict.get("numberOfDocuments", 0)),
-                "is_indexing": stats_dict.get("is_indexing",
+                StatsKeys.IS_INDEXING: stats_dict.get("is_indexing",
                                stats_dict.get("isIndexing", False)),
-                "field_distribution": stats_dict.get("field_distribution",
+                StatsKeys.FIELD_DISTRIBUTION: stats_dict.get("field_distribution",
                                       stats_dict.get("fieldDistribution", {})),
-                "index_name": self.index_name,
-                "host": self.host,
+                StatsKeys.INDEX_NAME: self.index_name,
+                StatsKeys.HOST: self.host,
             }
             
         except MeilisearchApiError as e:

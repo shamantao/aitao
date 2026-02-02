@@ -14,6 +14,7 @@ from typing import Optional
 
 from src.api.schemas import HealthResponse, ServiceStatus
 from src.core.logger import get_logger
+from src.core.registry import StatsKeys
 
 logger = get_logger("api.health")
 
@@ -30,7 +31,7 @@ async def check_service_lancedb() -> ServiceStatus:
         return ServiceStatus(
             name="lancedb",
             status="healthy",
-            message=f"{stats.get('total_documents', 0)} documents indexed",
+            message=f"{stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)} documents indexed",
             latency_ms=round(latency, 2),
         )
     except Exception as e:

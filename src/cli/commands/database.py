@@ -20,6 +20,7 @@ from cli.utils import (
     console, success, error, warning, info,
     print_header, status_line, confirm, create_table
 )
+from core.registry import StatsKeys
 
 
 app = typer.Typer(help="LanceDB (vector database) management")
@@ -38,12 +39,12 @@ def db_status():
         
         status_line("Database path", str(client.db_path))
         status_line("Table", client.table_name)
-        status_line("Documents", str(stats.get("total_documents", 0)))
+        status_line("Documents", str(stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)))
         
-        if stats.get("embedding_dimension"):
-            status_line("Embedding dimension", str(stats["embedding_dimension"]))
+        if stats.get(StatsKeys.EMBEDDING_DIMENSION):
+            status_line("Embedding dimension", str(stats[StatsKeys.EMBEDDING_DIMENSION]))
         
-        if stats.get("total_documents", 0) > 0:
+        if stats.get(StatsKeys.TOTAL_DOCUMENTS, 0) > 0:
             status_line("Disk size", _format_size(stats.get("size_bytes", 0)))
         
     except Exception as e:
@@ -62,14 +63,14 @@ def db_stats():
         
         stats = client.get_stats()
         
-        if stats.get("total_documents", 0) == 0:
+        if stats.get(StatsKeys.TOTAL_DOCUMENTS, 0) == 0:
             info("Database is empty")
             return
         
         # Basic info
         console.print("[bold]Basic Info[/bold]")
-        status_line("Total documents", str(stats.get("total_documents", 0)))
-        status_line("Embedding dimension", str(stats.get("embedding_dimension", 0)))
+        status_line("Total documents", str(stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)))
+        status_line("Embedding dimension", str(stats.get(StatsKeys.EMBEDDING_DIMENSION, 0)))
         
         console.print()
         
@@ -102,7 +103,7 @@ def db_clear(
         client = LanceDBClient()
         
         stats = client.get_stats()
-        doc_count = stats.get("total_documents", 0)
+        doc_count = stats.get(StatsKeys.TOTAL_DOCUMENTS, 0)
         
         if doc_count == 0:
             info("Database is already empty")
@@ -135,7 +136,7 @@ def db_search(
         client = LanceDBClient()
         
         stats = client.get_stats()
-        if stats.get("total_documents", 0) == 0:
+        if stats.get(StatsKeys.TOTAL_DOCUMENTS, 0) == 0:
             info("Database is empty. Index some documents first.")
             return
         

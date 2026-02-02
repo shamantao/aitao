@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import ConfigManager, get_config
 from core.logger import get_logger
+from core.pathmanager import path_manager
 
 
 def _get_logger():
@@ -142,20 +143,9 @@ class TaskQueue:
         # Determine queue file location
         if queue_file:
             self.queue_file = Path(queue_file)
-        elif self.config:
-            queue_dir = self.config.get("paths.queue_dir")
-            if queue_dir:
-                queue_path = Path(os.path.expandvars(queue_dir)).expanduser()
-            else:
-                # Fallback to storage_root/queue if queue_dir not set
-                storage_root = self.config.get("paths.storage_root")
-                if storage_root:
-                    queue_path = Path(storage_root) / "queue"
-                else:
-                    raise ValueError("No queue_dir or storage_root configured")
-            self.queue_file = queue_path / "tasks.json"
         else:
-            raise ValueError("No configuration available for queue path")
+            # Use PathManager for queue file location
+            self.queue_file = path_manager.get_queue_file()
         
         # Ensure directory exists
         self.queue_file.parent.mkdir(parents=True, exist_ok=True)
