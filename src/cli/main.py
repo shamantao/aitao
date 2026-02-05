@@ -179,9 +179,12 @@ def _show_detailed_help():
     models_table.add_column("Description")
     
     models_table.add_row("models status", "Show configured vs installed models")
-    models_table.add_row("models pull", "Download missing models (future)")
-    models_table.add_row("models add <name>", "Add model to config (future)")
-    models_table.add_row("models remove <name>", "Remove model from config (future)")
+    models_table.add_row("models check", "Check templates for issues")
+    models_table.add_row("models fix", "Fix broken model templates")
+    models_table.add_row("models validate", "Test models with a prompt")
+    models_table.add_row("models pull", "Download missing models")
+    models_table.add_row("models add <name>", "Add model to config")
+    models_table.add_row("models remove <name>", "Remove model from config")
     console.print(models_table)
     console.print()
 

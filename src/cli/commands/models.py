@@ -600,5 +600,160 @@ def remove(
     )
 
 
+# ============================================================================
+# US-029: Template Check and Fix Commands
+# ============================================================================
+
+@app.command()
+def check():
+    """
+    Check all installed models for template issues.
+    
+    Detects models with broken or incomplete ChatML templates
+    that may cause incoherent responses or hallucinations.
+    
+    Exit codes:
+    - 0: All templates OK
+    - 1: Broken templates found (run 'models fix' to repair)
+    """
+    import subprocess
+    
+    console.print()
+    console.print("[cyan]🔍 Checking model templates...[/cyan]")
+    console.print()
+    
+    # Call the fix script with --check
+    script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "fix_ollama_templates.py"
+    
+    if not script_path.exists():
+        console.print(f"[red]ERROR: Script not found: {script_path}[/red]")
+        raise typer.Exit(code=1)
+    
+    result = subprocess.run(
+        [sys.executable, str(script_path), "--check"],
+        capture_output=False,
+    )
+    
+    raise typer.Exit(code=result.returncode)
+
+
+@app.command()
+def fix(
+    model: Optional[str] = typer.Argument(
+        None,
+        help="Specific model to fix (optional, fixes all if not specified)"
+    ),
+    validate: bool = typer.Option(
+        True,
+        "--validate/--no-validate",
+        help="Run validation test after fixing"
+    ),
+):
+    """
+    Fix broken model templates.
+    
+    Repairs models that have incomplete ChatML templates, which cause
+    incoherent responses or hallucinations. This recreates the model
+    with the correct template from config/modelfiles/.
+    
+    Examples:
+        ./aitao.sh models fix                    # Fix all broken models
+        ./aitao.sh models fix qwen2.5-coder-local  # Fix specific model
+        ./aitao.sh models fix --no-validate     # Skip validation
+    
+    Exit codes:
+    - 0: All fixes successful
+    - 1: Some fixes failed
+    """
+    import subprocess
+    
+    console.print()
+    console.print("[cyan]🔧 Fixing model templates...[/cyan]")
+    console.print()
+    
+    # Build command
+    script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "fix_ollama_templates.py"
+    
+    if not script_path.exists():
+        console.print(f"[red]ERROR: Script not found: {script_path}[/red]")
+        raise typer.Exit(code=1)
+    
+    cmd = [sys.executable, str(script_path), "--fix"]
+    if model:
+        cmd.extend(["--model", model])
+    
+    result = subprocess.run(cmd, capture_output=False)
+    
+    if result.returncode != 0:
+        console.print()
+        console.print("[red]❌ Some fixes failed[/red]")
+        raise typer.Exit(code=1)
+    
+    # Run validation if requested
+    if validate:
+        console.print()
+        console.print("[cyan]🧪 Running validation tests...[/cyan]")
+        console.print()
+        
+        validate_cmd = [sys.executable, str(script_path), "--validate"]
+        if model:
+            validate_cmd.extend(["--model", model])
+        
+        validate_result = subprocess.run(validate_cmd, capture_output=False)
+        
+        if validate_result.returncode != 0:
+            console.print()
+            console.print("[yellow]⚠ Validation found issues (model may still have problems)[/yellow]")
+            raise typer.Exit(code=1)
+    
+    console.print()
+    console.print("[green]✓ Template fix complete![/green]")
+    
+    logger.info(
+        "Model templates fixed",
+        metadata={"model": model or "all", "validated": validate}
+    )
+
+
+@app.command()
+def validate(
+    model: Optional[str] = typer.Argument(
+        None,
+        help="Specific model to validate (optional, validates all if not specified)"
+    ),
+):
+    """
+    Validate models by testing them with a prompt.
+    
+    Sends a test question to each model and checks if the response
+    is coherent. This helps detect models with broken templates
+    or other configuration issues.
+    
+    Exit codes:
+    - 0: All models validated successfully
+    - 1: Some models failed validation
+    """
+    import subprocess
+    
+    console.print()
+    console.print("[cyan]🧪 Validating models...[/cyan]")
+    console.print()
+    
+    script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "fix_ollama_templates.py"
+    
+    if not script_path.exists():
+        console.print(f"[red]ERROR: Script not found: {script_path}[/red]")
+        raise typer.Exit(code=1)
+    
+    cmd = [sys.executable, str(script_path), "--validate"]
+    if model:
+        cmd.extend(["--model", model])
+    
+    result = subprocess.run(cmd, capture_output=False)
+    
+    raise typer.Exit(code=result.returncode)
+
+
 if __name__ == "__main__":
     app()
+

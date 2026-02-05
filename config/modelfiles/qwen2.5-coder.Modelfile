@@ -1,0 +1,28 @@
+# Modelfile for Qwen2.5-Coder models
+# Template ChatML standard pour les modèles Qwen
+#
+# Usage:
+#   ollama create qwen2.5-coder-local -f config/modelfiles/qwen2.5-coder.Modelfile
+#
+# This template ensures proper conversation structure with <|im_start|> and <|im_end|> tokens.
+
+FROM qwen2.5-coder:7b
+
+TEMPLATE """{{- if .System }}
+<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}
+{{- range .Messages }}
+<|im_start|>{{ .Role }}
+{{ .Content }}<|im_end|>
+{{ end }}
+<|im_start|>assistant
+"""
+
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER num_ctx 8192
+
+SYSTEM """You are Qwen, a helpful coding assistant created by Alibaba Cloud. You help users write, debug, and explain code. You respond in the same language as the user's question."""
