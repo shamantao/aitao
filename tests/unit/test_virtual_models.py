@@ -97,25 +97,19 @@ class TestDefaultConfigs:
         """Test default suffix configs are defined."""
         assert "basic" in DEFAULT_SUFFIX_CONFIGS
         assert "context" in DEFAULT_SUFFIX_CONFIGS
-        assert "doc" in DEFAULT_SUFFIX_CONFIGS
-        assert "smart" in DEFAULT_SUFFIX_CONFIGS
+        # Only 2 suffixes now (US-029b): basic and context
+        assert len(DEFAULT_SUFFIX_CONFIGS) == 2
     
     def test_basic_suffix_disables_rag(self):
         """Test -basic suffix disables RAG."""
         config = DEFAULT_SUFFIX_CONFIGS["basic"]
         assert config.rag_mode == RAGMode.DISABLED
     
-    def test_doc_suffix_enables_full_rag(self):
-        """Test -doc suffix enables full RAG."""
-        config = DEFAULT_SUFFIX_CONFIGS["doc"]
-        assert config.rag_mode == RAGMode.ENABLED
-        assert config.filter_categories is None  # All categories
-    
-    def test_context_suffix_filters_categories(self):
-        """Test -context suffix filters to code categories."""
+    def test_context_suffix_enables_full_rag(self):
+        """Test -context suffix enables full RAG."""
         config = DEFAULT_SUFFIX_CONFIGS["context"]
         assert config.rag_mode == RAGMode.ENABLED
-        assert "code" in config.filter_categories
+        assert config.filter_categories is None  # All categories (US-029b)
 
 
 class TestVirtualModelRouter:
@@ -141,30 +135,14 @@ class TestVirtualModelRouter:
         assert resolved.filter_categories is None
         assert resolved.original_name == "llama3.1-basic"
     
-    def test_resolve_virtual_doc(self, router):
-        """Test resolving a -doc virtual model."""
-        resolved = router.resolve("llama3.1-doc")
+    def test_resolve_virtual_context(self, router):
+        """Test resolving a -context virtual model."""
+        resolved = router.resolve("llama3.1-context")
         
         assert resolved.is_virtual
         assert resolved.real_model == "llama3.1-local:latest"
         assert resolved.rag_enabled is True
-        assert resolved.filter_categories is None
-    
-    def test_resolve_virtual_context(self, router):
-        """Test resolving a -context virtual model."""
-        resolved = router.resolve("qwen-coder-context")
-        
-        assert resolved.is_virtual
-        assert resolved.real_model == "qwen2.5-coder-local:latest"
-        assert resolved.rag_enabled is True
-        assert resolved.filter_categories == ["code", "config"]
-    
-    def test_resolve_virtual_smart(self, router):
-        """Test resolving a -smart virtual model."""
-        resolved = router.resolve("llama3.1-smart")
-        
-        assert resolved.is_virtual
-        assert resolved.rag_enabled is True  # AUTO mode enables RAG
+        assert resolved.filter_categories is None  # All categories (US-029b)
     
     def test_resolve_real_model_passthrough(self, router):
         """Test resolving a real model passes through."""
@@ -185,7 +163,7 @@ class TestVirtualModelRouter:
     
     def test_resolve_qwen_vl(self, router):
         """Test resolving qwen-vl virtual models."""
-        resolved = router.resolve("qwen-vl-doc")
+        resolved = router.resolve("qwen-vl-context")
         
         assert resolved.is_virtual
         assert resolved.real_model == "qwen3-vl:latest"
@@ -219,15 +197,15 @@ class TestVirtualModelRouter:
         ids = router.get_all_model_ids()
         
         assert "llama3.1-basic" in ids
-        assert "llama3.1-doc" in ids
-        assert "qwen-coder-context" in ids
-        assert "qwen-vl-smart" in ids
+        assert "llama3.1-context" in ids
+        assert "qwen-coder-basic" in ids
+        assert "qwen-vl-context" in ids
     
     def test_add_base_mapping(self, router):
         """Test adding a new base mapping."""
         router.add_base_mapping("mistral", "mistral:7b")
         
-        resolved = router.resolve("mistral-doc")
+        resolved = router.resolve("mistral-context")
         assert resolved.is_virtual
         assert resolved.real_model == "mistral:7b"
     
@@ -259,7 +237,7 @@ class TestConvenienceFunctions:
     
     def test_resolve_model_function(self):
         """Test resolve_model convenience function."""
-        resolved = resolve_model("llama3.1-doc")
+        resolved = resolve_model("llama3.1-context")
         
         assert resolved.is_virtual
         assert resolved.real_model == "llama3.1-local:latest"

@@ -2,6 +2,47 @@
 
 This document explains how AiTao manages LLM models via Ollama and how to diagnose/fix common issues.
 
+## Virtual Models (US-029b)
+
+AiTao exposes **virtual models** via its OpenAI-compatible API, allowing you to control RAG behavior through model names.
+
+### Available Suffixes
+
+Each real model (e.g., `qwen2.5-coder-local:latest`) is exposed with **2 suffixes**:
+
+| Suffix | Behavior | Use Case | Speed |
+|--------|----------|----------|-------|
+| `-basic` | No RAG context | Fast responses for general questions | ⚡ Fast |
+| `-context` | Full RAG with documents | Precise answers from your documents | 🐢 Slower |
+
+### Example
+
+When connecting to AiTao API (e.g., from Open WebUI):
+
+```
+Available models in dropdown:
+✅ llama3.1-basic          → Fast chat without documents
+✅ llama3.1-context        → Chat with access to your documents
+✅ qwen-coder-basic        → Fast code help
+✅ qwen-coder-context      → Code help with your project docs
+✅ qwen-vl-basic           → Vision without documents (OCR)
+✅ qwen-vl-context         → Vision with document analysis
+```
+
+### Why 2 Suffixes?
+
+- **User Control:** You decide when to use RAG (it's slower but more accurate)
+- **Simplicity:** Only 2 clear choices instead of 4+ confusing options
+- **Performance:** `-basic` is 2-3x faster for simple questions
+
+### Total Models Exposed
+
+With 3 base models × 2 suffixes = **6 virtual models** + 3 real models = **9 models total**
+
+This is a **40% reduction** from the previous 15 models.
+
+---
+
 ## Quick Reference
 
 ```bash

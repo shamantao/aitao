@@ -6,13 +6,11 @@ through model name suffixes. Virtual models are mapped to real Ollama models
 with specific RAG configurations.
 
 Virtual Model Suffixes:
-- `-basic`: Pure LLM, no RAG context
-- `-context`: RAG with category filter (e.g., "code" for coding models)
-- `-doc`: Full RAG, all document categories
-- `-smart`: Auto-detection (future Sprint 7+)
+- `-basic`: Pure LLM, no RAG context (fast response)
+- `-context`: RAG enabled, considers documents and environment (slower but accurate)
 
 Example:
-    Client requests: "llama3.1-doc"
+    Client requests: "llama3.1-context"
     Router returns: real_model="llama3.1-local:latest", rag_enabled=True, filter=None
 
 Configuration:
@@ -73,25 +71,13 @@ DEFAULT_SUFFIX_CONFIGS: Dict[str, VirtualModelConfig] = {
         suffix="basic",
         rag_mode=RAGMode.DISABLED,
         filter_categories=None,
-        description="Pure LLM without RAG context",
+        description="Fast response without context",
     ),
     "context": VirtualModelConfig(
         suffix="context",
         rag_mode=RAGMode.ENABLED,
-        filter_categories=["code", "config"],  # Code-focused context
-        description="RAG with code/config context",
-    ),
-    "doc": VirtualModelConfig(
-        suffix="doc",
-        rag_mode=RAGMode.ENABLED,
-        filter_categories=None,  # All categories
-        description="Full RAG with all documents",
-    ),
-    "smart": VirtualModelConfig(
-        suffix="smart",
-        rag_mode=RAGMode.AUTO,
-        filter_categories=None,
-        description="AI decides when to use RAG (Sprint 7+)",
+        filter_categories=None,  # All document categories
+        description="Considers your documents and environment",
     ),
 }
 
