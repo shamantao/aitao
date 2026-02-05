@@ -332,76 +332,80 @@ class JSONExtractor(BaseExtractor):
 
 
 class PDFExtractor(BaseExtractor):
-    """Extractor for PDF files using pypdf."""
+    """
+    Enhanced PDF extractor with native/scanned detection.
+    
+    This wrapper integrates with the enhanced PDFExtractor from pdf_extractor.py,
+    providing native text extraction with automatic detection of scanned PDFs
+    that require OCR processing (flagged via needs_ocr metadata field).
+    
+    Attributes:
+        SUPPORTED_EXTENSIONS: Set of file extensions this extractor handles.
+    """
     
     SUPPORTED_EXTENSIONS = {".pdf"}
     
+    def __init__(self):
+        """Initialize PDF extractor with enhanced analyzer."""
+        # Lazy import to avoid circular imports
+        self._analyzer = None
+    
+    def _get_analyzer(self):
+        """Lazy load the enhanced PDF analyzer."""
+        if self._analyzer is None:
+            from src.indexation.pdf_extractor import PDFExtractor as EnhancedPDFExtractor
+            self._analyzer = EnhancedPDFExtractor()
+        return self._analyzer
+    
     def extract(self, file_path: Path) -> ExtractionResult:
-        """Extract text from PDF file."""
-        try:
-            pypdf = _get_pypdf()
-        except ImportError:
-            return ExtractionResult(
-                text="",
-                success=False,
-                error="pypdf not installed. Run: uv pip install pypdf"
-            )
+        """
+        Extract text from PDF file with native/scanned detection.
         
+        Uses enhanced PDF analysis to determine if the PDF contains
+        extractable text or requires OCR. Sets needs_ocr=True in metadata
+        for scanned PDFs.
+        
+        Args:
+            file_path: Path to the PDF file.
+            
+        Returns:
+            ExtractionResult with text and metadata including needs_ocr flag.
+        """
         try:
-            reader = pypdf.PdfReader(str(file_path))
-            pages_text = []
+            analyzer = self._get_analyzer()
+            result = analyzer.analyze(file_path)
             
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    pages_text.append(page_text)
+            if not result.success:
+                return ExtractionResult(
+                    text="",
+                    success=False,
+                    error=result.error
+                )
             
-            text = "\n\n".join(pages_text)
-            word_count = len(text.split())
+            # Add needs_ocr flag to metadata for DocumentIndexer
+            metadata = result.metadata.copy()
+            metadata["needs_ocr"] = result.needs_ocr
             
-            # Detect language
-            language = self._detect_language(text)
-            
-            # Extract PDF metadata
-            pdf_metadata = {}
-            if reader.metadata:
-                pdf_metadata = {
-                    "title": reader.metadata.get("/Title"),
-                    "author": reader.metadata.get("/Author"),
-                    "subject": reader.metadata.get("/Subject"),
-                    "creator": reader.metadata.get("/Creator"),
-                }
-                # Clean None values
-                pdf_metadata = {k: v for k, v in pdf_metadata.items() if v}
+            # Log if OCR is needed for tracking
+            if result.needs_ocr:
+                logger.info(
+                    f"PDF marked for OCR: {file_path.name} "
+                    f"(text_coverage={result.text_coverage:.1%})"
+                )
             
             return ExtractionResult(
-                text=text,
-                metadata={
-                    "word_count": word_count,
-                    "pages": len(reader.pages),
-                    "language": language,
-                    "file_type": "pdf",
-                    **pdf_metadata,
-                }
+                text=result.text,
+                metadata=metadata,
+                success=True,
             )
+            
         except Exception as e:
+            logger.exception(f"PDF extraction failed: {file_path}")
             return ExtractionResult(
                 text="",
                 success=False,
                 error=f"Failed to extract PDF: {e}"
             )
-    
-    def _detect_language(self, text: str) -> Optional[str]:
-        """Detect language of text."""
-        if not text or len(text.strip()) < 20:
-            return None
-        
-        try:
-            langdetect = _get_langdetect()
-            sample = text[:5000]
-            return langdetect.detect(sample)
-        except Exception:
-            return None
 
 
 class DOCXExtractor(BaseExtractor):

@@ -347,21 +347,24 @@ class TestPDFExtractor:
         """Test PDF extractor supports .pdf extension."""
         assert ".pdf" in PDFExtractor.SUPPORTED_EXTENSIONS
     
-    @patch("indexation.text_extractor._get_pypdf")
+    @patch("src.indexation.pdf_extractor._get_pypdf")
     def test_extract_pdf_success(self, mock_get_pypdf):
-        """Test successful PDF extraction."""
+        """Test successful PDF extraction with enhanced PDFExtractor."""
         # Mock pypdf
         mock_pypdf = MagicMock()
         mock_get_pypdf.return_value = mock_pypdf
         
         mock_reader = MagicMock()
         mock_page = MagicMock()
-        mock_page.extract_text.return_value = "This is PDF text content."
+        # Need enough text to pass native detection thresholds
+        mock_page.extract_text.return_value = "This is PDF text content. " * 50
+        mock_page.get.return_value = {}
+        mock_page.__getitem__ = MagicMock(return_value={})
         mock_reader.pages = [mock_page, mock_page]
         mock_reader.metadata = {"/Title": "Test PDF", "/Author": "Test Author"}
         mock_pypdf.PdfReader.return_value = mock_reader
         
-        # Create a temp file to use as path
+        # Create a temp file to use as path (not actually read due to mock)
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             path = Path(f.name)
         
@@ -373,17 +376,20 @@ class TestPDFExtractor:
             assert "PDF text content" in result.text
             assert result.metadata["pages"] == 2
             assert result.metadata["title"] == "Test PDF"
+            assert result.metadata.get("needs_ocr") is False
         finally:
             path.unlink(missing_ok=True)
     
-    def test_pdf_missing_pypdf(self):
+    @patch("src.indexation.pdf_extractor._get_pypdf")
+    def test_pdf_missing_pypdf(self, mock_get_pypdf):
         """Test error when pypdf is not installed."""
-        with patch("indexation.text_extractor._get_pypdf", side_effect=ImportError):
-            extractor = PDFExtractor()
-            result = extractor.extract(Path("test.pdf"))
-            
-            assert not result.success
-            assert "pypdf not installed" in result.error
+        mock_get_pypdf.side_effect = ImportError("pypdf not found")
+        
+        extractor = PDFExtractor()
+        result = extractor.extract(Path("test.pdf"))
+        
+        assert not result.success
+        assert "pypdf not installed" in result.error
 
 
 # =============================================================================
