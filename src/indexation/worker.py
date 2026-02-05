@@ -36,6 +36,7 @@ from core.config import ConfigManager
 from core.logger import get_logger
 from src.indexation.queue import TaskQueue, Task, TaskStatus
 from src.indexation.indexer import DocumentIndexer
+from src.indexation.scanner import FilesystemScanner
 
 
 def _get_logger():
@@ -397,10 +398,43 @@ class BackgroundWorker:
         # Counter for periodic stuck task check
         polls_since_stuck_check = 0
         stuck_check_interval = 10  # Check every 10 polls (~5 minutes)
+
+        scanner = FilesystemScanner()
+        indexing_config = self.config_manager.get_section("indexing") if self.config_manager else {}
+        scan_interval_minutes = indexing_config.get("interval_minutes", 10) if indexing_config else 10
+        scan_interval_seconds = scan_interval_minutes * 60
+        last_scan_time = 0
         
         try:
             while not self._shutdown_requested:
                 try:
+                    current_time = time.time()
+                    if current_time - last_scan_time >= scan_interval_seconds:
+                        _get_logger().info("Starting periodic filesystem scan...")
+                        scan_result = scanner.scan()
+                        
+                        if scan_result.has_changes:
+                            files_to_index = scan_result.new_files + scan_result.modified_files
+                            for file_info in files_to_index:
+                                self.queue.add_task(str(file_info.path), task_type="index")
+                            
+                            _get_logger().info(
+                                "Scan complete",
+                                metadata={
+                                    "new": len(scan_result.new_files),
+                                    "modified": len(scan_result.modified_files),
+                                    "skipped": scan_result.total_skipped,
+                                    "deleted": len(scan_result.deleted_paths)
+                                }
+                            )
+                        else:
+                            _get_logger().info(
+                                "Scan complete: no changes detected",
+                                metadata={"skipped": scan_result.total_skipped}
+                            )
+                        
+                        last_scan_time = current_time
+                    
                     self._poll_and_process()
                     
                     # Periodically check for stuck tasks
