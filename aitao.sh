@@ -17,6 +17,8 @@
 #   ./aitao.sh validate        # Full validation (unit + e2e + functional)
 #   ./aitao.sh contracts       # Check architecture contracts
 #   ./aitao.sh contracts --stats  # Show adoption metrics only
+#   ./aitao.sh benchmark       # Benchmark MLX vs Ollama backends
+#   ./aitao.sh benchmark -n 5  # Benchmark with 5 iterations
 #
 # =============================================================================
 #clear
@@ -76,6 +78,13 @@ fi
 if [ "${1:-}" = "contracts" ]; then
     shift
     "$PYTHON" "$SCRIPT_DIR/scripts/check_contracts.py" "$@"
+    exit $?
+fi
+
+# --- Benchmark (MLX vs Ollama) ---
+if [ "${1:-}" = "benchmark" ]; then
+    shift
+    "$PYTHON" "$SCRIPT_DIR/scripts/benchmark_backends.py" "$@"
     exit $?
 fi
 

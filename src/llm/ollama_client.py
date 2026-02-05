@@ -81,9 +81,18 @@ class OllamaClient:
         if not llm_config:
             raise ValueError("Missing 'llm' section in config.yaml")
         
+        # Support both nested (ollama.host) and flat (ollama_url) config formats
         ollama_config = llm_config.get("ollama", {})
-        self.host = ollama_config.get("host", "http://localhost:11434")
-        self.default_model = ollama_config.get("default_model", "qwen2.5-coder:7b")
+        self.host = (
+            ollama_config.get("host") or 
+            llm_config.get("ollama_url") or 
+            "http://localhost:11434"
+        )
+        self.default_model = (
+            ollama_config.get("default_model") or 
+            llm_config.get("default_model") or 
+            "qwen2.5-coder:7b"
+        )
         
         # HTTP client with timeout
         self.client = httpx.Client(timeout=60.0, follow_redirects=True)
