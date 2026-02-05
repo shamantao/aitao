@@ -22,6 +22,9 @@
 #clear
 set -euo pipefail
 
+# --- Prevent OpenMP library conflicts (PyTorch + NumPy/scikit-learn) ---
+export KMP_DUPLICATE_LIB_OK=TRUE
+
 # --- Configuration ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
