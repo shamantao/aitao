@@ -246,8 +246,11 @@ categories:
 #
 # See docs/MIGRATION_MODELS.md for migration from GGUF files.
 llm:
-  # Backend type: "ollama" (recommended, only supported backend)
-  backend: "ollama"
+  # Backend selection: auto | ollama | mlx
+  # - auto: Uses MLX on Apple Silicon, Ollama elsewhere (recommended)
+  # - ollama: Always use Ollama (cross-platform)
+  # - mlx: Force MLX (Apple Silicon only, faster)
+  backend: "auto"
   
   # Ollama server URL
   ollama_url: "http://localhost:11434"
@@ -255,7 +258,15 @@ llm:
   # Default model for chat/generation
   default_model: "llama3.1:8b"
   
-  # Available models configuration
+  # MLX Configuration (Apple Silicon acceleration)
+  # Only used when backend is "auto" or "mlx"
+  mlx:
+    enabled: true                  # Enable MLX if available
+    default_model: "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
+    quantization: "4bit"           # 4bit, 8bit, or fp16
+    cache_models: true             # Keep models in memory for faster subsequent calls
+  
+  # Available models configuration (for Ollama backend)
   # Each model has:
   #   - name: Ollama model identifier (e.g., "llama3.1:8b")
   #   - role: Model purpose ("chat", "code", "embedding")
