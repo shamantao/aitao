@@ -172,8 +172,8 @@ def _show_lancedb_status():
     try:
         from search.lancedb_client import LanceDBClient
         
-        with spinner("Loading embedding model..."):
-            client = LanceDBClient()
+        with spinner("Loading LanceDB stats..."):
+            client = LanceDBClient(load_model=False, ensure_table=False)
         stats = client.get_stats()
         
         status_line("Database", str(client.db_path))

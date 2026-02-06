@@ -64,6 +64,8 @@ class LanceDBClient:
         table_name: Optional[str] = None,
         embedding_model: Optional[str] = None,
         config: Optional[ConfigManager] = None,
+        load_model: bool = True,
+        ensure_table: bool = True,
     ):
         """
         Initialize LanceDB client.
@@ -113,25 +115,28 @@ class LanceDBClient:
             if self._config else False
         )
         
-        # Initialize embedding model
-        self.logger.info(
-            "Loading embedding model",
-            metadata={"model": model_name, "offline": offline_mode}
-        )
-        try:
-            # Set environment variable for HuggingFace offline mode
-            if offline_mode:
-                import os
-                os.environ["HF_HUB_OFFLINE"] = "1"
-                os.environ["TRANSFORMERS_OFFLINE"] = "1"
-            
-            self._embedding_model = SentenceTransformer(
-                model_name,
-                local_files_only=offline_mode
+        # Initialize embedding model (optional for lightweight operations)
+        self._embedding_model = None
+        self.dimension = None
+        if load_model:
+            self.logger.info(
+                "Loading embedding model",
+                metadata={"model": model_name, "offline": offline_mode}
             )
-            self.dimension = self._embedding_model.get_sentence_embedding_dimension()
-        except Exception as e:
-            raise LanceDBError(f"Failed to load embedding model: {e}")
+            try:
+                # Set environment variable for HuggingFace offline mode
+                if offline_mode:
+                    import os
+                    os.environ["HF_HUB_OFFLINE"] = "1"
+                    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+                
+                self._embedding_model = SentenceTransformer(
+                    model_name,
+                    local_files_only=offline_mode
+                )
+                self.dimension = self._embedding_model.get_sentence_embedding_dimension()
+            except Exception as e:
+                raise LanceDBError(f"Failed to load embedding model: {e}")
         
         # Connect to database
         self.logger.info(
@@ -145,7 +150,8 @@ class LanceDBClient:
             raise LanceDBError(f"Failed to connect to LanceDB: {e}")
         
         # Ensure table exists
-        self._ensure_table()
+        if ensure_table:
+            self._ensure_table()
         
         self.logger.info(
             "LanceDB client initialized",
@@ -155,6 +161,18 @@ class LanceDBClient:
                 "embedding_dim": self.dimension,
             }
         )
+
+    def _resolve_dimension_from_table(self) -> Optional[int]:
+        """Resolve embedding dimension from existing table schema."""
+        try:
+            table = self.db.open_table(self.table_name)
+            schema = table.schema
+            vector_field = schema.field("vector")
+            vector_type = vector_field.type
+            list_size = getattr(vector_type, "list_size", None)
+            return list_size if isinstance(list_size, int) else None
+        except Exception:
+            return None
     
     def _get_schema(self) -> pa.Schema:
         """Generate schema with correct vector dimension."""
@@ -225,6 +243,8 @@ class LanceDBClient:
             else:
                 raise ValueError("Cannot embed empty text - document has no content")
         
+        if not self._embedding_model:
+            raise LanceDBError("Embedding model not loaded")
         embedding = self._embedding_model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
     
@@ -537,6 +557,9 @@ class LanceDBClient:
                 languages[lang] = languages.get(lang, 0) + 1
                 total_size += size
             
+            if self.dimension is None:
+                self.dimension = self._resolve_dimension_from_table()
+
             return {
                 StatsKeys.TOTAL_DOCUMENTS: total_count,
                 StatsKeys.CATEGORIES: categories,
@@ -544,7 +567,7 @@ class LanceDBClient:
                 StatsKeys.TOTAL_SIZE_BYTES: total_size,
                 StatsKeys.TOTAL_SIZE_MB: round(total_size / (1024 * 1024), 2),
                 StatsKeys.TABLE_NAME: self.table_name,
-                StatsKeys.EMBEDDING_DIMENSION: self.dimension,
+                StatsKeys.EMBEDDING_DIMENSION: self.dimension or 0,
                 StatsKeys.DB_PATH: str(self.db_path),
             }
             
