@@ -62,6 +62,19 @@ def _get_api_port() -> int:
         return 5000
 
 
+def _get_api_host() -> str:
+    """Get API host from config (supports dual-stack '::' for IPv4+IPv6)."""
+    try:
+        project_root = Path(__file__).parent.parent.parent.parent
+        import os
+        os.chdir(project_root)
+
+        config = get_config()
+        return str(config.get("api.host", "0.0.0.0"))
+    except Exception:
+        return "0.0.0.0"
+
+
 def get_api_port() -> int:
     """Public helper to retrieve the API port."""
     return _get_api_port()
@@ -125,6 +138,7 @@ def _start_api_server(skip_pull: bool = False) -> Tuple[bool, Optional[int]]:
             API_PID_FILE.unlink(missing_ok=True)
     
     port = _get_api_port()
+    host = _get_api_host()
     
     # Start uvicorn in background
     try:
@@ -142,7 +156,7 @@ def _start_api_server(skip_pull: bool = False) -> Tuple[bool, Optional[int]]:
             [
                 python_path, "-m", "uvicorn",
                 api_module,
-                "--host", "0.0.0.0",
+                "--host", host,
                 "--port", str(port),
                 "--log-level", "warning",
             ],

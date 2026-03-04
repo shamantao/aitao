@@ -99,12 +99,19 @@ If this works in terminal, OnlyOffice can work with the same values.
 
 ## 6) Configure OnlyOffice AI client
 
-In OnlyOffice AI settings:
+In OnlyOffice Desktop AI settings (Plugins → AI Assistant → ⚙️ → Add AI Model):
 
-- Provider: `openai`
-- Base URL: `http://127.0.0.1:8200/v1`
-- API key: `sk-local` (any non-empty value)
-- Model: one model ID returned by `/v1/models`
+| Field | Value | Notes |
+|---|---|---|
+| Provider | `OpenAI` | Select from the dropdown |
+| URL | `http://127.0.0.1:8200` | **No `/v1`** — the plugin adds it automatically |
+| API Key | `sk-local` | **Must start with `sk-`** — any value like `sk-local` works |
+| Model | `llama3.1-context` | Exact ID from `/v1/models` |
+
+**Critical rules** (source of all 3 common error messages):
+1. URL must NOT contain `/v1` — the OpenAI plugin adds `/v1` itself
+2. URL must use `127.0.0.1`, NOT `localhost` (macOS resolves localhost → IPv6)
+3. API key must start with `sk-` — OnlyOffice's native layer validates this format
 
 Recommended model IDs for AItao RAG behavior:
 - `llama3.1-context` (RAG enabled, good default)
@@ -129,30 +136,52 @@ If `-context` clearly performs better, the AItao RAG path is active.
 
 ---
 
-## 8) Troubleshooting (most common)
+## 8) Troubleshooting: the 3 OnlyOffice error messages
 
-### OnlyOffice says "provider unavailable" / "fournisseur indisponible"
+All 3 messages come from OnlyOffice's **native C++ layer** (not from AItao).
 
-**Root cause on macOS**: `localhost` resolves to `::1` (IPv6) by default.
-AItao by default only listens on IPv4. OnlyOffice's embedded Chromium tries IPv6
-first → connection refused → "provider unavailable".
+---
 
-**Immediate fix**: always use `http://127.0.0.1:8200` (explicit IPv4), **never**
-`http://localhost:8200`.
+### "invalid URL" (URL invalide)
 
-**Permanent fix**: edit `config/config.yaml`:
-```yaml
-api:
-  host: "::"   # dual-stack IPv4+IPv6 (macOS/Linux)
+**Seen when**: using the Ollama provider with `/v1` in the URL  
+**Cause**: the plugin already has `addon = "v1"` — it appends `/v1` to the URL.  
+Putting `/v1` in the URL results in `/v1/v1/models` → invalid.  
+**Fix**: use `http://127.0.0.1:11434` (no `/v1`)  
+**Same rule for OpenAI provider pointing to AItao**: use `http://127.0.0.1:8200` (no `/v1`)
+
+---
+
+### "Fournisseur indisponible" (Provider unavailable)
+
+Two possible causes:
+
+**Cause A — empty API key**: OnlyOffice's native layer requires a non-empty key  
+for the OpenAI provider. Even though AItao does not check keys,  
+OnlyOffice rejects the empty string before making the request.  
+**Fix**: enter `sk-local` as the key (anything starting with `sk-`)
+
+**Cause B — wrong address**: `localhost` on macOS resolves to `::1` (IPv6).  
+AItao listens on IPv4 (`0.0.0.0`), so `localhost:8200` gets  
+connection refused.  
+**Fix**: always use `http://127.0.0.1:8200` (explicit IPv4)
+
+---
+
+### "invalid API Key" (Clé API invalide)
+
+**Cause**: OnlyOffice's native layer validates that OpenAI keys start with `sk-`.  
+Keys like `api1234567890` or any non-`sk-` value are rejected.  
+**Fix**: use `sk-local` (or any value starting with `sk-`)
+
+---
+
+### General connection check
+
+```bash
+curl http://127.0.0.1:8200/v1/models
 ```
-Restart AItao after this change. Both `localhost` and `127.0.0.1` will then work.
-
-### OnlyOffice says connection failed (general)
-
-- Verify API is running: `./aitao.sh api status`
-- Verify endpoint: `curl http://127.0.0.1:8200/v1/models`
-- Ensure base URL includes `/v1`
-- Ensure API key is non-empty in OnlyOffice
+If this returns JSON, AItao is reachable and the URL is correct.
 
 ### Model not found
 
