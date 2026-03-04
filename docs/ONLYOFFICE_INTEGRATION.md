@@ -131,7 +131,23 @@ If `-context` clearly performs better, the AItao RAG path is active.
 
 ## 8) Troubleshooting (most common)
 
-### OnlyOffice says connection failed
+### OnlyOffice says "provider unavailable" / "fournisseur indisponible"
+
+**Root cause on macOS**: `localhost` resolves to `::1` (IPv6) by default.
+AItao by default only listens on IPv4. OnlyOffice's embedded Chromium tries IPv6
+first → connection refused → "provider unavailable".
+
+**Immediate fix**: always use `http://127.0.0.1:8200` (explicit IPv4), **never**
+`http://localhost:8200`.
+
+**Permanent fix**: edit `config/config.yaml`:
+```yaml
+api:
+  host: "::"   # dual-stack IPv4+IPv6 (macOS/Linux)
+```
+Restart AItao after this change. Both `localhost` and `127.0.0.1` will then work.
+
+### OnlyOffice says connection failed (general)
 
 - Verify API is running: `./aitao.sh api status`
 - Verify endpoint: `curl http://127.0.0.1:8200/v1/models`
