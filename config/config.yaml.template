@@ -13,6 +13,32 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# Identity & User Profile
+# -----------------------------------------------------------------------------
+# These two fields are injected as the very first system context on every
+# conversation, before any RAG chunks or document context.
+# Both are optional but strongly recommended: they allow all LLMs to know
+# who they are and who they are talking to, regardless of which documents
+# are retrieved.
+
+# WHO IS AITAO?
+# Describe how AItao should present itself. Customize the tone, the language,
+# and the scope you want it to cover.
+# Example: "I am AItao, a local AI assistant designed to help you search and
+#           interact with your personal documents. Everything runs on your
+#           machine; your data never leaves."
+who_is_Aitao: "I am AItao, a local AI assistant designed to help you search and interact with your personal documents. Everything runs on your machine; your data never leaves."
+
+# WHO ARE YOU?
+# A short description of yourself. The LLM will use this to adapt its language,
+# tone, and cultural references. Keep it concise (1-3 sentences).
+# Examples:
+#   - "I am a French software developer based in France, 35 years old."
+#   - "I am a student in Tokyo, Japan. I speak English and Japanese."
+#   - "I run a small business in Canada. I speak English and French."
+who_are_you: "Replace this with a short description of yourself: nationality, location, age, languages spoken."
+
+# -----------------------------------------------------------------------------
 # Paths Configuration
 # -----------------------------------------------------------------------------
 # Define where AItao stores data, logs, and temporary files

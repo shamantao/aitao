@@ -114,13 +114,32 @@ uv pip install -e .
 ./install.sh
 ```
 
-### Step 5: Configure Your Folders
+### Step 5: Configure Your Identity and Folders
 
-Edit the configuration file to tell AItao which folders to index:
+Edit the configuration file:
 
 ```bash
 nano config/config.yaml
 ```
+
+#### 5a. Tell AItao who you are (highly recommended)
+
+These two fields are injected as the very first system context on **every** conversation, before any document context. This allows all LLMs to adapt their tone, language and cultural references to you.
+
+```yaml
+# Describe how AItao should present itself
+who_is_Aitao: "I am AItao, a local AI assistant designed to help you search
+               and interact with your personal documents."
+
+# A short description of yourself (nationality, location, age, languages…)
+who_are_you: "I am a French developer living in France, 35 years old."
+```
+
+> **Why does this matter?**  
+> Without this context, each LLM answers from scratch with no idea who you are.
+> Filling these fields makes responses noticeably more relevant and personal.
+
+#### 5b. Tell AItao which folders to index
 
 Find the `include_paths` section and add your folders:
 

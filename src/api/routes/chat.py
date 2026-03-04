@@ -24,7 +24,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.core.config import ConfigManager
+from src.core.config import ConfigManager, get_config
 from src.core.logger import get_logger
 from src.llm.ollama_client import (
     OllamaClient,
@@ -39,6 +39,99 @@ logger = get_logger("api.chat")
 
 # Router
 router = APIRouter(prefix="/api", tags=["Chat"])
+
+
+# ============================================================================
+# RAG System Context Helper
+# ============================================================================
+
+def _build_rag_system_context() -> str:
+    """
+    Build a system prompt combining identity, user profile and indexed directories.
+
+    Sections (in order of priority):
+    1. AItao identity  (who_is_Aitao from config)
+    2. User profile    (who_are_you from config)
+    3. Indexed paths   (indexing.include_paths from config)
+
+    Placing identity and user profile first ensures every LLM call has
+    the right persona and addressee context before any RAG chunks arrive.
+
+    Returns:
+        A formatted system prompt string, or an empty string if nothing
+        is configured.
+    """
+    try:
+        config = get_config()
+
+        # 1. AItao identity
+        who_is_aitao: str = config.get("who_is_Aitao", "").strip()
+
+        # 2. User profile
+        who_are_you: str = config.get("who_are_you", "").strip()
+
+        # 3. Indexed directories
+        indexing = config.get_section("indexing") or {}
+        include_paths: list = indexing.get("include_paths", [])
+
+        parts: list[str] = []
+
+        if who_is_aitao:
+            parts.append(who_is_aitao)
+
+        if who_are_you:
+            parts.append(f"About the user: {who_are_you}")
+
+        if include_paths:
+            paths_str = "\n".join(f"  - {p}" for p in include_paths)
+            parts.append(
+                "The RAG system indexes documents from the following directories "
+                "configured by the user:\n"
+                f"{paths_str}\n"
+                "When asked which directories or files you have access to, "
+                "list these configured paths."
+            )
+
+        return "\n\n".join(parts)
+    except Exception:
+        return ""
+
+
+def _inject_rag_system_message(
+    messages: list,
+    system_context: str,
+) -> list:
+    """
+    Inject or prepend the RAG system context into the message list.
+
+    If a 'system' message already exists, the context is prepended to it.
+    Otherwise a new 'system' message is inserted at position 0.
+
+    Args:
+        messages: List of message dicts with 'role' and 'content'.
+        system_context: The context string to inject.
+
+    Returns:
+        Updated message list.
+    """
+    if not system_context:
+        return messages
+
+    messages = list(messages)  # Shallow copy to avoid mutating original
+
+    # Look for an existing system message
+    for i, msg in enumerate(messages):
+        if msg.get("role") == "system":
+            existing = msg.get("content", "")
+            messages[i] = {
+                "role": "system",
+                "content": f"{system_context}\n\n{existing}".strip(),
+            }
+            return messages
+
+    # No system message found – insert one at the beginning
+    messages.insert(0, {"role": "system", "content": system_context})
+    return messages
 
 
 # ============================================================================
@@ -240,6 +333,10 @@ async def chat_completion(request: ChatRequest):
                 rag = get_rag_engine()
                 # Convert to dict format for enrich_messages
                 msg_dicts = [{"role": m.role, "content": _extract_text(m.content)} for m in request.messages]
+                # Inject RAG system context (include_paths, etc.) so the LLM
+                # knows which directories are configured, regardless of RAG hits
+                rag_system_ctx = _build_rag_system_context()
+                msg_dicts = _inject_rag_system_message(msg_dicts, rag_system_ctx)
                 # Build filters dict if category filter specified
                 filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(
@@ -383,6 +480,10 @@ async def openai_chat_completion(request: OpenAIChatRequest):
             try:
                 rag = get_rag_engine()
                 msg_dicts = [{"role": m.role, "content": _extract_text(m.content)} for m in request.messages]
+                # Inject RAG system context (include_paths, etc.) so the LLM
+                # knows which directories are configured, regardless of RAG hits
+                rag_system_ctx = _build_rag_system_context()
+                msg_dicts = _inject_rag_system_message(msg_dicts, rag_system_ctx)
                 # Build filters dict if category filter specified
                 filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(
