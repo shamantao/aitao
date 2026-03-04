@@ -267,10 +267,15 @@ Now Continue will use your local AI enhanced with your indexed documents!
 
 OnlyOffice AI can use AItao directly as an OpenAI-compatible provider.
 
-Use:
-- **Provider**: `openai`
-- **Base URL**: `http://127.0.0.1:8200/v1`
-- **API Key**: any non-empty value (example: `sk-local`)
+Two plugins are available — use the correct provider type for each:
+
+| Plugin | Provider type | URL | Key |
+|---|---|---|---|
+| Classic AI Assistant (DD007) | `OpenAI` | `http://127.0.0.1:8200/v1` | `sk-local` |
+| AI Agent sidebar (DD777) | **`OpenAI Compatible`** | `http://127.0.0.1:8200/v1` | `sk-local` |
+
+> ⚠️ In the AI Agent sidebar, use **"OpenAI Compatible"**, NOT "OpenAI" — the OpenAI type
+> filters models to only GPT-5.2 which blocks all local models.
 
 For a full, reproducible local MVP setup (including RAG checks and troubleshooting),
 see [OnlyOffice Integration Guide](docs/ONLYOFFICE_INTEGRATION.md).

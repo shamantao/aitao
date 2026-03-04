@@ -22,7 +22,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.config import ConfigManager
 from src.core.logger import get_logger
@@ -45,10 +45,34 @@ router = APIRouter(prefix="/api", tags=["Chat"])
 # Request/Response Schemas
 # ============================================================================
 
+def _extract_text(content: Any) -> str:
+    """
+    Normalize OpenAI message content to a plain string.
+    Handles: None, plain str, and multimodal list [{"type":"text","text":"..."}].
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        # Multimodal format: extract all text parts
+        parts = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get("type") == "text":
+                    parts.append(item.get("text", ""))
+            elif isinstance(item, str):
+                parts.append(item)
+        return " ".join(parts)
+    return str(content)
+
+
 class ChatMessage(BaseModel):
     """Single chat message."""
+    model_config = ConfigDict(extra="ignore")
+
     role: str = Field(..., description="Role: 'system', 'user', 'assistant'")
-    content: str = Field(..., description="Message content")
+    content: Optional[Any] = Field(None, description="Message content (str or multimodal list)")
 
 
 class ChatRequest(BaseModel):
@@ -86,12 +110,14 @@ class ChatResponse(BaseModel):
 
 class OpenAIChatRequest(BaseModel):
     """OpenAI-compatible chat completion request."""
+    model_config = ConfigDict(extra="ignore")  # Accept any extra OpenAI field silently
+
     model: str = Field(..., description="Model name")
     messages: List[ChatMessage] = Field(..., description="Messages")
     stream: bool = Field(default=False, description="Stream response")
     temperature: Optional[float] = Field(None, ge=0, le=2)
     max_tokens: Optional[int] = Field(None)
-    
+
     # RAG extension (non-standard but useful)
     rag_enabled: bool = Field(default=True)
 
@@ -201,9 +227,9 @@ async def chat_completion(request: ChatRequest):
     try:
         ollama = get_ollama_client()
         
-        # Convert messages
+        # Convert messages (content can be None or multimodal list)
         messages = [
-            OllamaChatMessage(role=m.role, content=m.content)
+            OllamaChatMessage(role=m.role, content=_extract_text(m.content))
             for m in request.messages
         ]
         
@@ -213,7 +239,7 @@ async def chat_completion(request: ChatRequest):
             try:
                 rag = get_rag_engine()
                 # Convert to dict format for enrich_messages
-                msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
+                msg_dicts = [{"role": m.role, "content": _extract_text(m.content)} for m in request.messages]
                 # Build filters dict if category filter specified
                 filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(
@@ -345,9 +371,9 @@ async def openai_chat_completion(request: OpenAIChatRequest):
     try:
         ollama = get_ollama_client()
         
-        # Convert messages
+        # Convert messages (content can be None or multimodal list)
         messages = [
-            OllamaChatMessage(role=m.role, content=m.content)
+            OllamaChatMessage(role=m.role, content=_extract_text(m.content))
             for m in request.messages
         ]
         
@@ -356,7 +382,7 @@ async def openai_chat_completion(request: OpenAIChatRequest):
         if effective_rag_enabled and messages:
             try:
                 rag = get_rag_engine()
-                msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
+                msg_dicts = [{"role": m.role, "content": _extract_text(m.content)} for m in request.messages]
                 # Build filters dict if category filter specified
                 filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(

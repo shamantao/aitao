@@ -93,16 +93,21 @@ app = FastAPI(
 def configure_cors(app: FastAPI) -> None:
     """Configure CORS middleware from config."""
     config = get_app_config()
-    
-    # Get CORS origins from config, default to localhost
-    cors_origins = config.get("api.cors_origins", ["http://localhost:3000", "http://localhost:5173"])
+
+    # Default to wildcard: local clients (OnlyOffice, Continue.dev, etc.) use
+    # non-http origins (onlyoffice://, vscode-webview://, ...) that must be allowed.
+    # allow_credentials must be False when allow_origins=["*"] (CORS standard).
+    # AItao uses Bearer tokens only — cookie credentials are not needed.
+    cors_origins = config.get("api.cors_origins", ["*"])
     if isinstance(cors_origins, str):
         cors_origins = [cors_origins]
-    
+
+    allow_credentials = "*" not in cors_origins
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
-        allow_credentials=True,
+        allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )

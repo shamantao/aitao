@@ -151,6 +151,12 @@ def _start_api_server(skip_pull: bool = False) -> Tuple[bool, Optional[int]]:
         if skip_pull:
             env["AITAO_SKIP_MODEL_PULL"] = "1"
         
+        # Open log file for API output (append mode)
+        log_dir = src_path.parent / "logs"
+        log_dir.mkdir(exist_ok=True)
+        api_log_path = log_dir / "api.log"
+        api_log_file = open(api_log_path, "a")  # noqa: WPS515
+
         # Start process detached
         process = subprocess.Popen(
             [
@@ -158,14 +164,15 @@ def _start_api_server(skip_pull: bool = False) -> Tuple[bool, Optional[int]]:
                 api_module,
                 "--host", host,
                 "--port", str(port),
-                "--log-level", "warning",
+                "--log-level", "info",
             ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=api_log_file,
+            stderr=api_log_file,
             cwd=str(src_path.parent),
             start_new_session=True,
             env=env,
         )
+        api_log_file.close()  # Parent process closes its handle; child keeps it
         
         # Save PID
         API_PID_FILE.write_text(str(process.pid))
