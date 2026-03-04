@@ -4,7 +4,7 @@
   <img src="docs/images/aitao-logo.png" alt="AItao Logo" width="200" />
 </p>
 
-> **"Your data stays yours. No cloud. No subscription. No compromise."**
+> **"Your data stays yours. No cloud. No compromise."**
 
 ---
 
@@ -262,6 +262,18 @@ Now Continue will use your local AI enhanced with your indexed documents!
 2. Add a new OpenAI-compatible provider:
    - **API Base**: `http://localhost:8200/v1`
    - **API Key**: `any-value`
+
+### Setting Up OnlyOffice AI
+
+OnlyOffice AI can use AItao directly as an OpenAI-compatible provider.
+
+Use:
+- **Provider**: `openai`
+- **Base URL**: `http://127.0.0.1:8200/v1`
+- **API Key**: any non-empty value (example: `sk-local`)
+
+For a full, reproducible local MVP setup (including RAG checks and troubleshooting),
+see [OnlyOffice Integration Guide](docs/ONLYOFFICE_INTEGRATION.md).
 
 ---
 

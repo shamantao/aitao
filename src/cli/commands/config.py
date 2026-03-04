@@ -17,8 +17,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from cli.utils import console, success, error, warning, info, print_header
 
+# Resolve project root from file location (CWD may be src/ when launched via aitao.sh)
+_PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+_CONFIG_PATH = _PROJECT_ROOT / "config" / "config.yaml"
+_CONFIG_TEMPLATE = _PROJECT_ROOT / "config" / "config.yaml.template"
 
-app = typer.Typer(help="Configuration management")
+
+app = typer.Typer(help="Configuration management", no_args_is_help=True)
 
 
 @app.command("show")
@@ -28,7 +33,7 @@ def show_config(
     """Show current configuration."""
     try:
         from core.config import ConfigManager
-        config = ConfigManager("config/config.yaml")
+        config = ConfigManager(str(_CONFIG_PATH))
         
         if section:
             data = config.get_section(section)
@@ -41,9 +46,8 @@ def show_config(
                 error(f"Section '{section}' not found")
         else:
             # Show full config
-            config_path = Path("config/config.yaml")
-            if config_path.exists():
-                syntax = Syntax(config_path.read_text(), "yaml", theme="monokai")
+            if _CONFIG_PATH.exists():
+                syntax = Syntax(_CONFIG_PATH.read_text(), "yaml", theme="monokai")
                 console.print(syntax)
                 
     except FileNotFoundError:
@@ -63,7 +67,7 @@ def validate_config():
     
     try:
         from core.config import ConfigManager
-        config = ConfigManager("config/config.yaml")
+        config = ConfigManager(str(_CONFIG_PATH))
         success("Config file parsed successfully")
         
         # Check required sections
@@ -109,7 +113,7 @@ def validate_config():
             raise typer.Exit(1)
             
     except FileNotFoundError:
-        error("Config file not found: config/config.yaml")
+        error(f"Config file not found: {_CONFIG_PATH}")
         raise typer.Exit(1)
 
 
@@ -119,16 +123,13 @@ def edit_config():
     import subprocess
     import os
     
-    config_path = Path("config/config.yaml")
-    
-    if not config_path.exists():
+    if not _CONFIG_PATH.exists():
         error("Config file not found")
         if typer.confirm("Create from template?"):
-            template = Path("config/config.yaml.template")
-            if template.exists():
+            if _CONFIG_TEMPLATE.exists():
                 import shutil
-                shutil.copy(template, config_path)
-                success("Created config/config.yaml from template")
+                shutil.copy(_CONFIG_TEMPLATE, _CONFIG_PATH)
+                success(f"Created {_CONFIG_PATH} from template")
             else:
                 error("Template not found")
                 raise typer.Exit(1)
@@ -136,4 +137,4 @@ def edit_config():
             raise typer.Exit(1)
     
     editor = os.environ.get("EDITOR", "nano")
-    subprocess.run([editor, str(config_path)])
+    subprocess.run([editor, str(_CONFIG_PATH)])

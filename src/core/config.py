@@ -255,7 +255,7 @@ class ConfigManager:
         
         Example:
             >>> config.get("paths.storage_root")
-            "/Users/phil/.aitao/data"
+            "${HOME}/.aitao/data"
             >>> config.get("api.port", 8200)
             8200
         """
