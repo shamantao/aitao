@@ -23,21 +23,21 @@ class TestPathManager:
         (temp_dir / "aitao.sh").touch()
         (temp_dir / "requirements.txt").touch()
         
-        # Create config directory with minimal config.yaml (V2)
+        # Create config directory with minimal config.toml (V2)
         config_dir = temp_dir / "config"
         config_dir.mkdir()
         
         config_content = """
-paths:
-  storage_root: "data"
-  logs_dir: "${storage_root}/logs"
-  models_dir: "../AI-models"
+[paths]
+storage_root = "data"
+logs_dir = "${storage_root}/logs"
+models_dir = "../AI-models"
 
-indexing:
-  include_paths: []
-  exclude_dirs: []
+[indexing]
+include_paths = []
+exclude_dirs = []
 """
-        (config_dir / "config.yaml").write_text(config_content)
+        (config_dir / "config.toml").write_text(config_content)
         
         yield temp_dir
         
@@ -51,7 +51,7 @@ indexing:
         pm = AitaoPathManager()
     
         assert pm.root.resolve() == temp_project_root.resolve()
-        assert pm.config_path.resolve() == (temp_project_root / "config" / "config.yaml").resolve()
+        assert pm.config_path.resolve() == (temp_project_root / "config" / "config.toml").resolve()
         assert pm.config is not None
     
     def test_get_storage_root(self, temp_project_root, monkeypatch):

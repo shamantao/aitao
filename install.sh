@@ -331,20 +331,20 @@ sync_dependencies() {
 setup_config() {
     step "Checking configuration..."
     
-    local config_file="${PROJECT_ROOT}/config/config.yaml"
-    local template_file="${PROJECT_ROOT}/config/config.yaml.template"
-    
+    local config_file="${PROJECT_ROOT}/config/config.toml"
+    local template_file="${PROJECT_ROOT}/config/config.toml.template"
+
     if [ -f "$config_file" ]; then
         log "Configuration file exists: ${config_file}"
         return
     fi
-    
+
     if [ -f "$template_file" ]; then
-        log "Creating config.yaml from template..."
+        log "Creating config.toml from template..."
         cp "$template_file" "$config_file"
         log "Created ${config_file} - please review and customize."
     else
-        warn "No config template found. Create config/config.yaml manually."
+        warn "No config template found. Create config/config.toml manually."
     fi
 }
 
@@ -379,7 +379,7 @@ print_summary() {
     echo "     source ${VENV_PATH}/bin/activate"
     echo ""
     echo "  2) Review/edit configuration:"
-    echo "     ${PROJECT_ROOT}/config/config.yaml"
+    echo "     ${PROJECT_ROOT}/config/config.toml"
     echo ""
     echo "  3) Start AItao:"
     echo "     ./aitao.sh start"

@@ -128,7 +128,7 @@ class TaskQueue:
         Initialize the task queue.
         
         Args:
-            config_path: Path to config.yaml
+            config_path: Path to config.toml
             queue_file: Custom path to queue file
         """
         # Load configuration (use global singleton for consistent paths)

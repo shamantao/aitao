@@ -898,7 +898,7 @@ class TextExtractor:
     def _get_max_size_from_config(self) -> float:
         """Get max file size from config or return default."""
         try:
-            config = ConfigManager("config/config.yaml")
+            config = ConfigManager("config/config.toml")
             return config.get("indexation.max_file_size_mb", DEFAULT_MAX_FILE_SIZE_MB)
         except Exception:
             return DEFAULT_MAX_FILE_SIZE_MB

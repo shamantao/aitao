@@ -30,7 +30,7 @@ from typing import Any, Dict, List, Optional, Union
 
 class ConfigKeys:
     """
-    Centralized config.yaml key paths.
+    Centralized config.toml key paths.
     
     Usage:
         config.get(ConfigKeys.STORAGE_ROOT)

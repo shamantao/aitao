@@ -71,7 +71,7 @@ class ModelConfigItem:
 
 
 class ModelConfigValidator:
-    """Validate and migrate model configuration from config.yaml."""
+    """Validate and migrate model configuration from config.toml."""
     
     @staticmethod
     def migrate_to_new_format(

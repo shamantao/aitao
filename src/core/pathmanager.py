@@ -12,7 +12,7 @@ class AitaoPathManager(GenericPathManager):
     def __init__(self):
         # 1. Initialize logic specifying markers unique to this project
         super().__init__(
-            config_filename="config.yaml",
+            config_filename="config.toml",
             root_markers=["aitao.sh", "requirements.txt"] 
         )
         

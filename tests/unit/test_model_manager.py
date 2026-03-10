@@ -29,9 +29,9 @@ from src.llm.ollama_client import OllamaConnectionError, OllamaModel
 
 @pytest.fixture
 def repo_config():
-    """Load repo config.yaml to keep tests aligned with project config."""
+    """Load repo config.toml to keep tests aligned with project config."""
     repo_root = Path(__file__).resolve().parents[2]
-    config_path = repo_root / "config" / "config.yaml"
+    config_path = repo_root / "config" / "config.toml"
     return ConfigManager(str(config_path))
 
 

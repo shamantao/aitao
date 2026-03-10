@@ -2,7 +2,7 @@
 Unit tests for ConfigManager.
 
 Tests cover:
-- YAML file loading
+- TOML file loading
 - Default values merging
 - Nested key access (dot notation)
 - Section retrieval
@@ -13,13 +13,45 @@ Tests cover:
 """
 
 import pytest
-import yaml
 import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
 from src.core.config import ConfigManager, ConfigError, get_config
+
+
+def _write_toml(path: Path, data: dict) -> None:
+    """Write a minimal TOML file from a dict (no external dependency)."""
+    lines = []
+
+    def _write_section(d: dict, prefix: str = "") -> None:
+        scalars = {k: v for k, v in d.items() if not isinstance(v, dict)}
+        dicts = {k: v for k, v in d.items() if isinstance(v, dict)}
+        if prefix and scalars:
+            lines.append(f"[{prefix}]")
+        for k, v in scalars.items():
+            if isinstance(v, bool):
+                lines.append(f"{k} = {'true' if v else 'false'}")
+            elif isinstance(v, (int, float)):
+                lines.append(f"{k} = {v}")
+            elif isinstance(v, list):
+                items = ", ".join(f'"{i}"' if isinstance(i, str) else str(i) for i in v)
+                lines.append(f"{k} = [{items}]")
+            else:
+                val = str(v).replace('\\', '\\\\').replace('"', '\\"')
+                lines.append(f'{k} = "{val}"')
+        for k, v in dicts.items():
+            sub = f"{prefix}.{k}" if prefix else k
+            _write_section(v, sub)
+
+    _write_section(data)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 class TestConfigManager:
@@ -34,24 +66,18 @@ class TestConfigManager:
     
     @pytest.fixture
     def minimal_config(self, temp_config_dir):
-        """Create minimal valid config.yaml."""
-        config_path = temp_config_dir / "config.yaml"
-        config_data = {
-            "paths": {
-                "storage_root": "/tmp/test_storage",
-            }
-        }
-        
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
+        """Create minimal valid config.toml."""
+        config_path = temp_config_dir / "config.toml"
+        _write_toml(config_path, {
+            "paths": {"storage_root": "/tmp/test_storage"},
+        })
         return config_path
-    
+
     @pytest.fixture
     def full_config(self, temp_config_dir):
-        """Create full config.yaml with all sections."""
-        config_path = temp_config_dir / "config.yaml"
-        config_data = {
+        """Create full config.toml with all sections."""
+        config_path = temp_config_dir / "config.toml"
+        _write_toml(config_path, {
             "paths": {
                 "storage_root": "/data/aitao",
                 "models_dir": "/models",
@@ -69,25 +95,21 @@ class TestConfigManager:
                 "host": "0.0.0.0",
                 "port": 9000,
             },
-        }
-        
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
+        })
         return config_path
     
     def test_config_manager_initialization(self, minimal_config):
         """Test ConfigManager initializes correctly."""
         config = ConfigManager(str(minimal_config))
-        
+
         assert config.config_path == minimal_config
-        assert config._config is not None
-        assert "paths" in config._config
+        assert config._data is not None
+        assert "paths" in config._data
     
     def test_config_manager_missing_file(self, temp_config_dir):
         """Test ConfigManager raises error if file not found."""
         with pytest.raises(ConfigError, match="not found"):
-            ConfigManager(str(temp_config_dir / "nonexistent.yaml"))
+            ConfigManager(str(temp_config_dir / "nonexistent.toml"))
     
     def test_config_get_simple_key(self, minimal_config):
         """Test getting simple configuration value."""
@@ -166,16 +188,9 @@ class TestConfigManager:
     
     def test_config_env_var_expansion(self, temp_config_dir):
         """Test environment variable expansion."""
-        config_path = temp_config_dir / "config.yaml"
-        config_data = {
-            "paths": {
-                "storage_root": "${HOME}/aitao_data",
-            }
-        }
-        
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
+        config_path = temp_config_dir / "config.toml"
+        _write_toml(config_path, {"paths": {"storage_root": "${HOME}/aitao_data"}})
+
         config = ConfigManager(str(config_path))
         
         storage = config.get("paths.storage_root")
@@ -184,24 +199,18 @@ class TestConfigManager:
     
     def test_config_reload(self, temp_config_dir):
         """Test configuration hot reload."""
-        config_path = temp_config_dir / "config.yaml"
-        
+        config_path = temp_config_dir / "config.toml"
+
         # Initial config
-        config_data = {"paths": {"storage_root": "/tmp/v1"}}
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
+        _write_toml(config_path, {"paths": {"storage_root": "/tmp/v1"}})
         config = ConfigManager(str(config_path))
         assert config.get("paths.storage_root") == "/tmp/v1"
-        
-        # Modify config
+
+        # Modify config (ensure mtime changes)
         import time
-        time.sleep(0.1)  # Ensure mtime changes
-        config_data["paths"]["storage_root"] = "/tmp/v2"
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
-        # Reload
+        time.sleep(0.05)
+        _write_toml(config_path, {"paths": {"storage_root": "/tmp/v2"}})
+
         config.reload()
         assert config.get("paths.storage_root") == "/tmp/v2"
     
@@ -219,28 +228,23 @@ class TestConfigManager:
         
         assert first_mtime == second_mtime
     
-    def test_config_invalid_yaml(self, temp_config_dir):
-        """Test error on invalid YAML syntax."""
-        config_path = temp_config_dir / "config.yaml"
-        
-        # Write invalid YAML
-        with open(config_path, 'w') as f:
-            f.write("invalid: yaml: syntax: [[[")
-        
-        with pytest.raises(ConfigError, match="Invalid YAML"):
+    def test_config_invalid_toml(self, temp_config_dir):
+        """Test error on invalid TOML syntax."""
+        config_path = temp_config_dir / "config.toml"
+        config_path.write_text("invalid toml = [[[\n", encoding="utf-8")
+
+        with pytest.raises(ConfigError, match="Invalid TOML"):
             ConfigManager(str(config_path))
     
     def test_config_missing_required_section(self, temp_config_dir):
-        """Test validation fails if required section missing."""
-        config_path = temp_config_dir / "config.yaml"
-        
-        # Config without required 'paths' section
-        config_data = {"api": {"port": 8200}}
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
-        with pytest.raises(ConfigError, match="Missing required section"):
-            ConfigManager(str(config_path))
+        """Test that a config with only optional sections still loads (paths has defaults)."""
+        config_path = temp_config_dir / "config.toml"
+        # TOML config with only api section — paths come from _DEFAULTS
+        _write_toml(config_path, {"api": {"port": 8200}})
+
+        config = ConfigManager(str(config_path))
+        # Paths section should come from defaults
+        assert config.get("paths.storage_root") is not None
     
     def test_config_thread_safe_access(self, minimal_config):
         """Test thread-safe configuration access."""
@@ -275,23 +279,18 @@ class TestGetConfigSingleton:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset singleton before each test."""
-        import src.core.config
-        src.core.config._config_manager = None
+        import src.core.config as _cfg_module
+        _cfg_module._config_manager = None
         yield
-        src.core.config._config_manager = None
+        _cfg_module._config_manager = None
     
     @pytest.fixture
     def temp_config(self):
         """Create temporary config file."""
         temp_dir = Path(tempfile.mkdtemp())
-        config_path = temp_dir / "config.yaml"
-        
-        config_data = {"paths": {"storage_root": "/tmp/singleton"}}
-        with open(config_path, 'w') as f:
-            yaml.dump(config_data, f)
-        
+        config_path = temp_dir / "config.toml"
+        _write_toml(config_path, {"paths": {"storage_root": "/tmp/singleton"}})
         yield config_path
-        
         shutil.rmtree(temp_dir, ignore_errors=True)
     
     def test_get_config_returns_singleton(self, temp_config):

@@ -17,13 +17,6 @@ except ImportError:
         except ImportError:
             tomllib = None
 
-# YAML support for V2
-yaml = None
-try:
-    import yaml
-except ImportError:
-    pass
-
 class GenericPathManager:
     """
     A generic, reusable configuration and path manager.

@@ -170,7 +170,7 @@ class ChunkingConfig:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ChunkingConfig":
-        """Create config from dictionary (e.g., from config.yaml)."""
+        """Create config from dictionary (e.g., from config.toml)."""
         return cls(
             chunk_size=data.get("chunk_size", 512),
             chunk_overlap=data.get("chunk_overlap", 50),

@@ -137,7 +137,7 @@ class MeilisearchClient:
             if config:
                 self._config = config
             else:
-                self._config = ConfigManager("config/config.yaml")
+                self._config = ConfigManager("config/config.toml")
         except Exception:
             self._config = None
         

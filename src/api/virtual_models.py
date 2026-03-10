@@ -14,8 +14,8 @@ Example:
     Router returns: real_model="llama3.1-local:latest", rag_enabled=True, filter=None
 
 Configuration:
-    Virtual models can be configured in config.yaml under `virtual_models` section.
-    See config/config.yaml for full documentation.
+    Virtual models can be configured in config.toml under `virtual_models` section.
+    See config/config.toml for full documentation.
 
 Architecture Note:
     The user keeps control over context injection level through model selection,
@@ -144,10 +144,10 @@ class VirtualModelRouter:
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "VirtualModelRouter":
         """
-        Create a VirtualModelRouter from config.yaml virtual_models section.
+        Create a VirtualModelRouter from config.toml virtual_models section.
         
         Args:
-            config: The virtual_models config dict from config.yaml.
+            config: The virtual_models config dict from config.toml.
                     Can be empty to use defaults.
         
         Returns:
@@ -201,7 +201,7 @@ class VirtualModelRouter:
             logger.debug("Using default base model mappings")
         
         logger.info(
-            "VirtualModelRouter configured from config.yaml",
+            "VirtualModelRouter configured from config.toml",
             metadata={
                 "suffixes": list(suffix_configs.keys()),
                 "mappings": list(base_mappings.keys()),
@@ -313,11 +313,11 @@ def get_virtual_router(config: Optional[Dict[str, Any]] = None) -> VirtualModelR
     """
     Get or create the virtual model router singleton.
     
-    On first call, loads configuration from config.yaml if no config is passed.
+    On first call, loads configuration from config.toml if no config is passed.
     Subsequent calls return the cached instance.
     
     Args:
-        config: Optional virtual_models config dict. If None, loads from config.yaml.
+        config: Optional virtual_models config dict. If None, loads from config.toml.
         
     Returns:
         VirtualModelRouter instance.
@@ -325,23 +325,23 @@ def get_virtual_router(config: Optional[Dict[str, Any]] = None) -> VirtualModelR
     global _router
     if _router is None:
         if config is None:
-            # Load from config.yaml
+            # Load from config.toml
             config = _load_config_from_yaml()
         _router = VirtualModelRouter.from_config(config)
     return _router
 
 
 def _load_config_from_yaml() -> Dict[str, Any]:
-    """Load virtual_models section from config.yaml."""
+    """Load virtual_models section from config.toml."""
     try:
         from src.core.config import get_config
         cfg = get_config()
         vm_config = cfg.get_section("virtual_models")
         if vm_config:
-            logger.debug("Loaded virtual_models config from config.yaml")
+            logger.debug("Loaded virtual_models config from config.toml")
             return vm_config
     except Exception as e:
-        logger.warning(f"Could not load virtual_models from config.yaml: {e}")
+        logger.warning(f"Could not load virtual_models from config.toml: {e}")
     
     # Return empty dict to use defaults
     return {}

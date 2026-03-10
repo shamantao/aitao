@@ -1,20 +1,45 @@
 """
-Configuration manager for AItao V2.
+AiTao — src/core/config.py
 
-This module provides centralized configuration loading and validation:
-- Loads config.yaml with schema validation
-- Provides default values for missing keys
-- Hot-reload on file modification
-- Environment variable substitution
-- Nested key access with dot notation
+Layered TOML config loader, aligned with tao-init v1.0.0 python adapter.
+Replaces the former YAML-based loader (migrated US-045, 2026-03-10).
+
+Uses tomllib (Python 3.11+ stdlib). No external dependencies required.
+For Python 3.10, tomli is used as a fallback (must be installed).
+
+Layer priority (highest wins):
+  config/config.toml  →  ~/.config/aitao/user.toml  →  env vars (APP__SECTION__KEY)
+
+Usage:
+    from src.core.config import ConfigManager
+
+    config = ConfigManager()
+    storage_root = config.get("paths.storage_root")
+    port         = config.get("api.port", 8200)
+    indexing     = config.get_section("indexing")
+    config.reload()
 """
 
+from __future__ import annotations
+
+import copy
 import os
-import yaml
+import sys
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
-from datetime import datetime
-from threading import Lock
+
+try:
+    import tomllib                  # Python 3.11+ stdlib
+except ModuleNotFoundError:
+    try:
+        import tomli as tomllib     # uv pip install tomli (Python 3.10 fallback)
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "tomllib not available. "
+            "Python 3.11+ includes it in stdlib. "
+            "For Python 3.10, run: uv pip install tomli"
+        ) from exc
 
 try:
     from src.core.logger import get_logger
@@ -24,57 +49,88 @@ except ImportError:
 
 class ConfigError(Exception):
     """Raised when configuration is invalid or missing."""
-    pass
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """
+    Recursively merge `override` into `base`.
+    Returns the mutated `base`. Does not affect scalar types.
+    """
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
+# ---------------------------------------------------------------------------
+# ConfigManager
+# ---------------------------------------------------------------------------
 
 class ConfigManager:
     """
-    Centralized configuration manager with validation and hot-reload.
-    
-    Features:
-    - Loads YAML configuration files
-    - Validates required sections
-    - Provides default values
-    - Monitors file changes for hot-reload
-    - Thread-safe access
-    - Environment variable expansion
-    
-    Usage:
-        config = ConfigManager("config/config.yaml")
-        storage_root = config.get("paths.storage_root")
-        indexing = config.get_section("indexing")
-        config.reload()  # Manual reload
+    Thread-safe layered TOML configuration manager.
+
+    Layers (later overrides earlier):
+      1. Built-in defaults (_DEFAULTS)
+      2. config/config.toml  (project config, committed)
+      3. ~/.config/aitao/user.toml  (user overrides, not committed)
+      4. Environment variables:  APP__<SECTION>__<KEY>=value
+
+    Public API:
+      get(key, default)     — dot-notation key, e.g. "paths.storage_root"
+      get_section(section)  — returns full section dict (copy)
+      require(key)          — like get() but raises SystemExit if missing
+      set(key, value)       — runtime override (not persisted)
+      reload()              — reload from disk
+      dump()                — full merged config (for debugging)
     """
-    
-    # Default configuration schema
-    DEFAULTS = {
+
+    _DEFAULTS: dict[str, Any] = {
+        "app": {
+            "name": "aitao",
+            "mode": "normal",
+            "version": "2.5.1",
+        },
         "paths": {
             "storage_root": "${HOME}/.aitao/data",
-            "models_dir": "${HOME}/.aitao/models",
+            "models_dir":   "${HOME}/.aitao/models",
         },
         "indexing": {
-            "enabled": True,
+            "enabled":          True,
             "interval_minutes": 60,
-            "include_paths": [],
-            "exclude_patterns": [".git", ".DS_Store", "__pycache__"],
+            "include_paths":    [],
+            "exclude_dirs":     [".git", ".DS_Store", "__pycache__"],
+            "exclude_files":    [],
+            "exclude_extensions": [],
         },
         "ocr": {
-            "provider": "paddleocr",
-            "languages": ["fr", "en"],
+            "provider":             "auto",
+            "languages":            ["fr", "en"],
             "confidence_threshold": 0.7,
         },
         "translation": {
-            "provider": "mbart50",
+            "provider":    "mbart50",
             "source_lang": "fr",
             "target_lang": "zh_TW",
         },
         "search": {
             "meilisearch": {
-                "url": "http://localhost:7700",
-                "api_key": "",
+                "url":        "http://localhost:7700",
+                "api_key":    "",
+                "index_name": "aitao_documents",
             },
             "lancedb": {
                 "embedding_model": "BAAI/bge-m3",
+                "table_name":      "aitao_embeddings",
+                "dimension":       1024,
+                "top_k":           20,
+                "min_score":       0.45,
             },
         },
         "api": {
@@ -83,96 +139,62 @@ class ConfigManager:
         },
         "resources": {
             "max_workers": 4,
-            "batch_size": 10,
+            "batch_size":  10,
         },
-        "logging": {
-            "level": "INFO",
-            "max_file_size_mb": 100,
-            "backup_count": 5,
+        "logger": {
+            "level":          "info",
+            "console_pretty": True,
+            "file_json":      True,
+            "max_file_mb":    100,
+            "max_files":      5,
+        },
+        "rag": {
+            "enabled":             True,
+            "use_chunks":          True,
+            "max_context_chunks":  5,
+            "context_max_tokens":  4000,
+            "min_relevance_score": 0.3,
         },
     }
-    
+
     def __init__(self, config_path: Optional[str] = None, auto_reload: bool = False):
         """
         Initialize ConfigManager.
-        
+
         Args:
-            config_path: Path to config.yaml file. If None, searches in standard locations.
-            auto_reload: Enable automatic reload on file changes (not implemented yet)
-        
-        Raises:
-            ConfigError: If config file not found or invalid
+            config_path:  Path to config.toml. If None, searches standard locations.
+            auto_reload:  Reserved for future hot-reload support.
         """
         self.logger = get_logger("config")
-        self._lock = Lock()
-        self._config: Dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self._data: dict[str, Any] = {}
         self._last_modified: Optional[float] = None
         self._auto_reload = auto_reload
-        
-        # Determine config file path
+
+        # Resolve config file path
         if config_path:
-            self.config_path = Path(config_path)
+            # Accept both old .yaml and new .toml paths transparently during migration
+            resolved = Path(config_path)
+            if not resolved.exists() and resolved.suffix in (".yaml", ".yml"):
+                toml_equivalent = resolved.with_suffix(".toml")
+                if toml_equivalent.exists():
+                    resolved = toml_equivalent
+            self.config_path = resolved
         else:
-            # Find project root by looking for marker files
-            project_root = self._find_project_root()
-            
-            # Search in standard locations (relative to project root first)
-            search_paths = []
-            if project_root:
-                search_paths.extend([
-                    project_root / "config" / "config.yaml",
-                    project_root / "config" / "config.yml",
-                    project_root / "config.yaml",
-                ])
-            # Also check relative paths (for backward compatibility)
-            search_paths.extend([
-                Path("config/config.yaml"),
-                Path("config/config.yml"),
-                Path("config.yaml"),
-                Path.home() / ".aitao" / "config.yaml",
-            ])
-            
-            self.config_path = None
-            for path in search_paths:
-                if path.exists():
-                    self.config_path = path
-                    break
-            
-            if not self.config_path:
-                raise ConfigError(
-                    f"Configuration file not found. Searched: {[str(p) for p in search_paths]}"
-                )
-        
-        # Load configuration
+            self.config_path = self._find_config()
+
         self.reload()
-        
         self.logger.info(
             "ConfigManager initialized",
-            metadata={
-                "config_path": str(self.config_path),
-                "sections": list(self._config.keys())
-            }
+            metadata={"config_path": str(self.config_path), "sections": list(self._data.keys())},
         )
-    
+
+    # ------------------------------------------------------------------
     def _find_project_root(self) -> Optional[Path]:
-        """
-        Find the project root directory by looking for marker files.
-        
-        Searches upward from this file's location for:
-        - aitao.sh (main project marker)
-        - pyproject.toml (Python project marker)
-        - requirements.txt (alternative marker)
-        
-        Returns:
-            Path to project root, or None if not found
-        """
-        # Start from this file's directory
+        """Walk up from this file searching for project markers."""
         current = Path(__file__).resolve().parent
-        
-        markers = ["aitao.sh", "pyproject.toml", "requirements.txt"]
-        
-        # Walk up the directory tree
-        for _ in range(10):  # Max 10 levels up
+        markers = ["aitao.sh", "pyproject.toml"]
+        for _ in range(10):
             for marker in markers:
                 if (current / marker).exists():
                     return current
@@ -180,249 +202,185 @@ class ConfigManager:
             if parent == current:
                 break
             current = parent
-        
         return None
-    
+
+    def _find_config(self) -> Path:
+        """Locate config.toml in standard locations."""
+        project_root = self._find_project_root()
+        candidates: list[Path] = []
+
+        if project_root:
+            candidates += [
+                project_root / "config" / "config.toml",
+                project_root / "config.toml",
+            ]
+        candidates += [
+            Path("config/config.toml"),
+            Path("config.toml"),
+            Path.home() / ".config" / "aitao" / "user.toml",
+        ]
+
+        for path in candidates:
+            if path.exists():
+                return path
+
+        raise ConfigError(
+            f"Configuration file not found. Searched: {[str(p) for p in candidates]}\n"
+            "Run: cp config/config.toml.template config/config.toml"
+        )
+
+    # ------------------------------------------------------------------
     def reload(self) -> None:
         """
-        Reload configuration from file.
-        
-        This method is thread-safe and can be called manually to refresh config.
-        
-        Raises:
-            ConfigError: If reload fails
+        Reload configuration from disk.
+        Thread-safe; can be called manually to pick up file changes.
         """
         with self._lock:
             try:
                 if not self.config_path.exists():
                     raise ConfigError(f"Config file not found: {self.config_path}")
-                
-                # Check if file was modified
+
                 current_mtime = self.config_path.stat().st_mtime
                 if self._last_modified and current_mtime == self._last_modified:
-                    self.logger.debug("Config file unchanged, skipping reload")
                     return
-                
-                # Load YAML
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    raw_config = yaml.safe_load(f)
-                
-                if not isinstance(raw_config, dict):
-                    raise ConfigError("Config file must contain a YAML dictionary")
-                
-                # Validate required sections BEFORE merging defaults
-                self._validate_raw_config(raw_config)
-                
-                # Merge with defaults
-                self._config = self._merge_with_defaults(raw_config)
-                
-                # Expand environment variables ($HOME, $USER, etc.)
-                self._config = self._expand_env_vars(self._config)
-                
-                # Expand internal variables (${storage_root}, etc.)
-                self._config = self._expand_internal_vars(self._config)
-                
-                # Validate final config
-                self._validate_config()
-                
+
+                # 1. Start from defaults
+                merged: dict[str, Any] = copy.deepcopy(self._DEFAULTS)
+
+                # 2. Load project config
+                with open(self.config_path, "rb") as f:
+                    file_data = tomllib.load(f)
+                _deep_merge(merged, file_data)
+
+                # 3. Load optional user overrides (~/.config/aitao/user.toml)
+                user_toml = Path.home() / ".config" / "aitao" / "user.toml"
+                if user_toml.exists():
+                    with open(user_toml, "rb") as f:
+                        _deep_merge(merged, tomllib.load(f))
+
+                # 4. Apply env var overrides: APP__SECTION__KEY=value
+                for envvar, value in os.environ.items():
+                    if envvar.startswith("APP__"):
+                        parts = envvar.split("__", 2)
+                        if len(parts) == 3:
+                            _, section, key = parts
+                            section = section.lower()
+                            key = key.lower()
+                            merged.setdefault(section, {})[key] = value
+
+                # 5. Expand ${HOME} and ${storage_root}  
+                self._data = self._expand_vars(merged)
                 self._last_modified = current_mtime
-                
-                self.logger.info(
-                    "Configuration reloaded",
-                    metadata={
-                        "modified": datetime.fromtimestamp(current_mtime).isoformat(),
-                        "sections": list(self._config.keys())
-                    }
-                )
-                
-            except yaml.YAMLError as e:
-                raise ConfigError(f"Invalid YAML syntax: {e}")
-            except Exception as e:
-                raise ConfigError(f"Failed to reload config: {e}")
-    
+
+            except (OSError, ValueError) as e:
+                raise ConfigError(f"Invalid TOML syntax: {e}") from e
+
+    # ------------------------------------------------------------------
+    def _expand_vars(self, data: Any) -> Any:
+        """Recursively expand ${HOME} and ${storage_root} in string values."""
+        if isinstance(data, dict):
+            # Resolve storage_root first so it can be referenced in other values
+            storage_root = data.get("paths", {}).get("storage_root", "")
+            if storage_root:
+                storage_root = os.path.expandvars(storage_root.replace("${HOME}", str(Path.home())))
+
+            result = {}
+            for k, v in data.items():
+                result[k] = self._expand_vars(v)
+            # Second pass to resolve ${storage_root} which may appear in sub-sections
+            if storage_root:
+                result = self._replace_storage_root(result, storage_root)
+            return result
+        elif isinstance(data, list):
+            return [self._expand_vars(item) for item in data]
+        elif isinstance(data, str):
+            return os.path.expandvars(data.replace("${HOME}", str(Path.home())))
+        return data
+
+    def _replace_storage_root(self, data: Any, storage_root: str) -> Any:
+        """Replace ${storage_root} after storage_root itself is resolved."""
+        if isinstance(data, dict):
+            return {k: self._replace_storage_root(v, storage_root) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._replace_storage_root(item, storage_root) for item in data]
+        elif isinstance(data, str) and "${storage_root}" in data:
+            return data.replace("${storage_root}", storage_root)
+        return data
+
+    # ------------------------------------------------------------------
     def get(self, key: str, default: Any = None) -> Any:
         """
-        Get configuration value by key.
-        
-        Supports dot notation for nested keys: "paths.storage_root"
-        
-        Args:
-            key: Configuration key (supports dot notation)
-            default: Default value if key not found
-        
-        Returns:
-            Configuration value or default
-        
-        Example:
-            >>> config.get("paths.storage_root")
-            "${HOME}/.aitao/data"
-            >>> config.get("api.port", 8200)
-            8200
+        Return a config value by dot-notation key.
+
+        Examples:
+            config.get("paths.storage_root")
+            config.get("api.port", 8200)
+            config.get("llm.generation.temperature", 0.7)
         """
         with self._lock:
-            keys = key.split('.')
-            value = self._config
-            
-            for k in keys:
-                if isinstance(value, dict) and k in value:
-                    value = value[k]
+            parts = key.split(".")
+            node = self._data
+            for part in parts:
+                if isinstance(node, dict) and part in node:
+                    node = node[part]
                 else:
                     return default
-            
-            return value
-    
+            return node
+
+    def require(self, key: str) -> Any:
+        """Like get() but raises SystemExit with a clear message if the key is missing."""
+        _sentinel = object()
+        value = self.get(key, _sentinel)
+        if value is _sentinel:
+            raise SystemExit(f"Required config key missing: {key}")
+        return value
+
     def get_section(self, section: str) -> Dict[str, Any]:
-        """
-        Get entire configuration section.
-        
-        Args:
-            section: Section name (e.g., "indexing", "ocr", "api")
-        
-        Returns:
-            Dictionary of section configuration
-        
-        Raises:
-            ConfigError: If section doesn't exist
-        
-        Example:
-            >>> indexing = config.get_section("indexing")
-            >>> print(indexing["enabled"])
-            True
-        """
+        """Return an entire top-level section as a dict (copy)."""
         with self._lock:
-            if section not in self._config:
-                raise ConfigError(f"Configuration section not found: {section}")
-            
-            return self._config[section].copy()
-    
+            if section not in self._data:
+                raise ConfigError(f"Configuration section not found: '{section}'")
+            return dict(self._data[section])
+
     def set(self, key: str, value: Any) -> None:
         """
-        Set configuration value at runtime (not persisted to file).
-        
-        Args:
-            key: Configuration key (supports dot notation)
-            value: New value
-        
-        Example:
-            >>> config.set("api.port", 8201)
+        Set a config value at runtime (not persisted to disk).
+        Supports dot-notation: config.set("api.port", 9000)
         """
         with self._lock:
-            keys = key.split('.')
-            target = self._config
-            
-            for k in keys[:-1]:
-                if k not in target:
-                    target[k] = {}
-                target = target[k]
-            
-            target[keys[-1]] = value
-            
-            self.logger.debug(
-                "Configuration value updated",
-                metadata={"key": key, "value": value}
-            )
-    
-    def _merge_with_defaults(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Recursively merge loaded config with defaults."""
-        result = self.DEFAULTS.copy()
-        
-        for key, value in config.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-                result[key] = {**result[key], **value}
-            else:
-                result[key] = value
-        
-        return result
-    
-    def _expand_env_vars(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Recursively expand environment variables in config values."""
-        if isinstance(config, dict):
-            return {k: self._expand_env_vars(v) for k, v in config.items()}
-        elif isinstance(config, list):
-            return [self._expand_env_vars(item) for item in config]
-        elif isinstance(config, str):
-            return os.path.expandvars(config)
-        else:
-            return config
+            parts = key.split(".")
+            node = self._data
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            node[parts[-1]] = value
 
-    def _expand_internal_vars(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Expand internal config variables like ${storage_root}.
-        
-        These are variables defined within the config file itself,
-        not shell environment variables.
-        """
-        # First, resolve the storage_root (it may contain $HOME)
-        storage_root = config.get("paths", {}).get("storage_root", "")
-        if storage_root:
-            storage_root = os.path.expandvars(storage_root)
-            storage_root = os.path.expanduser(storage_root)
-        
-        def replace_vars(value: Any) -> Any:
-            if isinstance(value, dict):
-                return {k: replace_vars(v) for k, v in value.items()}
-            elif isinstance(value, list):
-                return [replace_vars(item) for item in value]
-            elif isinstance(value, str):
-                # Replace ${storage_root} with the resolved value
-                if "${storage_root}" in value:
-                    return value.replace("${storage_root}", storage_root)
-                return value
-            else:
-                return value
-        
-        return replace_vars(config)
-    
-    def _validate_raw_config(self, config: Dict[str, Any]) -> None:
-        """
-        Validate raw configuration before merging defaults.
-        
-        Raises:
-            ConfigError: If validation fails
-        """
-        required_sections = ["paths"]
-        
-        for section in required_sections:
-            if section not in config:
-                raise ConfigError(f"Missing required section: {section}")
-    
-    def _validate_config(self) -> None:
-        """
-        Validate configuration has required sections.
-        
-        Raises:
-            ConfigError: If validation fails
-        """
-        required_sections = ["paths"]
-        
-        for section in required_sections:
-            if section not in self._config:
-                raise ConfigError(f"Missing required section: {section}")
+    def dump(self) -> dict[str, Any]:
+        """Return the full merged config dict (useful for debugging)."""
+        with self._lock:
+            return copy.deepcopy(self._data)
 
 
-# Global singleton instance
+# ---------------------------------------------------------------------------
+# Singleton helper (backward-compatible with existing callers)
+# ---------------------------------------------------------------------------
+
 _config_manager: Optional[ConfigManager] = None
-_config_lock = Lock()
+_singleton_lock = threading.Lock()
 
 
 def get_config(config_path: Optional[str] = None) -> ConfigManager:
     """
-    Get global ConfigManager instance (singleton pattern).
-    
+    Return a process-wide ConfigManager singleton.
+
     Args:
-        config_path: Path to config file (only used on first call)
-    
+        config_path: Path to config.toml (only used on first call).
+
     Returns:
-        Global ConfigManager instance
-    
-    Example:
-        >>> config = get_config()
-        >>> port = config.get("api.port")
+        Shared ConfigManager instance.
     """
     global _config_manager
-    
-    with _config_lock:
+    with _singleton_lock:
         if _config_manager is None:
             _config_manager = ConfigManager(config_path)
-        
         return _config_manager
+

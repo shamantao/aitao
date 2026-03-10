@@ -70,7 +70,7 @@ class OllamaClient:
         Initialize OllamaClient.
         
         Args:
-            config: ConfigManager instance for reading config.yaml
+            config: ConfigManager instance for reading config.toml
             logger: StructuredLogger instance for logging operations
         """
         self.config = config
@@ -79,7 +79,7 @@ class OllamaClient:
         # Get Ollama configuration
         llm_config = config.get_section("llm")
         if not llm_config:
-            raise ValueError("Missing 'llm' section in config.yaml")
+            raise ValueError("Missing 'llm' section in config.toml")
         
         # Support both nested (ollama.host) and flat (ollama_url) config formats
         ollama_config = llm_config.get("ollama", {})
@@ -418,7 +418,7 @@ class OllamaClient:
         Delete a model from Ollama.
         
         Uses DELETE /api/delete endpoint to remove model files.
-        This frees up disk space but doesn't remove from config.yaml.
+        This frees up disk space but doesn't remove from config.toml.
         
         Args:
             model: Model name to delete (e.g., "llama3.1:8b")

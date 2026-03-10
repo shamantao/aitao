@@ -78,7 +78,7 @@ class FilesystemScanner:
     Scans configured filesystem paths to discover documents.
     
     Features:
-    - Reads include/exclude paths from config.yaml
+    - Reads include/exclude paths from config.toml
     - Tracks file state (mtime, hash) to detect changes
     - Supports incremental scans with state persistence
     - Filters by supported file extensions
@@ -111,7 +111,7 @@ class FilesystemScanner:
         Initialize the scanner.
         
         Args:
-            config_path: Path to config.yaml (default: auto-discover)
+            config_path: Path to config.toml (default: auto-discover)
             state_file: Path to state file for incremental scans
         """
         # Load configuration
@@ -119,7 +119,7 @@ class FilesystemScanner:
             self.config = ConfigManager(config_path)
         else:
             # Use PathManager for config discovery
-            config_file = path_manager.root / "config" / "config.yaml"
+            config_file = path_manager.root / "config" / "config.toml"
             self.config = ConfigManager(str(config_file))
         
         # Get indexing configuration

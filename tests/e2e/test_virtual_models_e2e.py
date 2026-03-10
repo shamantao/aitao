@@ -30,7 +30,7 @@ from core.config import get_config
 
 
 class TestVirtualModelRoutingE2E:
-    """E2E tests for virtual model routing from config.yaml."""
+    """E2E tests for virtual model routing from config.toml."""
     
     @pytest.fixture(autouse=True)
     def reset_router_before_test(self):
@@ -40,7 +40,7 @@ class TestVirtualModelRoutingE2E:
         reset_router()
     
     def test_router_loads_from_config_yaml(self):
-        """Router should load configuration from config.yaml."""
+        """Router should load configuration from config.toml."""
         router = get_virtual_router()
         
         # Should have base mappings from config
@@ -51,7 +51,7 @@ class TestVirtualModelRoutingE2E:
         assert len(router.suffix_configs) > 0
     
     def test_config_yaml_virtual_models_section(self):
-        """config.yaml should have virtual_models section."""
+        """config.toml should have virtual_models section."""
         config = get_config()
         vm_config = config.get_section("virtual_models")
         

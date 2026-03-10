@@ -108,8 +108,8 @@ def get_project_root() -> Path:
 
 
 def get_config_path() -> Path:
-    """Get the absolute path to config.yaml."""
-    return get_project_root() / "config" / "config.yaml"
+    """Get the absolute path to config.toml."""
+    return get_project_root() / "config" / "config.toml"
 
 
 @contextmanager

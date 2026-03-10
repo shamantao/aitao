@@ -38,7 +38,6 @@ def check_critical_imports() -> list[tuple[str, bool, str]]:
         ("docx", "DOCX extraction (python-docx)"),
         ("langdetect", "Language detection"),
         # Config & Utils
-        ("yaml", "YAML parsing (PyYAML)"),
         ("toml", "TOML parsing"),
         ("psutil", "System monitoring"),
     ]
@@ -114,7 +113,6 @@ def main():
         module_to_package = {
             "sentence_transformers": "sentence-transformers",
             "docx": "python-docx",
-            "yaml": "pyyaml",
         }
         
         for mod in failed_imports:

@@ -139,24 +139,17 @@ def temp_test_dir():
 def mock_config(temp_test_dir, tmp_path):
     """Create a mock config file for testing."""
     config_content = f"""
-paths:
-  storage_root: "{tmp_path}"
+[paths]
+storage_root = "{tmp_path}"
 
-indexing:
-  enabled: true
-  include_paths:
-    - "{temp_test_dir}"
-  exclude_dirs:
-    - "__pycache__"
-    - ".git"
-    - "node_modules"
-  exclude_files:
-    - ".DS_Store"
-  exclude_extensions:
-    - ".log"
-    - ".tmp"
+[indexing]
+enabled = true
+include_paths = ["{temp_test_dir}"]
+exclude_dirs = ["__pycache__", ".git", "node_modules"]
+exclude_files = [".DS_Store"]
+exclude_extensions = [".log", ".tmp"]
 """
-    config_file = tmp_path / "config.yaml"
+    config_file = tmp_path / "config.toml"
     config_file.write_text(config_content)
     return str(config_file)
 

@@ -8,7 +8,7 @@ This module handles:
 4. Future phases: Automatic downloading (US-021c)
 
 Responsibilities:
-- Verify models configured in config.yaml exist in Ollama
+- Verify models configured in config.toml exist in Ollama
 - Parse Ollama's `ollama list` output
 - Report detailed status (required missing, optional missing, extra)
 - Integration point for startup checks and CLI commands
@@ -83,7 +83,7 @@ class ModelManager:
         """
         Check status of configured models.
         
-        Compares models listed in config.yaml against Ollama's available models.
+        Compares models listed in config.toml against Ollama's available models.
         
         Returns:
             ModelStatus with present/missing/extra models
@@ -97,7 +97,7 @@ class ModelManager:
         """
         logger.info("Checking model status...")
         
-        # Get configured models from config.yaml
+        # Get configured models from config.toml
         configured_models = self._get_configured_models()
         
         # Get installed models from Ollama
@@ -155,7 +155,7 @@ class ModelManager:
     
     def _get_configured_models(self) -> List[ModelInfo]:
         """
-        Parse models from config.yaml with validation.
+        Parse models from config.toml with validation.
         
         Uses ModelConfigValidator to:
         1. Validate schema (required fields, types)
@@ -175,7 +175,7 @@ class ModelManager:
         models_config = config.get(ConfigKeys.LLM_MODELS, [])
         
         if not models_config:
-            logger.warning("No models configured in config.yaml")
+            logger.warning("No models configured in config.toml")
             return []
         
         try:
@@ -283,7 +283,7 @@ class ModelManager:
         
         Args:
             timeout_minutes: Maximum time to wait (per model or total?).
-                           Reads from config.yaml → llm.startup.pull_timeout_minutes if None.
+                           Reads from config.toml → llm.startup.pull_timeout_minutes if None.
             progress_callback: Optional callback called with (model_name, percent_complete).
                              Useful for CLI progress display.
         

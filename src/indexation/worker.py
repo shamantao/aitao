@@ -102,7 +102,7 @@ class BackgroundWorker:
         Initialize the background worker.
         
         Args:
-            config_path: Path to config.yaml
+            config_path: Path to config.toml
             queue: Optional TaskQueue instance (creates one if not provided)
             task_handler: Optional callback to process tasks
         """
@@ -111,7 +111,7 @@ class BackgroundWorker:
             self.config_manager = ConfigManager(config_path)
         else:
             project_root = Path(__file__).parent.parent.parent
-            config_file = project_root / "config" / "config.yaml"
+            config_file = project_root / "config" / "config.toml"
             if config_file.exists():
                 self.config_manager = ConfigManager(str(config_file))
             else:
@@ -148,7 +148,7 @@ class BackgroundWorker:
             if storage_root:
                 storage_path = Path(os.path.expandvars(storage_root)).expanduser()
             else:
-                raise ValueError("storage_root not configured - check config.yaml")
+                raise ValueError("storage_root not configured - check config.toml")
         else:
             raise ValueError("ConfigManager required for worker initialization")
         self.pid_file = storage_path / "worker.pid"

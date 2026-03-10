@@ -19,8 +19,8 @@ from cli.utils import console, success, error, warning, info, print_header
 
 # Resolve project root from file location (CWD may be src/ when launched via aitao.sh)
 _PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-_CONFIG_PATH = _PROJECT_ROOT / "config" / "config.yaml"
-_CONFIG_TEMPLATE = _PROJECT_ROOT / "config" / "config.yaml.template"
+_CONFIG_PATH = _PROJECT_ROOT / "config" / "config.toml"
+_CONFIG_TEMPLATE = _PROJECT_ROOT / "config" / "config.toml.template"
 
 
 app = typer.Typer(help="Configuration management", no_args_is_help=True)
@@ -38,21 +38,21 @@ def show_config(
         if section:
             data = config.get_section(section)
             if data:
-                import yaml
-                output = yaml.dump(data, default_flow_style=False, allow_unicode=True)
-                syntax = Syntax(output, "yaml", theme="monokai")
+                import json
+                output = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+                syntax = Syntax(output, "json", theme="monokai")
                 console.print(syntax)
             else:
                 error(f"Section '{section}' not found")
         else:
             # Show full config
             if _CONFIG_PATH.exists():
-                syntax = Syntax(_CONFIG_PATH.read_text(), "yaml", theme="monokai")
+                syntax = Syntax(_CONFIG_PATH.read_text(), "toml", theme="monokai")
                 console.print(syntax)
                 
     except FileNotFoundError:
-        error("Config file not found: config/config.yaml")
-        info("Run: cp config/config.yaml.template config/config.yaml")
+        error("Config file not found: config/config.toml")
+        info("Run: cp config/config.toml.template config/config.toml")
     except Exception as e:
         error(f"Error reading config: {e}")
 

@@ -41,7 +41,7 @@ def scan_run(
     """
     Scan filesystem for new and modified documents.
     
-    Scans the paths configured in config.yaml (indexing.include_paths)
+    Scans the paths configured in config.toml (indexing.include_paths)
     and identifies files that need to be indexed.
     """
     print_header("Filesystem Scan")

@@ -71,7 +71,7 @@ def main():
             print("    It may be queued for indexing or had an extraction error.")
         else:
             print(f"\n[!] File is NOT in any included path")
-            print("    Add its directory to indexing.include_paths in config.yaml")
+            print("    Add its directory to indexing.include_paths in config.toml")
     else:
         print(f"  File does NOT exist on disk")
 

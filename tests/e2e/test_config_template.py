@@ -1,8 +1,8 @@
 """
-Purpose: E2E test to validate config.yaml.template is synchronized with config.yaml.
+Purpose: E2E test to validate config.toml.template is synchronized with config.toml.
 
 This test ensures that:
-1. All configuration keys in config.yaml exist in config.yaml.template
+1. All configuration keys in config.toml exist in config.toml.template
 2. The template contains all required sections
 3. Key values have sensible defaults
 
@@ -12,7 +12,11 @@ This helps maintain the template as a valid reference for new installations.
 import pytest
 from pathlib import Path
 from typing import Any, Set
-import yaml
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 
 # =============================================================================
@@ -42,7 +46,7 @@ REQUIRED_SECTIONS = [
     "llm",
     "api",
     "resources",
-    "logging",
+    "logger",
 ]
 
 
@@ -77,10 +81,10 @@ def get_all_keys(d: dict) -> Set[str]:
     return set(flatten_dict(d).keys())
 
 
-def load_yaml_file(path: Path) -> dict:
-    """Load a YAML file and return its contents."""
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+def load_toml_file(path: Path) -> dict:
+    """Load a TOML file and return its contents."""
+    with open(path, "rb") as f:
+        return tomllib.load(f)
 
 
 # =============================================================================
@@ -88,46 +92,46 @@ def load_yaml_file(path: Path) -> dict:
 # =============================================================================
 
 class TestConfigTemplate:
-    """Test suite for config.yaml.template validation."""
-    
+    """Test suite for config.toml.template validation."""
+
     @pytest.fixture
     def project_root(self) -> Path:
         """Get project root path."""
         return get_project_root()
-    
+
     @pytest.fixture
     def config_path(self, project_root: Path) -> Path:
-        """Get path to config.yaml."""
-        return project_root / "config" / "config.yaml"
-    
+        """Get path to config.toml."""
+        return project_root / "config" / "config.toml"
+
     @pytest.fixture
     def template_path(self, project_root: Path) -> Path:
-        """Get path to config.yaml.template."""
-        return project_root / "config" / "config.yaml.template"
-    
+        """Get path to config.toml.template."""
+        return project_root / "config" / "config.toml.template"
+
     @pytest.fixture
     def config_data(self, config_path: Path) -> dict:
-        """Load config.yaml data."""
+        """Load config.toml data."""
         if not config_path.exists():
-            pytest.skip("config.yaml not found - run from configured environment")
-        return load_yaml_file(config_path)
-    
+            pytest.skip("config.toml not found - run from configured environment")
+        return load_toml_file(config_path)
+
     @pytest.fixture
     def template_data(self, template_path: Path) -> dict:
-        """Load config.yaml.template data."""
+        """Load config.toml.template data."""
         if not template_path.exists():
-            pytest.fail("config.yaml.template is missing!")
-        return load_yaml_file(template_path)
-    
+            pytest.fail("config.toml.template is missing!")
+        return load_toml_file(template_path)
+
     def test_template_exists(self, template_path: Path):
-        """Verify config.yaml.template exists."""
+        """Verify config.toml.template exists."""
         assert template_path.exists(), \
             f"Template file missing: {template_path}"
-    
-    def test_template_valid_yaml(self, template_data: dict):
-        """Verify template is valid YAML."""
+
+    def test_template_valid_toml(self, template_data: dict):
+        """Verify template is valid TOML."""
         assert isinstance(template_data, dict), \
-            "Template is not a valid YAML dictionary"
+            "Template is not a valid TOML dictionary"
     
     def test_required_sections_in_template(self, template_data: dict):
         """Verify all required sections exist in template."""
@@ -140,11 +144,11 @@ class TestConfigTemplate:
             f"Template missing required sections: {missing_sections}"
     
     def test_template_has_all_config_keys(
-        self, 
-        config_data: dict, 
+        self,
+        config_data: dict,
         template_data: dict
     ):
-        """Verify template contains all keys from config.yaml."""
+        """Verify template contains all keys from config.toml."""
         config_keys = get_all_keys(config_data)
         template_keys = get_all_keys(template_data)
         
@@ -166,7 +170,7 @@ class TestConfigTemplate:
                     sections[section] = []
                 sections[section].append(key)
             
-            error_msg = "Template missing keys from config.yaml:\n"
+            error_msg = "Template missing keys from config.toml:\n"
             for section, keys in sections.items():
                 error_msg += f"\n  [{section}]\n"
                 for key in keys:
@@ -236,17 +240,17 @@ class TestConfigTemplate:
 
 def compare_configs() -> dict:
     """
-    Compare config.yaml and config.yaml.template.
-    
+    Compare config.toml and config.toml.template.
+
     Returns a dict with:
         - missing_in_template: keys in config but not in template
         - extra_in_template: keys in template but not in config
         - differences: keys with different values (excluding allowed)
     """
     project_root = get_project_root()
-    config_path = project_root / "config" / "config.yaml"
-    template_path = project_root / "config" / "config.yaml.template"
-    
+    config_path = project_root / "config" / "config.toml"
+    template_path = project_root / "config" / "config.toml.template"
+
     result = {
         "config_exists": config_path.exists(),
         "template_exists": template_path.exists(),
@@ -254,17 +258,17 @@ def compare_configs() -> dict:
         "extra_in_template": [],
         "section_comparison": {},
     }
-    
+
     if not template_path.exists():
         result["error"] = "Template file not found"
         return result
-    
+
     if not config_path.exists():
-        result["warning"] = "config.yaml not found, cannot compare"
+        result["warning"] = "config.toml not found, cannot compare"
         return result
-    
-    config_data = load_yaml_file(config_path)
-    template_data = load_yaml_file(template_path)
+
+    config_data = load_toml_file(config_path)
+    template_data = load_toml_file(template_path)
     
     config_keys = get_all_keys(config_data)
     template_keys = get_all_keys(template_data)
@@ -297,8 +301,8 @@ def print_comparison_report():
     
     # File status
     print("\nFile Status:")
-    print(f"  config.yaml:          {'✓' if result['config_exists'] else '✗'}")
-    print(f"  config.yaml.template: {'✓' if result['template_exists'] else '✗'}")
+    print(f"  config.toml:          {'✓' if result['config_exists'] else '✗'}")
+    print(f"  config.toml.template: {'✓' if result['template_exists'] else '✗'}")
     
     # Section comparison
     print("\nSection Comparison:")

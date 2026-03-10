@@ -15,7 +15,19 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 import typer
-import yaml
+try:
+    import tomllib                    # Python 3.11+ stdlib
+except ModuleNotFoundError:
+    import tomli as tomllib           # uv pip install tomli
+
+try:
+    import tomli_w                    # uv pip install tomli-w
+except ModuleNotFoundError as exc:
+    raise RuntimeError(
+        "tomli-w is required for writing TOML config. "
+        "Install it with: uv pip install tomli-w"
+    ) from exc
+
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 
@@ -82,7 +94,7 @@ def get_model_from_config(model_name: str) -> Optional[Dict[str, Any]]:
         model_name: Model name (e.g., "llama3.1:8b")
     
     Returns:
-        Model dict from config.yaml or None if not found
+        Model dict from config.toml or None if not found
     """
     config = get_config()
     models = config.get("llm.models", [])
@@ -106,69 +118,65 @@ def get_model_from_config(model_name: str) -> Optional[Dict[str, Any]]:
 
 def load_config_yaml() -> Dict[str, Any]:
     """
-    Load config.yaml into memory for modification.
-    
+    Load config.toml into memory for modification.
+
     Returns:
-        Parsed YAML config dict
-    
+        Parsed config dict
+
     Raises:
-        FileNotFoundError: If config.yaml doesn't exist
-        yaml.YAMLError: If YAML syntax is invalid
+        FileNotFoundError: If config.toml doesn't exist
+        ConfigError: If TOML syntax is invalid
     """
     pathman = AitaoPathManager()
     config_path = pathman.config_path  # Use attribute, not method
-    
+
     if not config_path.exists():
-        raise FileNotFoundError(f"config.yaml not found at {config_path}")
-    
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    
+        raise FileNotFoundError(f"config.toml not found at {config_path}")
+
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
+
     logger.debug(
         "Config loaded",
         metadata={"path": str(config_path), "sections": list(config.keys())}
     )
-    
+
     return config
 
 
 def save_config_yaml(config: Dict[str, Any]) -> bool:
     """
-    Safely write updated config back to config.yaml.
-    
-    - Preserves comments and formatting as much as possible
-    - Creates backup before overwriting (optional)
-    - Validates new config loads without errors
-    
+    Safely write updated config back to config.toml.
+
     Args:
         config: Updated config dict
-    
+
     Returns:
         True if successful
-    
+
     Raises:
-        PermissionError: If cannot write to config.yaml
-        yaml.YAMLError: If config is invalid YAML
+        PermissionError: If cannot write to config.toml
+        ValueError: If config is not serialisable to TOML
     """
     pathman = AitaoPathManager()
     config_path = pathman.config_path  # Use attribute, not method
-    
-    # Validate by loading what we'd write
-    test_yaml = yaml.safe_dump(config, default_flow_style=False, sort_keys=False)
+
+    # Validate by round-tripping before writing
     try:
-        yaml.safe_load(test_yaml)
-    except yaml.YAMLError as e:
+        test_bytes = tomli_w.dumps(config)
+        tomllib.loads(test_bytes)
+    except Exception as e:
         logger.error(
             "Config validation failed before save",
             metadata={"error": str(e)}
         )
         raise
-    
+
     # Write to file
     try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False)
-        
+        with open(config_path, "wb") as f:
+            tomli_w.dump(config, f)
+
         logger.info(
             "Config saved successfully",
             metadata={"path": str(config_path)}

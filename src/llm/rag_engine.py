@@ -117,7 +117,7 @@ class RAGEngine:
         >>> print(result.context_docs)
         # Shows which documents were used
     
-    Configuration (config.yaml):
+    Configuration (config.toml):
         rag:
             max_context_docs: 5      # Max documents to include
             max_context_chunks: 5    # Max chunks to include (preferred)
@@ -143,7 +143,7 @@ class RAGEngine:
         Initialize RAGEngine.
         
         Args:
-            config: ConfigManager instance for reading config.yaml
+            config: ConfigManager instance for reading config.toml
             logger: StructuredLogger instance for logging
         """
         self.config = config

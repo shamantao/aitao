@@ -262,7 +262,7 @@ class BenchmarkRunner:
             try:
                 from src.llm.mlx_backend import MLXBackend
                 
-                # Get MLX config from config.yaml
+                # Get MLX config from config.toml
                 llm_config = self.config.get_section("llm") or {}
                 mlx_config = llm_config.get("mlx", {})
                 default_model = mlx_config.get(

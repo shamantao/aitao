@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aitao"
-version = "2.6.38.3"
+version = "2.5.1"
 description = "AI Tao V2 - Document Search & Translation Engine (Local-first, Privacy-focused)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -53,7 +53,7 @@ dependencies = [
     "psutil>=6.1.0",
     "watchfiles>=1.0.0",
     "toml>=0.10.2",
-    "pyyaml>=6.0.0",
+    "tomli-w>=1.0.0",
     # --- CLI ---
     "typer>=0.12.0",
     "rich>=13.0.0",

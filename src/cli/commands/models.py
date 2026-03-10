@@ -8,7 +8,7 @@ Provides subcommands under `./aitao.sh models`:
 - remove: Remove a model from config (future)
 
 Status reporting includes:
-- Configured models (from config.yaml)
+- Configured models (from config.toml)
 - Installed models (from Ollama)
 - Present: configured AND installed
 - Missing: configured BUT not installed
@@ -84,7 +84,7 @@ def status():
     Show status of configured and installed models.
     
     Displays:
-    - Configured: Models in config.yaml
+    - Configured: Models in config.toml
     - Installed: Models available in Ollama
     - Present: Both configured AND installed (✓)
     - Missing: Configured but not installed (✗)
@@ -361,7 +361,7 @@ def add(
     no_pull: bool = typer.Option(False, "--no-pull", help="Add to config but don't pull")
 ):
     """
-    Add a model to config.yaml and optionally download it.
+    Add a model to config.toml and optionally download it.
     
     Examples:
       ./aitao.sh models add llama3.1:8b
@@ -420,11 +420,11 @@ def add(
     try:
         save_config_yaml(config)
     except Exception as e:
-        console.print(f"[red]ERROR: Cannot write config.yaml[/red]\n{str(e)}")
+        console.print(f"[red]ERROR: Cannot write config.toml[/red]\n{str(e)}")
         logger.error("Failed to save config", metadata={"error": str(e)})
         raise typer.Exit(code=1)
     
-    console.print(f"[green]✓ Added {normalized_name} to config.yaml[/green]")
+    console.print(f"[green]✓ Added {normalized_name} to config.toml[/green]")
     console.print(f"  Roles: {', '.join(metadata.get('role', ['rag']))}")
     console.print(f"  Required: {'Yes' if metadata.get('required') else 'No'}")
     console.print()
@@ -491,7 +491,7 @@ def remove(
     delete_ollama: bool = typer.Option(False, "--delete-ollama", help="Also remove from Ollama")
 ):
     """
-    Remove a model from config.yaml (optionally from Ollama too).
+    Remove a model from config.toml (optionally from Ollama too).
     
     Examples:
       ./aitao.sh models remove llama3.1:8b
@@ -563,10 +563,10 @@ def remove(
     try:
         save_config_yaml(config)
     except Exception as e:
-        console.print(f"[red]ERROR: Cannot write config.yaml[/red]\n{str(e)}")
+        console.print(f"[red]ERROR: Cannot write config.toml[/red]\n{str(e)}")
         raise typer.Exit(code=1)
     
-    console.print(f"[green]✓ Removed {normalized_name} from config.yaml[/green]")
+    console.print(f"[green]✓ Removed {normalized_name} from config.toml[/green]")
     
     # Delete from Ollama if requested
     if delete_ollama:
