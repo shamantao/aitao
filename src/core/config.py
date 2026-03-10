@@ -95,7 +95,7 @@ class ConfigManager:
         "app": {
             "name": "aitao",
             "mode": "normal",
-            "version": "2.5.1",
+            "version": "2.6.0",
         },
         "paths": {
             "storage_root": "${HOME}/.aitao/data",

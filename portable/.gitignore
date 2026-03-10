@@ -1,0 +1,7 @@
+# Runtime directories — downloaded by setup-portable.ps1, never committed
+python/
+meilisearch/
+ollama/
+data/
+aitao/
+_temp/

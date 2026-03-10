@@ -1,0 +1,176 @@
+# ============================================================================
+# release.yml - GitHub Actions workflow for AiTao releases
+#
+# Triggered on: push of a tag matching v* (e.g. v2.6.0, v2.6.0-beta.1)
+# Builds portable Windows archives (x64 + ARM64) and publishes a GitHub Release.
+#
+# Archive contents (no binaries — downloaded by setup-portable.ps1 at runtime):
+#   - portable/{amd64,arm64}/
+#       setup-portable.ps1, start-aitao.ps1, stop-aitao.ps1,
+#       uninstall-aitao.ps1, requirements-portable.txt,
+#       setup.bat, start.bat, stop.bat, uninstall.bat
+#   - aitao/ (src/, config/config.toml.template, pyproject.toml, install.sh)
+#   - VERSION (plain text, e.g. "2.6.0")
+# ============================================================================
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Build archive for Windows x64 (amd64)
+  # --------------------------------------------------------------------------
+  build-windows-x64:
+    name: Build Windows x64 archive
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Write VERSION file
+        run: echo "${{ steps.version.outputs.VERSION }}" > VERSION
+
+      - name: Build aitao-vVERSION-windows-x64.zip
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          ARCHIVE="aitao-v${VERSION}-windows-x64"
+          mkdir -p "${ARCHIVE}/aitao/config"
+          mkdir -p "${ARCHIVE}/aitao/src"
+          # Portable scripts
+          cp -r portable/amd64/. "${ARCHIVE}/"
+          # AiTao source
+          cp -r src/ "${ARCHIVE}/aitao/src/"
+          cp pyproject.toml "${ARCHIVE}/aitao/"
+          cp config/config.toml.template "${ARCHIVE}/aitao/config/"
+          # VERSION file
+          cp VERSION "${ARCHIVE}/aitao/VERSION"
+          cp VERSION "${ARCHIVE}/VERSION"
+          # Create zip
+          zip -r "${ARCHIVE}.zip" "${ARCHIVE}/"
+          echo "ARCHIVE_X64=${ARCHIVE}.zip" >> "$GITHUB_ENV"
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: aitao-v${{ steps.version.outputs.VERSION }}-windows-x64.zip
+
+  # --------------------------------------------------------------------------
+  # Build archive for Windows ARM64
+  # --------------------------------------------------------------------------
+  build-windows-arm64:
+    name: Build Windows ARM64 archive
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Write VERSION file
+        run: echo "${{ steps.version.outputs.VERSION }}" > VERSION
+
+      - name: Build aitao-vVERSION-windows-arm64.zip
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          ARCHIVE="aitao-v${VERSION}-windows-arm64"
+          mkdir -p "${ARCHIVE}/aitao/config"
+          mkdir -p "${ARCHIVE}/aitao/src"
+          # Portable scripts
+          cp -r portable/arm64/. "${ARCHIVE}/"
+          # AiTao source
+          cp -r src/ "${ARCHIVE}/aitao/src/"
+          cp pyproject.toml "${ARCHIVE}/aitao/"
+          cp config/config.toml.template "${ARCHIVE}/aitao/config/"
+          # VERSION file
+          cp VERSION "${ARCHIVE}/aitao/VERSION"
+          cp VERSION "${ARCHIVE}/VERSION"
+          # Create zip
+          zip -r "${ARCHIVE}.zip" "${ARCHIVE}/"
+          echo "ARCHIVE_ARM64=${ARCHIVE}.zip" >> "$GITHUB_ENV"
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-arm64
+          path: aitao-v${{ steps.version.outputs.VERSION }}-windows-arm64.zip
+
+  # --------------------------------------------------------------------------
+  # Create GitHub Release and attach both archives
+  # --------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    needs: [build-windows-x64, build-windows-arm64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect pre-release
+        id: prerelease
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *"-beta"* ]] || [[ "${GITHUB_REF_NAME}" == *"-rc"* ]] || [[ "${GITHUB_REF_NAME}" == *"-dev"* ]]; then
+            echo "IS_PRERELEASE=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "IS_PRERELEASE=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+
+      - name: Download ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-arm64
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "AiTao v${{ steps.version.outputs.VERSION }}"
+          prerelease: ${{ steps.prerelease.outputs.IS_PRERELEASE }}
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            1. Download the archive for your platform below.
+            2. Extract the zip to a folder of your choice.
+            3. Run `setup-portable.ps1` (first time only).
+            4. Run `start-aitao.ps1` to launch AiTao.
+
+            See [docs/INSTALLATION.md](docs/INSTALLATION.md) for full instructions.
+
+            ## Update from a previous version
+
+            Run `update-aitao.ps1` in your existing portable folder.
+            Your data and configuration are preserved automatically.
+
+            ## Checksums
+
+            Verify file integrity after download (PowerShell):
+            ```powershell
+            Get-FileHash .\aitao-v${{ steps.version.outputs.VERSION }}-windows-x64.zip -Algorithm SHA256
+            ```
+          files: |
+            aitao-v${{ steps.version.outputs.VERSION }}-windows-x64.zip
+            aitao-v${{ steps.version.outputs.VERSION }}-windows-arm64.zip
