@@ -22,6 +22,7 @@ if str(src_path) not in sys.path:
 
 from cli.utils import console
 from cli.commands import status as status_cmd
+from cli.commands import dashboard as dashboard_cmd
 from cli.commands import meilisearch as ms_cmd
 from cli.commands import database as db_cmd
 from cli.commands import config as config_cmd
@@ -71,6 +72,12 @@ app.add_typer(api_cmd.app, name="api", help="API server management")
 def status():
     """Show AItao system status."""
     status_cmd.show_status()
+
+
+@app.command()
+def dashboard():
+    """Show AiTao dashboard — all services, models, index and errors at a glance."""
+    dashboard_cmd.show_dashboard()
 
 
 @app.command()

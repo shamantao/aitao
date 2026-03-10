@@ -224,6 +224,63 @@ Then just type your questions! The AI will search your indexed documents to give
 
 ---
 
+## Dashboard — See Everything at a Glance
+
+```bash
+./aitao.sh dashboard
+```
+
+The dashboard gives you a **complete snapshot** of what is happening inside AiTao,
+without having to run several commands one by one.
+
+### What You See
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║  AiTao Dashboard  —  v2.6.0  —  10 Mar 2026  14:32             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+■ Services                          ■ Modèles Ollama en mémoire
+  ✓ AiTao API    localhost:8200       ✓ qwen2.5:14b      8 420 MB  (expire dans 4 min)
+  ✓ Meilisearch  localhost:7700       ✓ nomic-embed-text   274 MB  (expire dans 9 min)
+  ✓ Ollama       localhost:11434
+  ✗ OpenWebUI    localhost:3000     ■ Worker / Scan
+  ✗ OnlyOffice   localhost:8080       ● Worker actif (PID 1234)
+                                       En attente      0
+■ Index                                En cours         0
+  Meilisearch   12 483 docs            Complétés   1 482
+  LanceDB       12 471 vecteurs        Échoués        12
+  ✓ Synchronisé
+  Sources : 3 dossier(s) configuré(s)
+    ~/Downloads/_sources/
+    ~/Documents/
+    ~/pCloudSync/_Business/
+```
+
+### Understanding Meilisearch vs LanceDB
+
+You will notice two different document counts in the Index section. Here is what they mean:
+
+| | Meilisearch | LanceDB |
+|---|---|---|
+| **What it stores** | The text of your documents, word by word | A mathematical "fingerprint" of the meaning of each document chunk |
+| **How it searches** | Finds exact words and typos: `"budget 2025"` | Understands meaning: `"money report this year"` finds the same thing |
+| **Why the count differs** | Every indexed document is here | Only documents that have been through the AI embedding step — this can lag slightly behind |
+
+**In short:** Meilisearch = fast keyword search. LanceDB = smart semantic search.
+Both work together: AiTao first finds semantically similar chunks (LanceDB), then refines the results with keyword filtering (Meilisearch).
+
+If the counts differ by a lot, the worker is probably still catching up — check the Worker section.
+
+### Errors Explained
+
+The dashboard shows two types of indexing failures:
+
+- **Format errors** (shown in yellow) — AiTao does not yet know how to read this file type (e.g. `.epub`, `.mobi`). These will be retried automatically once support is added.
+- **Content errors** (shown in red) — The file is corrupted, password-protected, or scanned without OCR text. These require your attention.
+
+---
+
 ## Connecting External Tools
 
 AItao provides a REST API that works with popular AI tools.
@@ -363,7 +420,8 @@ AItao uses [Ollama](https://ollama.ai/) as its AI engine. Models are managed thr
 | `./aitao.sh start` | Start all AItao services |
 | `./aitao.sh stop` | Stop all AItao services |
 | `./aitao.sh restart` | Restart all services |
-| `./aitao.sh status` | Show service health dashboard |
+| `./aitao.sh status` | Quick service health check |
+| `./aitao.sh dashboard` | **Full dashboard** — services, models, index, errors |
 
 ### Document Operations
 
