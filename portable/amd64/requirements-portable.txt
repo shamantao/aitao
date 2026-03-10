@@ -1,0 +1,55 @@
+# ==============================================================================
+# requirements-portable.txt - AiTao Python dependencies (portable mode, x64)
+#
+# Full stack: includes LanceDB + sentence-transformers for semantic search.
+# Excludes llama-cpp-python (Ollama handles LLM inference).
+# Versions aligned with pyproject.toml.
+#
+# NOTE: PyTorch CPU is installed separately by setup-portable.ps1 BEFORE this
+# file, using --index-url https://download.pytorch.org/whl/cpu (~170 MB
+# instead of ~2.5 GB CUDA version). Ollama handles GPU inference.
+# ==============================================================================
+
+# --- Core AI & Inference (torch already installed by setup script) ---
+sentence-transformers>=3.3.1
+
+# --- Vector Database (native wheels available for Windows x64) ---
+lancedb>=0.17.0
+pandas>=2.3.0
+
+# --- Full-text Search (Python client, NOT the server binary) ---
+meilisearch>=0.31.0
+
+# --- SQL & ORM ---
+SQLAlchemy>=2.0.0
+greenlet>=2.0.0
+aiosqlite>=0.20.0
+
+# --- Web Search ---
+duckduckgo-search>=6.0.0
+beautifulsoup4>=4.12.0
+
+# --- API & Server ---
+fastapi>=0.115.0
+uvicorn>=0.34.0
+requests>=2.32.0
+httpx>=0.27.0
+python-dotenv>=1.0.0
+
+# --- File System & Utilities ---
+psutil>=6.1.0
+watchfiles>=1.0.0
+toml>=0.10.2
+tomli-w>=1.0.0
+
+# --- CLI ---
+typer>=0.12.0
+rich>=13.0.0
+
+# --- Document Extraction ---
+pypdf>=5.0.0
+python-docx>=1.0.0
+langdetect>=1.0.9
+
+# --- Image EXIF ---
+Pillow>=10.0.0

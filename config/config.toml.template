@@ -1,68 +1,168 @@
-# Configuration Aitao - TEMPLATE
-# Copiez ce fichier en 'config.toml' et adaptez les chemins.
+# ==============================================================================
+# AiTao — Configuration Template
+# Format: TOML (https://toml.io)
+# ==============================================================================
+#
+# Copy this file to config.toml and customize for your environment.
+#
+#   cp config.toml.template config.toml          # macOS / Linux
+#   Copy-Item config.toml.template config.toml   # Windows PowerShell
+#
+# Variable substitution:
+#   ${HOME}         →  your user home directory
+#   ${storage_root} →  resolved from [paths].storage_root above
+#   These are resolved by AiTao at startup, not by the shell.
+#
+# ==============================================================================
 
-[system]
-# Répertoire racine pour le stockage des données (VectorDB, Logs, ChatHistory)
-# Exemple: "/Users/username/ai-data/.aitao"
-storage_root = "/path/to/your/storage/.aitao"
+[app]
+name = "aitao"
+mode = "normal"  # debug | normal
 
-# Chemin des logs
-logs_path = "$storage_root/logs"
+# ------------------------------------------------------------------------------
+# IDENTITY — injected as system context on every conversation
+# ------------------------------------------------------------------------------
+[identity]
+# Describe how AiTao should present itself.
+# Example: "I am AiTao, a local AI assistant. Your data never leaves your machine."
+who_is_aitao = "I am AiTao, a local AI assistant designed to help you search and interact with your personal documents. Everything runs on your machine; your data never leaves."
 
-[server]
-# Configuration du serveur d'inférence (modèle d'inférence)
-# Port peu commun pour éviter conflits avec autres projets
-api_host = "0.0.0.0"
-api_port = 8247  # OpenAI-compatible API (pour tous les modèles)
-api_url = "http://localhost:8247"  # Utilisé pour connexions internes
+# A short description of yourself (1-3 sentences). The LLM adapts its language to you.
+# Examples:
+#   "I am a French software developer based in Paris, 35 years old."
+#   "I am a student in Tokyo, Japan. I speak English and Japanese."
+who_are_you = "Replace this with a short description of yourself: nationality, location, age, languages spoken."
 
-# Configuration AnythingLLM UI (Chat + Document Management)
-ui_port = 3001
-ui_url = "http://localhost:3001"
+# ------------------------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------------------------
+[paths]
+# Root directory for all AiTao runtime data (indexes, logs, cache, queue)
+storage_root = "${HOME}/.aitao/data"
 
-# Configuration RAG Server (Generic Document Search API)
-# Permet aux apps externes (VSCode, Wave Terminal, etc.) de chercher des docs indépendamment
-rag_port = 8200
-rag_url = "http://localhost:8200"
+# Directory where AI model files are stored
+models_dir = "${HOME}/.aitao/models"
 
-[models]
-# Dossier contenant vos modèles GGUF téléchargés (ex: de HuggingFace)
-# Exemple: "/Users/username/ai-models"
-models_dir = "/path/to/your/models"
+# The following paths are derived from storage_root automatically.
+# Override only if you need them in a different location.
+logs_dir        = "${storage_root}/logs"
+queue_dir       = "${storage_root}/queue"
+cache_dir       = "${storage_root}/cache"
+corrections_dir = "${storage_root}/corrections"
+vector_db_dir   = "${storage_root}/lancedb"
 
+# ------------------------------------------------------------------------------
+# INDEXING — which folders to scan
+# Paths with spaces, accents or & characters are safe in TOML strings.
+# ------------------------------------------------------------------------------
 [indexing]
-# Liste des dossiers que vous souhaitez scanner pour le RAG
-include_paths = [ 
-    "/path/to/your/documents",
+enabled          = true
+interval_minutes = 60
+
+include_paths = [
+    # Add your document folders below. Examples:
+    # "${HOME}/Documents/",
+    # "${HOME}/Dropbox/",
+    # "D:/MyDocuments/",   # Windows absolute path
 ]
 
-# Modèles d'exclusion pour le scan (ne pas modifier sauf besoin spécifique)
-exclude_dirs = [ 
-    "__pycache__", ".git", ".venv", "venv", "env", ".env", 
-    "node_modules", ".ds_store", "dist", "build", "target", 
-    "site-packages", ".idea", ".vscode" 
-]
-exclude_files = [ 
-    ".DS_Store", "package-lock.json", "yarn.lock" 
-]
-exclude_extensions = [ 
-    ".lock", ".log", ".tmp" 
+exclude_dirs = [
+    "__pycache__", ".git", ".venv", "venv", "env", ".env",
+    "node_modules", ".ds_store", "dist", "build", "target",
+    "site-packages", ".idea", ".vscode",
 ]
 
-[ocr]
-# Engine selection: auto | easyocr | qwen
-engine = "auto"
+exclude_files      = [".DS_Store", "package-lock.json", "yarn.lock", "Thumbs.db"]
+exclude_extensions = [".lock", ".log", ".tmp", ".swp", ".cache"]
 
-# Router thresholds
-# Minimum relative area of detected table vs image (0-1)
-table_area_min = 0.15
+# ------------------------------------------------------------------------------
+# SEARCH
+# ------------------------------------------------------------------------------
+[search.meilisearch]
+url        = "http://localhost:7700"
+api_key    = ""
+index_name = "aitao_documents"
 
-# Minimum number of line intersections to consider a table
-min_intersections = 4
+[search.lancedb]
+embedding_model = "BAAI/bge-m3"
+table_name      = "aitao_embeddings"
+dimension       = 1024
+top_k           = 20
+min_score       = 0.45
+offline_mode    = true
 
-# Minimum density of lines (lines pixels / total pixels)
-min_line_density = 0.0005
+[search.hybrid]
+semantic_weight        = 0.6
+fulltext_weight        = 0.4
+rrf_k                  = 60
+enable_query_expansion = true
 
-# Qwen-VL model path (for table OCR and complex layouts)
-# Example: "$models_dir/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
-qwen_model_path = "/path/to/your/models/qwen2-vl-7b/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+# ------------------------------------------------------------------------------
+# LLM
+# ------------------------------------------------------------------------------
+[llm]
+backend       = "auto"  # auto | ollama | mlx
+ollama_url    = "http://localhost:11434"
+default_model = "llama3.1-local:latest"
+
+[llm.startup]
+check_models         = true
+auto_pull            = false
+pull_timeout_minutes = 30
+
+[llm.generation]
+temperature = 0.7
+top_p       = 0.9
+max_tokens  = 2048
+
+# Add your available models below. At least one is required.
+[[llm.models]]
+name     = "llama3.1-local:latest"
+required = true
+size_gb  = 4.7
+roles    = ["chat", "rag"]
+description = "General-purpose chat and RAG model"
+
+# ------------------------------------------------------------------------------
+# VIRTUAL MODELS
+# ------------------------------------------------------------------------------
+[virtual_models]
+enabled = true
+
+[virtual_models.suffixes.basic]
+rag_mode    = "disabled"
+description = "Fast response without document context"
+
+[virtual_models.suffixes.context]
+rag_mode    = "enabled"
+description = "Uses your documents to enrich the response"
+
+[virtual_models.mappings]
+llama3_1 = "llama3.1-local:latest"
+
+# ------------------------------------------------------------------------------
+# API
+# ------------------------------------------------------------------------------
+[api]
+host = "0.0.0.0"
+port = 8200
+
+# ------------------------------------------------------------------------------
+# LOGGER
+# ------------------------------------------------------------------------------
+[logger]
+level          = "info"  # trace | debug | info | warn | error
+console_pretty = true
+file_json      = true
+max_file_mb    = 20
+max_files      = 5
+
+# ------------------------------------------------------------------------------
+# RAG
+# ------------------------------------------------------------------------------
+[rag]
+enabled             = true
+use_chunks          = true
+max_context_chunks  = 5
+context_max_tokens  = 4000
+min_relevance_score = 0.3

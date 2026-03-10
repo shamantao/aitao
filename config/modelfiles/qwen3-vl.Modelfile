@@ -1,0 +1,29 @@
+# Modelfile for Qwen3-VL (Vision-Language) models
+# Template ChatML standard pour les modèles Qwen avec support vision
+#
+# Usage:
+#   ollama create qwen3-vl-local -f config/modelfiles/qwen3-vl.Modelfile
+#
+# This template ensures proper conversation structure with <|im_start|> and <|im_end|> tokens.
+# Vision capabilities are preserved via the model's built-in image processing.
+
+FROM qwen3-vl:latest
+
+TEMPLATE """{{- if .System }}
+<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}
+{{- range .Messages }}
+<|im_start|>{{ .Role }}
+{{ .Content }}<|im_end|>
+{{ end }}
+<|im_start|>assistant
+"""
+
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER num_ctx 8192
+
+SYSTEM """You are Qwen, a helpful vision-language assistant created by Alibaba Cloud. You can analyze images and answer questions about them. You respond in the same language as the user's question."""

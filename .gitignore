@@ -31,10 +31,16 @@ venv/
 
 # Project Specific
 config/config.toml
+config/config.yaml
+config/aitao-nginx.conf
 logs/
 data/
 *.log
 .DS_Store
 
+# Backlog archive (local only)
+prd/backlog-done.md
+
 # User Data (External mounts)
 _sources/
+.README.mdworker.py.bak

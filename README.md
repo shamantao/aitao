@@ -1,368 +1,483 @@
-# ☯️ AI Tao
+# AItao - Your Free, Private, Local AI Assistant
 
-Local-first, private, and modular AI assistant. Everything runs on your machine; no cloud dependencies.
+<p align="center">
+  <img src="docs/images/aitao-logo.png" alt="AItao Logo" width="200" />
+</p>
 
-**Key Principle:** *"Your data are your own. What happens on your machine, stays on your machine."*
-
----
-
-## What Works Today
-
-- ✅ **Configuration-driven:** Single `config.toml` source of truth
-- ✅ **CLI orchestrator:** `aitao.sh` manages all services (start/stop/status/check)
-- ✅ **RAG pipeline:** Full semantic search with vector similarity + OCR
-- ✅ **Inference API:** `llama-cpp-python` on port 8247 (OpenAI-compatible)
-- ✅ **RAG Server API:** Model-agnostic search on port 8200
-- ✅ **AnythingLLM UI:** Chat interface on port 3001 (optional)
-- ✅ **File watching:** Real-time indexing via Sync Agent
-- ✅ **OCR routing:** EasyOCR (fast) + Qwen2.5-VL (advanced) with smart selection
-- ✅ **Error recovery:** SHA256-based tracking + retry logic
-- ✅ **Admin dashboard:** Gradio monitoring & manual re-indexing
+> **"Your data stays yours. No cloud. No compromise."**
 
 ---
 
-## Quick Setup
+## Why AItao?
 
-### Prerequisites
-- Python 3.10+ (tested on 3.14.2)
-- Docker (for AnythingLLM UI) or use API-only mode
-- ~10GB disk space minimum
+**Tired of paying for AI?** ChatGPT, Claude, and other cloud AI services cost money every month. AItao is **100% free** to use forever.
 
-### 1. Installation & Configuration
+**Concerned about privacy?** Every question you ask cloud AI services is stored on their servers. With AItao, **everything runs on YOUR Mac**. Your documents, your questions, your answers - nothing ever leaves your computer.
+
+**Want a more ecological approach?** Cloud AI data centers consume enormous amounts of energy. Running AI locally on your Mac is significantly more energy-efficient. Yes, it's a bit slower - but it's **better for the planet**.
+
+**Need an AI that actually knows YOUR stuff?** Unlike generic AI assistants, AItao **indexes your personal documents** - PDFs, Word files, text files, code, and more. When you ask a question, AItao searches through YOUR files to give you contextual, relevant answers.
+
+AItao uses the power of your own computer.
+It's sometimes a little slower than an online AI,
+but in return you gain: a reduced environmental impact, privacy, and freedom.
+---
+
+## What Can AItao Do?
+
+### 🔍 **Smart Search Across All Your Files**
+Ask questions in natural language and find information buried in your documents:
+- *"What was the deadline mentioned in the contract?"*
+- *"Find all references to the Q3 budget"*
+- *"Where did I save that recipe for apple pie?"*
+
+### 💬 **Chat With Your Personal AI**
+Have a conversation with an AI that:
+- Knows the contents of your indexed documents
+- Speaks your language (French, English, Chinese, and more)
+- Remembers context during your conversation
+
+### 📄 **Organize Your Digital Life**
+- **40+ file types supported**: PDF, DOCX, TXT, Markdown, source code, and more
+- **Automatic indexing**: New files are detected and indexed automatically
+- **Smart categorization** (coming soon): Documents are organized by type
+
+---
+
+## Requirements
+
+Before you start, make sure you have:
+
+| What | Why |
+|------|-----|
+| **macOS 13+** (Ventura or later) | Required for Apple's native features |
+| **8GB RAM** (16GB recommended) | AI models need memory to run |
+| **20GB free disk space** | For AI models and document index |
+| **Apple Silicon** (M1/M2/M3) or Intel | Runs on both, faster on Apple Silicon |
+
+---
+
+## Installation
+
+### Step 1: Install Homebrew (if you don't have it)
+
+Homebrew is the easiest way to install software on Mac. Open **Terminal** (find it in Applications → Utilities) and paste:
 
 ```bash
-# Clone repository
-git clone <repo-url>
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+### Step 2: Install Required Software
+
+```bash
+# Install Python (we need version 3.10 or newer)
+brew install python@3.13
+
+# Install Meilisearch (the search engine)
+brew install meilisearch
+
+# Install Ollama (the AI engine)
+brew install ollama
+```
+
+### Step 3: Download an AI Model
+
+AItao works with any Ollama-compatible model. We recommend starting with:
+
+```bash
+# Download a good general-purpose model (about 4GB)
+ollama pull llama3.1:8b
+
+# Or for coding questions, use:
+ollama pull qwen2.5-coder:7b
+```
+
+> **📖 Migrating from GGUF files?** If you previously used local GGUF model files,
+> see our [Migration Guide](docs/MIGRATION_MODELS.md) for the transition to Ollama.
+
+### Step 4: Install AItao
+
+```bash
+# Install uv (Python package manager - very fast!)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Download AItao
+git clone https://github.com/shamantao/aitao.git
 cd aitao
 
-# Install dependencies
-uv sync  # or: pip install -r requirements.txt
+# Set up the environment
+uv venv
+source .venv/bin/activate
+uv pip install -e .
 
-# Initialize configuration
-cp config/config.toml.template config/config.toml
-
-# Edit configuration (customize paths, ports, models)
-nano config/config.toml
+# Run the installation script
+./install.sh
 ```
 
-### 2. System Check
+### Step 5: Configure Your Identity and Folders
 
-Before first launch, verify your system:
+Edit the configuration file:
 
 ```bash
-# Complete compatibility check
-./aitao.sh check system
-
-# Validate configuration syntax
-./aitao.sh check config
-
-# Preview indexing paths
-./aitao.sh check scan
+nano config/config.yaml
 ```
 
-### 3. Launch Services
+#### 5a. Tell AItao who you are (highly recommended)
+
+These two fields are injected as the very first system context on **every** conversation, before any document context. This allows all LLMs to adapt their tone, language and cultural references to you.
+
+```yaml
+# Describe how AItao should present itself
+who_is_Aitao: "I am AItao, a local AI assistant designed to help you search
+               and interact with your personal documents."
+
+# A short description of yourself (nationality, location, age, languages…)
+who_are_you: "I am a French developer living in France, 35 years old."
+```
+
+> **Why does this matter?**  
+> Without this context, each LLM answers from scratch with no idea who you are.
+> Filling these fields makes responses noticeably more relevant and personal.
+
+#### 5b. Tell AItao which folders to index
+
+Find the `include_paths` section and add your folders:
+
+```yaml
+indexing:
+  include_paths:
+    - ~/Documents
+    - ~/Desktop
+    - ~/Projects
+```
+
+Save and exit (Ctrl+O, Enter, Ctrl+X).
+
+### Step 6: Verify Everything Works
 
 ```bash
-# Start all services: API (8247) + UI (3001) + Sync Agent + RAG Server (8200)
-./aitao.sh start
-
-# Check service health
 ./aitao.sh status
 
-# Access interfaces
-#   • Web UI: http://localhost:3001
-#   • API Docs: http://localhost:8247/docs
-#   • RAG API: http://localhost:8200/health
+# Full validation (unit + e2e + functional)
+./aitao.sh validate
 ```
 
-### 4. Verify It's Working
+You should see all services marked with ✓.
+
+---
+
+## Using AItao
+
+### Starting and Stopping
 
 ```bash
-# Test RAG search
-curl http://localhost:8200/v1/rag/search?query=your+search+term&limit=5
+# Start AItao (starts all services)
+./aitao.sh start
 
-# Check indexed documents
-curl http://localhost:8200/v1/rag/stats/_default
+# Stop AItao
+./aitao.sh stop
+
+# Restart AItao
+./aitao.sh restart
+
+# Check if everything is running
+./aitao.sh status
+```
+
+### Searching Your Documents
+
+```bash
+# Search for something
+./aitao.sh search "budget report 2025"
+
+# Search with filters
+./aitao.sh search "invoice" --path ~/Documents/Finance
+```
+
+### Chatting With Your AI
+
+```bash
+# Start an interactive chat session
+./aitao.sh chat
+```
+
+Then just type your questions! The AI will search your indexed documents to give you informed answers.
+
+**Chat Commands:**
+- Type `/quit` to exit
+- Type `/clear` to start a new conversation
+- Type `/context on` to see which documents the AI is using
+- Type `/help` for all commands
+
+### Indexing New Documents
+
+```bash
+# Manually index a specific file
+./aitao.sh index file ~/Documents/important.pdf
+
+# Scan all configured folders for new files
+./aitao.sh scan run
+
+# Check indexing progress
+./aitao.sh queue status
 ```
 
 ---
 
-## Architecture Overview
+## Connecting External Tools
 
-### Core Components
+AItao provides a REST API that works with popular AI tools.
 
+### API Endpoints
+
+| Endpoint | What It Does |
+|----------|--------------|
+| `http://localhost:8200/api/health` | Check if AItao is running |
+| `http://localhost:8200/api/search` | Search your documents |
+| `http://localhost:8200/api/chat` | Chat (Ollama format) |
+| `http://localhost:8200/v1/chat/completions` | Chat (OpenAI format) |
+| `http://localhost:8200/v1/models` | List available AI models |
+| `http://localhost:8200/docs` | Interactive API documentation |
+
+### Setting Up Continue.dev (VS Code Extension)
+
+[Continue](https://continue.dev/) is a free VS Code extension for AI-assisted coding.
+
+1. Install the Continue extension in VS Code
+2. Open Continue settings (click the gear icon)
+3. Configure it to use AItao:
+
+```json
+{
+  "models": [
+    {
+      "title": "AItao (Local RAG)",
+      "provider": "openai",
+      "model": "llama3.1:8b",
+      "apiBase": "http://localhost:8200/v1"
+    }
+  ]
+}
 ```
-┌─────────────────────────────────────────────┐
-│           Configuration (config.toml)       │ ← Single Source of Truth
-└─────────────────────────────────────────────┘
-                      ↓
-        ┌─────────────────────────┐
-        │   aitao.sh (Orchestrator)│ ← Manages all services
-        └─────────────────────────┘
-         ↙      ↓       ↘      ↖
-    ┌──────┐ ┌──────┐ ┌─────┐ ┌────────┐
-    │ API  │ │  UI  │ │ RAG │ │ Sync   │
-    │ 8247 │ │ 3001 │ │ 8200│ │ Agent  │
-    └──────┘ └──────┘ └─────┘ └────────┘
-       ↓        ↓        ↓         ↓
-    ┌─────────────────────────────────────┐
-    │     LanceDB (Vector Storage)         │
-    │  + Indexing Pipeline (OCR/Text)     │
-    │  + Failed Files Tracking             │
-    └─────────────────────────────────────┘
-```
 
-### Services & Ports
+Now Continue will use your local AI enhanced with your indexed documents!
 
-| Port | Service | Role | Status |
-|------|---------|------|--------|
-| **8247** | API Server | Inference (OpenAI-compatible) | ✅ Active |
-| **3001** | AnythingLLM UI | Chat interface, workspace management | ✅ Active |
-| **8200** | RAG Server | Document search (model-agnostic) | ✅ Active |
-| N/A | Sync Agent | File watching, auto-indexing | ✅ Active |
+### Setting Up AnythingLLM
 
-### Key Architecture Principles
+[AnythingLLM](https://anythingllm.com/) is a desktop app for chatting with AI.
 
-1. **Configuration-Driven:** All settings in `config.toml`, no hardcoded paths
-2. **Modular:** Each component can be used independently
-3. **Model-Agnostic:** Apps choose their model (Qwen, Llama, etc.) while accessing shared RAG
-4. **Graceful Degradation:** Services work even if optional dependencies (lancedb) are missing
-5. **Privacy-First:** Everything runs locally, no external API calls (except optional web search)
+1. Open AnythingLLM → Settings → LLM Preference
+2. Select **"Custom OpenAI Compatible"**
+3. Configure:
+   - **Base URL**: `http://localhost:8200/v1`
+   - **Model**: `llama3.1:8b`
+   - **API Key**: `not-needed` (put anything, it's not checked)
+
+### Setting Up Open WebUI
+
+[Open WebUI](https://openwebui.com/) provides a ChatGPT-like interface.
+
+1. Open WebUI settings
+2. Add a new OpenAI-compatible provider:
+   - **API Base**: `http://localhost:8200/v1`
+   - **API Key**: `any-value`
+
+### Setting Up OnlyOffice AI
+
+OnlyOffice AI can use AItao directly as an OpenAI-compatible provider.
+
+Two plugins are available — use the correct provider type for each:
+
+| Plugin | Provider type | URL | Key |
+|---|---|---|---|
+| Classic AI Assistant (DD007) | `OpenAI` | `http://127.0.0.1:8200/v1` | `sk-local` |
+| AI Agent sidebar (DD777) | **`OpenAI Compatible`** | `http://127.0.0.1:8200/v1` | `sk-local` |
+
+> ⚠️ In the AI Agent sidebar, use **"OpenAI Compatible"**, NOT "OpenAI" — the OpenAI type
+> filters models to only GPT-5.2 which blocks all local models.
+
+For a full, reproducible local MVP setup (including RAG checks and troubleshooting),
+see [OnlyOffice Integration Guide](docs/ONLYOFFICE_INTEGRATION.md).
 
 ---
 
-## Quick Start
+## Managing AI Models
+
+AItao uses [Ollama](https://ollama.ai/) as its AI engine. Models are managed through Ollama and configured in AItao.
+
+### Viewing Available Models
+
+```bash
+# See all Ollama models and their status in AItao
+./aitao.sh models status
+```
+
+### Adding a New Model
+
+```bash
+# Add a model (automatically downloads from Ollama if needed)
+./aitao.sh models add mistral:7b --role chat
+
+# Add without downloading (if you already have it)
+./aitao.sh models add llama3.1:8b --role chat --no-pull
+
+# Mark a model as required for AItao to function
+./aitao.sh models add qwen2.5-coder:7b --role code --required
+```
+
+**Available Roles:**
+- `chat` - General conversation
+- `code` - Code generation and analysis
+- `embedding` - Document embeddings (for search)
+
+### Removing a Model
+
+```bash
+# Remove from AItao config only (keeps model in Ollama)
+./aitao.sh models remove mistral:7b
+
+# Also delete from Ollama to free disk space
+./aitao.sh models remove mistral:7b --delete-ollama
+
+# Force removal without confirmation
+./aitao.sh models remove mistral:7b --force
+```
+
+### Recommended Models
+
+| Use Case | Model | Size | Command |
+|----------|-------|------|---------|
+| General chat | `llama3.1:8b` | 4.7GB | `ollama pull llama3.1:8b` |
+| Coding | `qwen2.5-coder:7b` | 4.7GB | `ollama pull qwen2.5-coder:7b` |
+| Fast responses | `llama3.2:3b` | 2.0GB | `ollama pull llama3.2:3b` |
+| Embeddings | `nomic-embed-text` | 274MB | `ollama pull nomic-embed-text` |
 
 ---
 
-## Usage Examples
+## Complete Command Reference
 
-### Search Documents via RAG API
+### Service Management
 
-```bash
-# Simple search
-curl -X POST http://localhost:8200/v1/rag/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "budget forecast", "limit": 5}'
+| Command | What It Does |
+|---------|--------------|
+| `./aitao.sh start` | Start all AItao services |
+| `./aitao.sh stop` | Stop all AItao services |
+| `./aitao.sh restart` | Restart all services |
+| `./aitao.sh status` | Show service health dashboard |
 
-# Get document statistics
-curl http://localhost:8200/v1/rag/stats/_default
+### Document Operations
 
-# List available workspaces
-curl http://localhost:8200/v1/rag/workspaces
-```
+| Command | What It Does |
+|---------|--------------|
+| `./aitao.sh scan run` | Scan folders for new files |
+| `./aitao.sh scan status` | Show scan statistics |
+| `./aitao.sh index file <path>` | Index a specific file |
+| `./aitao.sh queue status` | Show indexing queue status |
+| `./aitao.sh queue list` | List pending files |
 
-### Query via Inference API (OpenAI-compatible)
+### Search & Chat
 
-```bash
-# Chat completion
-curl -X POST http://localhost:8247/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "aitao-model",
-    "messages": [{"role": "user", "content": "What is RAG?"}]
-  }'
-```
+| Command | What It Does |
+|---------|--------------|
+| `./aitao.sh search "<query>"` | Search your documents |
+| `./aitao.sh chat` | Start interactive chat |
 
-### Monitor Failed Files
+### Infrastructure
 
-```bash
-# View statistics
-python scripts/manage_failed_files.py stats
+| Command | What It Does |
+|---------|--------------|
+| `./aitao.sh ms status` | Meilisearch status |
+| `./aitao.sh ms start` | Start Meilisearch only |
+| `./aitao.sh ms stop` | Stop Meilisearch only |
+| `./aitao.sh db status` | LanceDB vector database status |
+| `./aitao.sh worker status` | Background worker status |
+| `./aitao.sh worker start` | Start background worker |
+| `./aitao.sh worker stop` | Stop background worker |
 
-# List all failed files
-python scripts/manage_failed_files.py list
+### Configuration
 
-# Retry failed indexing (max 3 retries)
-python scripts/manage_failed_files.py retry --max-retries 3
-
-# Export failed files to JSON
-python scripts/manage_failed_files.py export failed_files.json
-```
-
-### Admin Dashboard
-
-```bash
-# Start Gradio admin dashboard
-python src/core/admin_dashboard.py
-# Opens: http://localhost:7860
-```
-
-## Configuration Reference
-
-### `config.toml` Structure
-
-```toml
-[system]
-storage_root = "/path/to/storage"    # Where vectors, logs, failed files live
-logs_path = "$storage_root/logs"     # Supports variable substitution
-
-[server]
-api_host = "0.0.0.0"                 # API listen address
-api_port = 8247                      # Inference API (llama-cpp-python)
-ui_port = 3001                       # AnythingLLM UI
-rag_port = 8200                      # RAG Server API
-
-[models]
-models_dir = "/path/to/gguf/models"  # GGUF model files
-
-[indexing]
-include_paths = [                    # Folders to index
-  "/Users/you/Documents",
-  "/Users/you/Projects"
-]
-exclude_dirs = ["__pycache__", ".git", "node_modules"]
-exclude_files = [".DS_Store"]
-exclude_extensions = [".lock", ".log"]
-
-[ocr]
-engine = "auto"                      # "auto", "easyocr", or "qwen"
-table_area_min = 0.15                # Min area % for table detection
-min_intersections = 4                # Grid lines needed for table
-min_line_density = 0.0005            # Line coverage threshold
-```
-
-### Storage Locations
-
-```
-$storage_root/
-├── lancedb/                         # Vector database
-│   └── default.lance                # Default collection
-├── logs/                            # Application logs
-│   ├── api.log
-│   ├── sync.log
-│   ├── rag_server.log
-│   └── kotaemo_indexer.log
-├── history/                         # Chat history (if used)
-├── anythingllm-storage/             # AnythingLLM Docker mount
-└── failed_files.json                # Tracks files that failed to index
-```
+| Command | What It Does |
+|---------|--------------|
+| `./aitao.sh config show` | Display current configuration |
+| `./aitao.sh config validate` | Check config file for errors |
 
 ---
 
 ## Troubleshooting
 
-### Services Won't Start
+### "Command not found: aitao.sh"
 
+Make sure you're in the AItao folder and the script is executable:
 ```bash
-# Check for port conflicts
-lsof -i :8247 :3001 :8200
-
-# Kill conflicting process (replace PID)
-kill -9 <PID>
-
-# Or change ports in config.toml
+cd ~/aitao  # or wherever you installed it
+chmod +x aitao.sh
+./aitao.sh status
 ```
 
-### Docker Not Starting
+### "Meilisearch is not running"
 
+Start Meilisearch manually:
 ```bash
-# macOS: Launch Docker manually
-open -a Docker
-
-# Linux: Start Docker daemon
-sudo systemctl start docker
-
-# Wait 10 seconds, then retry
-./aitao.sh start
+brew services start meilisearch
 ```
 
-### Indexing Slow or Failing
+### "Ollama is not running"
 
+Start Ollama:
 ```bash
-# Check logs
-tail -f /path/to/storage_root/logs/kotaemo_indexer.log
-
-# View failed files
-python scripts/manage_failed_files.py list
-
-# Retry with verbose logging
-python -c "
-import logging
-logging.basicConfig(level=logging.DEBUG)
-from src.core.kotaemo_indexer import AITaoIndexer
-indexer = AITaoIndexer()
-indexer.index_files(['/path/to/file.pdf'])
-"
+ollama serve
 ```
 
-### Missing Optional Dependencies
+### "No models available"
 
-AI Tao gracefully degrades:
-- Without **lancedb**: Vector indexing disabled, RAG returns empty results
-- Without **sentence-transformers**: Embedding generation disabled  
-- Without **easyocr**: Image OCR unavailable (Qwen-VL still works)
-
-To install:
+Download a model:
 ```bash
-uv sync          # Full installation via uv
-# OR
-pip install lancedb sentence-transformers easyocr
+ollama pull llama3.1:8b
+```
+
+### "Port 8200 already in use"
+
+Another application is using the port. Either stop that application or change the port in `config/config.yaml`.
+
+### "Search returns no results"
+
+Make sure your documents are indexed:
+```bash
+./aitao.sh scan run
+./aitao.sh queue status  # Wait until queue is empty
 ```
 
 ---
 
-## Development & Testing
+## Supported File Types
 
-### Run Test Suite
+AItao can index these file types:
 
-```bash
-# Quick validation (5 seconds)
-bash QUICK_TEST.sh
-
-# Critical bug fixes validation
-bash scripts/test_critical_bugs.sh
-
-# Module import tests
-python scripts/test_imports.py
-```
-
-### Manual Testing
-
-```bash
-# Terminal 1: Start inference API
-python -m src.core.server --port 8247
-
-# Terminal 2: Start RAG server
-python -m src.core.rag_server
-
-# Terminal 3: Start sync agent (watches folders)
-python -m src.core.sync_agent
-
-# Terminal 4: Test RAG API
-curl http://localhost:8200/health
-```
+| Category | Extensions |
+|----------|------------|
+| **Documents** | .pdf, .docx, .doc, .txt, .rtf, .odt |
+| **Markdown** | .md, .markdown, .rst |
+| **Code** | .py, .js, .ts, .java, .c, .cpp, .go, .rs, .rb, .php, .swift, .kt |
+| **Data** | .json, .yaml, .yml, .xml, .csv, .toml |
+| **Web** | .html, .htm, .css |
+| **LaTeX** | .tex, .bib |
 
 ---
 
-## Project Status & Roadmap
+## Getting Help
 
-**Current Phase:** Phase 1 - Foundation (75% complete as of Jan 27, 2026)
+- **Documentation**: Check the `docs/` folder for detailed guides
+- **Issues**: Report bugs on [GitHub Issues](https://github.com/shamantao/aitao/issues)
+- **Configuration**: See `prd/PRD.md` for technical details
 
-**Validation Results (Latest):**
-- ✅ Configuration management (TOML parsing)
-- ✅ CLI orchestration (all commands working)
-- ✅ RAG pipeline (bug fixed & tested)
-- ✅ Sync agent (critical bug fixed)
-- ✅ Failed file tracking (functioning)
-- ✅ System verification (14/14 checks passed)
-- 📋 E2E testing (Phase 2 task)
+---
 
-**Next Phase:** Phase 2 - Core Features (Ready to start)
-- 🔮 Web search integration (DuckDuckGo) - 3pts
-- 🔮 Vision model (Qwen2.5-VL) for image analysis - 8pts
-- 🔮 Code assistant (Qwen2.5-Coder) routing - 5pts
-- 🔮 Audio transcription (Whisper alternative) - Research needed
+## License
 
-**Future Phases:** Phase 3/4
-- Image/SVG generation
-- Linux & Windows support
-- Zero-config installer
-- Advanced security (encryption, sandboxing)
+MIT License - Free to use, modify, and distribute.
 
-**See also:**
-- [Product Requirements (PRD)](prd/PRD.md)
-- [Agile Backlog](prd/BACKLOG.md)
-- [Project Status Report](prd/PROJECT_STATUS.md)
-- [Bug Fixes Report](prd/BUG_FIXES_REPORT.md)
-- [Coherence Analysis](prd/COHERENCE_ANALYSE.md)
+---
+
+<p align="center">
+  <strong>AItao</strong> - Your Personal AI, Your Privacy, Your Planet 🌍
+</p>
