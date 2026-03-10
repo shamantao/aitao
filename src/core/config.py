@@ -95,7 +95,7 @@ class ConfigManager:
         "app": {
             "name": "aitao",
             "mode": "normal",
-            "version": "2.6.0",
+            # version is intentionally absent — single source of truth is pyproject.toml
         },
         "paths": {
             "storage_root": "${HOME}/.aitao/data",
