@@ -4,6 +4,27 @@
 
 ---
 
+## Two Editions
+
+| | **AItao Core** (Free) | **AItao Premium** (Paid) |
+|---|---|---|
+| **License** | AGPL v3 — open source | Commercial — activated by license key |
+| **Price** | Free forever | One-time purchase, no subscription |
+| **Local RAG** — index your files, search, chat | ✓ | ✓ |
+| **Works with any Ollama model** | ✓ | ✓ |
+| **Dashboard & CLI** | ✓ | ✓ |
+| **Virtual LLMs** (`-context`, `-basic`) — RAG routing by model name | — | ✓ |
+| **Advanced OCR** (PaddleOCR, Qwen-VL for scanned documents) | — | ✓ |
+| **Document translation** (fr ↔ zh, en ↔ fr…) | — | ✓ |
+| **Personal assistant** (time management, reminders) | — | ✓ |
+| **Auto-categorization** of indexed documents | — | ✓ |
+| **Priority support** | — | ✓ |
+
+> **Not sure which edition you need?** Start with Core — it already covers 90% of personal RAG use cases.
+> Upgrade to Premium when you need the Virtual LLMs or OCR on scanned documents.
+
+---
+
 **Why AItao?**  
 **Concerned about privacy?** Every question you ask cloud AI services is stored on their servers. With AItao,  **everything runs on YOUR ** **Computer**. Your documents, your questions, your answers - nothing ever leaves your computer.  
 **Want a more ecological approach?** Cloud AI data centers consume enormous amounts of energy. Running AI locally on your computer is significantly more energy-efficient. Yes, it's a bit slower - but it's  **better for the planet**.  
@@ -461,8 +482,26 @@ AItao can index these file types:
 
 ---
 
-**License**  
+## License
 
+**AItao Core** is open source under the **GNU Affero General Public License v3 (AGPL-3.0)**.
 
-**AItao** - Your Personal AI, Your Privacy, Your Planet 🌍  
-   
+This means:
+- ✓ Free to use, study, and modify for personal use
+- ✓ No data leaves your machine — ever
+- ✓ You can redistribute it, but modifications must also be AGPL
+- ✗ You cannot bundle AItao in a closed-source commercial product without a commercial license
+
+**AItao Premium** is distributed under a separate **Commercial License**, activated by a license key
+purchased on [shamantao.com](https://shamantao.com). One key = one machine, perpetual use,
+no subscription. Includes all Core features + premium modules.
+
+For commercial use of the Core code without AGPL obligations, contact: **license@shamantao.com**
+
+Full license text: [LICENSE](LICENSE)
+
+---
+
+<p align="center">
+  <strong>AItao</strong> — Your Personal AI, Your Privacy, Your Planet 🌍
+</p>
