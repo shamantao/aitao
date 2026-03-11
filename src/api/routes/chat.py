@@ -34,8 +34,90 @@ from src.llm.ollama_client import (
 )
 from src.llm.rag_engine import RAGEngine, ContextDocument
 from src.api.virtual_models import resolve_model, ResolvedModel
+from src.llm.intent_router import IntentRouter
+from src.llm.factual_query import FactualQueryHandler
+from src.llm.summarizer import MapReduceSummarizer
 
 logger = get_logger("api.chat")
+
+_intent_router = IntentRouter()
+_factual_handler: Optional[FactualQueryHandler] = None
+_map_reduce_summarizer: Optional[MapReduceSummarizer] = None
+
+
+def _get_factual_handler() -> FactualQueryHandler:
+    """Get or create FactualQueryHandler."""
+    global _factual_handler
+    if _factual_handler is None:
+        _factual_handler = FactualQueryHandler()
+    return _factual_handler
+
+
+def _get_summarizer() -> MapReduceSummarizer:
+    """Get or create MapReduceSummarizer."""
+    global _map_reduce_summarizer
+    if _map_reduce_summarizer is None:
+        _map_reduce_summarizer = MapReduceSummarizer()
+    return _map_reduce_summarizer
+
+
+def _resolve_factual_context(messages: list) -> Optional[str]:
+    """
+    If the last user message is a factual intent, build and return the
+    structured context string.  Returns None for all other intents.
+    """
+    last_user = next(
+        (m for m in reversed(messages) if getattr(m, "role", None) == "user"),
+        None,
+    )
+    if last_user is None:
+        return None
+    prompt = _extract_text(last_user.content)
+    intent = _intent_router.classify(prompt)
+    logger.debug("Intent classification", metadata={"intent": intent})
+    if intent == "factual":
+        return _get_factual_handler().handle(prompt)
+    return None
+
+
+def _classify_last_intent(messages: list) -> str:
+    """Return intent classification for the last user message."""
+    last_user = next(
+        (m for m in reversed(messages) if getattr(m, "role", None) == "user"),
+        None,
+    )
+    if last_user is None:
+        return "rag"
+    return _intent_router.classify(_extract_text(last_user.content))
+
+
+async def _stream_map_reduce(
+    prompt: str,
+    ollama: "OllamaClient",
+    real_model: str,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream Map-Reduce summarization as Ollama-compatible NDJSON chunks.
+
+    Yields each intermediate result wrapped in the Ollama streaming format.
+    """
+    def _llm_call(sub_prompt: str) -> str:
+        """Synchronous LLM call for map/reduce passes."""
+        messages = [OllamaChatMessage(role="user", content=sub_prompt)]
+        result = ollama.chat(messages=messages, model=real_model, stream=False)
+        return result.get("message", {}).get("content", "")
+
+    for part in _get_summarizer().summarize_prompt(prompt, _llm_call):
+        # Format as Ollama streaming chunk
+        chunk_obj = {
+            "message": {"role": "assistant", "content": part + "\n\n"},
+            "done": False,
+        }
+        yield json.dumps(chunk_obj) + "\n"
+
+    # Final done sentinel
+    yield json.dumps({"message": {"role": "assistant", "content": ""}, "done": True}) + "\n"
+
 
 # Router
 router = APIRouter(prefix="/api", tags=["Chat"])
@@ -364,13 +446,40 @@ async def chat_completion(request: ChatRequest):
     
     try:
         ollama = get_ollama_client()
-        
+
+        # --- US-043: Summarize intent → Map-Reduce pipeline ---
+        if _classify_last_intent(request.messages) == "summarize":
+            last_user = next(
+                (m for m in reversed(request.messages) if m.role == "user"), None
+            )
+            prompt_text = _extract_text(last_user.content) if last_user else ""
+            logger.info("Summarize intent detected → Map-Reduce", metadata={"prompt": prompt_text[:80]})
+            return StreamingResponse(
+                _stream_map_reduce(prompt_text, ollama, resolved.real_model),
+                media_type="application/x-ndjson",
+            )
+
         # Convert messages (content can be None or multimodal list)
         messages = [
             OllamaChatMessage(role=m.role, content=_extract_text(m.content))
             for m in request.messages
         ]
-        
+
+        # --- US-042: Intent routing (factual queries bypass RAG) ---
+        factual_ctx = _resolve_factual_context(request.messages)
+        if factual_ctx:
+            effective_rag_enabled = False
+            rag_system_ctx = _build_rag_system_context()
+            base_ctx = (rag_system_ctx + "\n\n" + factual_ctx).strip()
+            messages = list(_inject_rag_system_message(
+                [{"role": m.role, "content": m.content} for m in messages],
+                base_ctx,
+            ))
+            messages = [
+                OllamaChatMessage(role=m["role"], content=m["content"])
+                for m in messages
+            ]
+
         # RAG enrichment (controlled by virtual model or request)
         context_docs = []
         if effective_rag_enabled and messages:
@@ -535,6 +644,21 @@ async def openai_chat_completion(request: OpenAIChatRequest):
             for m in request.messages
         ]
         
+        # --- US-042: Intent routing (factual queries bypass RAG) ---
+        factual_ctx_oai = _resolve_factual_context(request.messages)
+        if factual_ctx_oai:
+            effective_rag_enabled = False
+            rag_system_ctx = _build_rag_system_context()
+            base_ctx = (rag_system_ctx + "\n\n" + factual_ctx_oai).strip()
+            messages = list(_inject_rag_system_message(
+                [{"role": m.role, "content": m.content} for m in messages],
+                base_ctx,
+            ))
+            messages = [
+                OllamaChatMessage(role=m["role"], content=m["content"])
+                for m in messages
+            ]
+
         # RAG enrichment (controlled by virtual model or request)
         context_docs = []
         if effective_rag_enabled and messages:
