@@ -25,7 +25,20 @@ from cli.utils import (
 )
 
 
-app = typer.Typer(help="Hybrid search across documents")
+app = typer.Typer(
+    help=(
+        "Recherche hybride dans vos documents (texte + sémantique).\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Rechercher un terme :\n"
+        "    [green]./aitao.sh search query \"contrat loyer\"[/green]\n\n"
+        "  Recherche sémantique uniquement :\n"
+        "    [green]./aitao.sh search query \"facture fournisseur\" --mode semantic[/green]\n\n"
+        "  Recherche par mots-clés uniquement :\n"
+        "    [green]./aitao.sh search query \"Taiwan\" --mode fulltext[/green]\n\n"
+        "[dim]La recherche hybride combine les deux modes pour de meilleurs résultats.[/dim]"
+    ),
+    rich_markup_mode="rich",
+)
 
 
 def _format_score(score: float) -> str:

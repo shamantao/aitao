@@ -8,16 +8,16 @@ This module handles:
 - Document extraction and preparation
 - Document indexing pipeline
 - Text chunking for RAG
+
+NOTE: Imports are intentionally NOT eager here.
+      Importing this package does NOT load sentence_transformers, lancedb, or
+      other heavy ML libraries. Each sub-module must be imported directly:
+        from indexation.queue import TaskQueue
+        from indexation.worker import BackgroundWorker
+      This keeps CLI startup time fast (--help, dashboard, etc.).
 """
 
-from src.indexation.scanner import FilesystemScanner
-from src.indexation.queue import TaskQueue
-from src.indexation.worker import BackgroundWorker
-from src.indexation.text_extractor import TextExtractor, extract_text
-from src.indexation.indexer import DocumentIndexer, IndexResult, BatchIndexResult, index_file
-from src.indexation.interfaces import Chunk, ChunkingConfig, ChunkingResult
-from src.indexation.chunker import ChunkingPipeline, chunk_text
-
+# No eager imports — all sub-modules are loaded on demand.
 __all__ = [
     "FilesystemScanner",
     "TaskQueue",
@@ -28,7 +28,6 @@ __all__ = [
     "IndexResult",
     "BatchIndexResult",
     "index_file",
-    # Chunking
     "Chunk",
     "ChunkingConfig",
     "ChunkingResult",

@@ -32,7 +32,25 @@ from cli.utils import (
 from indexation.queue import TaskQueue, TaskStatus, TaskPriority, TaskType
 
 console = Console()
-app = typer.Typer(help="Task queue management commands")
+app = typer.Typer(
+    help=(
+        "File de traitement des documents.\n\n"
+        "[bold cyan]Cas courants[/bold cyan]\n\n"
+        "  Voir les échecs :\n"
+        "    [green]./aitao.sh queue list failed[/green]\n"
+        "    [green]./aitao.sh queue list failed -n 100[/green]   (100 résultats)\n\n"
+        "  Détail d'une tâche :\n"
+        "    [green]./aitao.sh queue info a3f1bc2d[/green]\n\n"
+        "  Réessayer les échecs :\n"
+        "    [green]./aitao.sh queue retry[/green]\n"
+        "    [green]./aitao.sh start[/green]               (relance le worker)\n\n"
+        "  Voir toutes les tâches :\n"
+        "    [green]./aitao.sh queue status[/green]         (compteurs globaux)\n"
+        "    [green]./aitao.sh queue list pending[/green]   (en attente)\n"
+        "    [green]./aitao.sh queue list[/green]           (toutes)"
+    ),
+    rich_markup_mode="rich",
+)
 
 
 def get_queue() -> TaskQueue:

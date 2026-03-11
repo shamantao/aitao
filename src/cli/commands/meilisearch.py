@@ -26,7 +26,21 @@ from cli.utils import (
 from core.registry import StatsKeys
 
 
-app = typer.Typer(help="Meilisearch management")
+app = typer.Typer(
+    help=(
+        "Gestion de Meilisearch (moteur de recherche texte intégral).\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Vérifier que Meilisearch fonctionne :\n"
+        "    [green]./aitao.sh ms status[/green]\n\n"
+        "  Voir les statistiques de l'index :\n"
+        "    [green]./aitao.sh ms stats[/green]\n\n"
+        "  Voir la version installée :\n"
+        "    [green]./aitao.sh ms version[/green]\n\n"
+        "  Mettre à jour Meilisearch :\n"
+        "    [green]./aitao.sh ms upgrade[/green]"
+    ),
+    rich_markup_mode="rich",
+)
 
 
 @app.command("status")
