@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.core.license import LicenseManager
 from src.core.logger import get_logger
 
 logger = get_logger("api.virtual_models")
@@ -169,6 +170,9 @@ class VirtualModelRouter:
         if not config.get("enabled", True):
             logger.info("Virtual models disabled in config")
             return cls(base_mappings=None, suffix_configs=None, use_defaults=False)
+
+        # Premium feature — blocked in Core edition
+        LicenseManager().require_premium("virtual_models")
         
         # Parse suffix configurations
         suffix_configs: Dict[str, VirtualModelConfig] = {}

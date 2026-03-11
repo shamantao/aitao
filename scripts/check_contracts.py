@@ -13,6 +13,7 @@ Contracts verified:
   AC-005: No Path() for system paths outside pathmanager.py
   AC-006: PathManager must be imported for path operations
   AC-007: StatsKeys must be used for statistics dictionaries
+  AC-008: No .log files inside the project source tree
 
 Usage:
   python scripts/check_contracts.py           # Run all checks
@@ -297,13 +298,40 @@ class ContractChecker:
         self.check_ac004_no_placeholder_functions(file_path, content, tree)
         self.check_ac007_stats_keys(file_path, content, tree)
     
+    def check_ac008_no_log_files_in_source(self) -> None:
+        """AC-008: No .log files may exist inside src/ or tests/ directories.
+
+        Runtime log files in logs/ or data/ are expected and gitignored.
+        A log file landing in src/ or tests/ signals a wrong fallback path.
+        """
+        code_dirs = [self.src_dir, self.src_dir.parent / "tests"]
+        for code_dir in code_dirs:
+            if not code_dir.exists():
+                continue
+            for log_file in code_dir.rglob("*.log"):
+                parts = log_file.parts
+                if any(p.startswith(".") or p in ("venv", ".venv", "__pycache__") for p in parts):
+                    continue
+                self.violations.append(Violation(
+                    contract="AC-008",
+                    file_path=log_file,
+                    line_number=0,
+                    description=f"Log file found inside code directory: {log_file.relative_to(self.src_dir.parent)}",
+                    suggestion=(
+                        "Log files must be written via PathManager.get_logs_dir() to the storage directory. "
+                        "Check logger.py fallback and ensure no test creates logs in src/ or tests/."
+                    ),
+                ))
+
     def run_all_checks(self) -> list[Violation]:
         """Run all contract checks on the entire codebase."""
         self.violations = []
-        
+
         for py_file in self.get_python_files():
             self.check_file(py_file)
-        
+
+        self.check_ac008_no_log_files_in_source()
+
         return self.violations
     
     def print_report(self, show_suggestions: bool = False) -> None:

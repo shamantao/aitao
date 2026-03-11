@@ -583,7 +583,49 @@ class MeilisearchClient:
             
         except MeilisearchApiError as e:
             raise MeilisearchError(f"Get stats failed: {e}")
-    
+
+    def get_all_document_paths(self) -> List[str]:
+        """
+        Return all document paths stored in the Meilisearch index.
+
+        Uses offset-based pagination to retrieve every document.
+
+        Returns:
+            List of absolute file paths indexed in Meilisearch
+
+        Raises:
+            MeilisearchError: If the listing fails
+        """
+        paths: List[str] = []
+        offset, limit = 0, 1000
+        while True:
+            try:
+                result = self.index.get_documents(
+                    {"limit": limit, "offset": offset, "fields": ["path"]}
+                )
+            except MeilisearchApiError as e:
+                raise MeilisearchError(f"Failed to list documents: {e}")
+
+            docs = (
+                result.results
+                if hasattr(result, "results")
+                else (result if isinstance(result, list) else [])
+            )
+            for doc in docs:
+                p = (
+                    doc.get("path")
+                    if isinstance(doc, dict)
+                    else getattr(doc, "path", None)
+                )
+                if p:
+                    paths.append(p)
+
+            if not docs or len(docs) < limit:
+                break
+            offset += limit
+
+        return paths
+
     def clear(self) -> int:
         """
         Delete all documents from the index.

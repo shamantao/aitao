@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aitao"
-version = "2.7.0"
+version = "2.7.39"
 description = "AI Tao V2 - Document Search & Translation Engine (Local-first, Privacy-focused)"
 readme = "README.md"
 requires-python = ">=3.10"

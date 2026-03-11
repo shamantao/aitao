@@ -2,10 +2,11 @@
 Scan commands - Filesystem scanning for document discovery.
 
 Commands:
-- aitao scan          Scan configured paths for new/modified files
-- aitao scan paths    Show configured scan paths
-- aitao scan status   Show scanner state and stats
-- aitao scan clear    Clear scanner state (force full rescan)
+- aitao scan                   Scan configured paths for new/modified files
+- aitao scan paths             Show configured scan paths
+- aitao scan status            Show scanner state and stats
+- aitao scan clear             Clear scanner state (force full rescan)
+- aitao scan reindex           Re-queue docs present in Meilisearch but missing their LanceDB vectors
 """
 
 import sys
@@ -215,7 +216,86 @@ def scan_clear(
         scanner.clear_state()
         success("Scanner state cleared")
         info("Next scan will treat all files as new")
-        
+
+    except Exception as e:
+        error(f"Error: {e}")
+        raise typer.Exit(1)
+
+
+@app.command("reindex")
+def scan_reindex(
+    missing_vectors: bool = typer.Option(
+        True,
+        "--missing-vectors",
+        help="Re-queue documents present in Meilisearch but missing from LanceDB vectors",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", "-n",
+        help="Show what would be re-queued without submitting tasks",
+    ),
+):
+    """Re-index documents present in Meilisearch but missing from LanceDB."""
+    try:
+        from search.meilisearch_client import (
+            MeilisearchClient,
+            MeilisearchConnectionError,
+            MeilisearchError,
+        )
+        from search.lancedb_client import LanceDBClient, LanceDBError
+        from indexation.queue import TaskQueue, TaskType
+
+        # Retrieve all paths known to Meilisearch
+        info("Fetching Meilisearch document list...")
+        try:
+            meili = MeilisearchClient()
+            meili_paths: set = set(meili.get_all_document_paths())
+        except MeilisearchConnectionError as exc:
+            error(f"Cannot connect to Meilisearch: {exc}")
+            raise typer.Exit(1)
+        except MeilisearchError as exc:
+            error(f"Meilisearch error: {exc}")
+            raise typer.Exit(1)
+
+        # Retrieve all paths that already have vectors in LanceDB
+        info("Fetching LanceDB vector list...")
+        try:
+            lance = LanceDBClient(load_model=False, ensure_table=False)
+            lance_paths: set = lance.get_all_vector_paths()
+        except LanceDBError as exc:
+            warning(f"LanceDB unavailable, assuming empty index: {exc}")
+            lance_paths = set()
+
+        missing = meili_paths - lance_paths
+
+        console.print()
+        console.print(f"[bold]Meilisearch:[/bold] {len(meili_paths)} document(s) indexed")
+        console.print(f"[bold]LanceDB:[/bold]     {len(lance_paths)} document(s) with vectors")
+        console.print(f"[bold]Missing:[/bold]     {len(missing)} document(s) need re-indexing")
+        console.print()
+
+        if not missing:
+            success("All documents already have vectors. Nothing to do.")
+            return
+
+        if dry_run:
+            info("[dry-run] Files that would be re-queued:")
+            for p in sorted(missing):
+                console.print(f"  {p}")
+            return
+
+        # Submit missing files to the indexation queue
+        queue = TaskQueue()
+        tasks = queue.add_tasks_batch(
+            list(missing),
+            task_type=TaskType.REINDEX.value,
+            priority="normal",
+        )
+
+        success(f"{len(tasks)} file(s) submitted to the queue for re-indexing")
+        info("Run [bold]aitao worker start[/bold] to process the queue")
+
+    except typer.Exit:
+        raise
     except Exception as e:
         error(f"Error: {e}")
         raise typer.Exit(1)

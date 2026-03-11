@@ -97,6 +97,51 @@ def _build_rag_system_context() -> str:
         return ""
 
 
+def _extract_conversation_attachments(messages: List) -> str:
+    """
+    Extract text from multimodal user messages (file attachments) in prior turns.
+
+    When a client attaches a file, the message content arrives as a multimodal
+    list.  On follow-up turns, RAG enrichment replaces the last user message
+    with indexed-document context, which can overshadow the attached file that
+    is already present in the conversation history.  This helper collects the
+    file text so it can be re-injected as a persistent system context block,
+    ensuring the LLM never "forgets" a file shared earlier in the session.
+
+    Only user messages *before* the last user message are examined.
+
+    Args:
+        messages: Full list of ChatMessage objects from the current request.
+
+    Returns:
+        Concatenated attachment text (separated by ---), or empty string.
+    """
+    if len(messages) <= 1:
+        return ""
+
+    last_user_idx: Optional[int] = None
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].role == "user":
+            last_user_idx = i
+            break
+
+    if last_user_idx is None or last_user_idx == 0:
+        return ""
+
+    parts: List[str] = []
+    for i in range(last_user_idx):
+        msg = messages[i]
+        if msg.role != "user":
+            continue
+        # List-type content signals a client-side file or image attachment
+        if isinstance(msg.content, list):
+            text = _extract_text(msg.content)
+            if text.strip():
+                parts.append(text.strip())
+
+    return "\n\n---\n\n".join(parts)
+
+
 def _inject_rag_system_message(
     messages: list,
     system_context: str,
@@ -337,6 +382,22 @@ async def chat_completion(request: ChatRequest):
                 # knows which directories are configured, regardless of RAG hits
                 rag_system_ctx = _build_rag_system_context()
                 msg_dicts = _inject_rag_system_message(msg_dicts, rag_system_ctx)
+                # Re-inject file attachments from prior turns so the LLM
+                # keeps them in scope even after RAG enriches the last message
+                # (fix for issue #3 – conversation context loss)
+                conv_files = _extract_conversation_attachments(request.messages)
+                if conv_files:
+                    note = (
+                        "Content shared by the user earlier in this conversation "
+                        "(use as primary reference for follow-up questions):\n\n"
+                        + conv_files
+                    )
+                    for _m in msg_dicts:
+                        if _m.get("role") == "system":
+                            _m["content"] = _m["content"] + "\n\n" + note
+                            break
+                    else:
+                        msg_dicts.insert(0, {"role": "system", "content": note})
                 # Build filters dict if category filter specified
                 filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(
@@ -484,6 +545,20 @@ async def openai_chat_completion(request: OpenAIChatRequest):
                 # knows which directories are configured, regardless of RAG hits
                 rag_system_ctx = _build_rag_system_context()
                 msg_dicts = _inject_rag_system_message(msg_dicts, rag_system_ctx)
+                # Re-inject file attachments from prior turns (fix for issue #3)
+                conv_files = _extract_conversation_attachments(request.messages)
+                if conv_files:
+                    note = (
+                        "Content shared by the user earlier in this conversation "
+                        "(use as primary reference for follow-up questions):\n\n"
+                        + conv_files
+                    )
+                    for _m in msg_dicts:
+                        if _m.get("role") == "system":
+                            _m["content"] = _m["content"] + "\n\n" + note
+                            break
+                    else:
+                        msg_dicts.insert(0, {"role": "system", "content": note})
                 # Build filters dict if category filter specified
                 filters = {"category": effective_filter} if effective_filter else None
                 enriched_msgs, context_docs, _ = rag.enrich_messages(

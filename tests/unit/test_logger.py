@@ -279,15 +279,25 @@ class TestGetLogger:
             assert "Info message" not in content
             assert "Warning message" in content
     
-    def test_get_logger_fallback_on_error(self, temp_logs_dir, monkeypatch):
+    def test_get_logger_fallback_on_error(self, tmp_path, monkeypatch):
         """Test get_logger falls back gracefully if PathManager fails."""
         mock_path_manager = MagicMock()
         mock_path_manager.get_logs_dir.side_effect = Exception("PathManager error")
-        
+
+        # Redirect CWD so any residual relative-path fallback stays in tmp_path
+        monkeypatch.chdir(tmp_path)
+
         with patch('src.core.logger.path_manager', mock_path_manager):
-            # Should not raise, should use fallback ./logs/
+            # Should not raise – fallback writes to system temp, not the project dir
             logger = get_logger("fallback_test")
             logger.info("Test message")
-            
-            # Logger should still work (fallback to ./logs/)
+
             assert isinstance(logger, StructuredLogger)
+
+            # Verify no log file was written inside the project source tree
+            import tempfile
+            from pathlib import Path as _Path
+            project_logs = _Path(__file__).parent.parent.parent / "logs"
+            assert not (project_logs / "fallback_test.log").exists(), (
+                "fallback_test.log must not be created in the source code directory (issue #1)"
+            )

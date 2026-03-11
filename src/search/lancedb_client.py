@@ -573,7 +573,35 @@ class LanceDBClient:
             
         except Exception as e:
             raise LanceDBError(f"Get stats failed: {e}")
-    
+
+    def get_all_vector_paths(self) -> set:
+        """
+        Return the set of all file paths that have vectors in LanceDB.
+
+        Returns an empty set if the table does not exist yet.
+
+        Returns:
+            Set of absolute file paths stored in LanceDB
+
+        Raises:
+            LanceDBError: If the lookup fails
+        """
+        try:
+            tables_response = self.db.list_tables()
+            table_names = (
+                tables_response.tables
+                if hasattr(tables_response, "tables")
+                else list(tables_response)
+            )
+            if self.table_name not in table_names:
+                return set()
+
+            table = self.db.open_table(self.table_name)
+            df = table.to_pandas()
+            return set(df["path"].dropna().tolist())
+        except Exception as e:
+            raise LanceDBError(f"Failed to list vector paths: {e}")
+
     def clear(self) -> int:
         """
         Delete all documents from the index.
