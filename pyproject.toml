@@ -11,12 +11,12 @@ requires-python = ">=3.10"
 authors = [
     { name = "Philippe", email = "phil@example.com" }
 ]
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 keywords = ["ai", "local", "rag", "privacy", "llm"]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Natural Language :: English",
     "Natural Language :: French",
     "Programming Language :: Python :: 3",
@@ -72,6 +72,16 @@ dev = [
     "black>=23.0",
     "ruff>=0.1",
     "mypy>=1.0",
+]
+premium = [
+    # --- Advanced OCR ---
+    "paddlepaddle>=2.6.0",
+    "paddleocr>=2.7.0",
+    # --- Translation ---
+    "transformers>=4.40.0",
+    "sentencepiece>=0.2.0",
+    # --- License validation ---
+    "cryptography>=42.0.0",
 ]
 
 [tool.setuptools]
