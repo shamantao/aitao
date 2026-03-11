@@ -12,10 +12,19 @@ This module provides a centralized logger with:
 import sys
 import logging
 import json
+import tempfile
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from typing import Optional, Dict, Any
 from pathlib import Path
+
+
+def _temp_logs_dir() -> Path:
+    """Return a safe temp directory for logs when PathManager is unavailable."""
+    path = Path(tempfile.gettempdir()) / "aitao_logs"
+    path.mkdir(exist_ok=True)
+    return path
+
 
 # Import PathManager
 try:
@@ -24,13 +33,10 @@ except ImportError:
     try:
         from core.pathmanager import path_manager
     except ImportError:
-        # Emergency fallback: assume logs go to ./logs
+        # Emergency fallback: write to system temp dir, never to CWD
         class FallbackPathManager:
             def get_logs_dir(self):
-                from pathlib import Path
-                path = Path("logs")
-                path.mkdir(exist_ok=True)
-                return path
+                return _temp_logs_dir()
         path_manager = FallbackPathManager()
 
 
@@ -196,10 +202,9 @@ def get_logger(
             logs_dir = path_manager.get_logs_dir()
             log_file = logs_dir / log_filename
         except Exception as e:
-            # Fallback if PathManager fails
-            print(f"⚠️ Logger: PathManager unavailable ({e}), using fallback ./logs/", file=sys.stderr)
-            logs_dir = Path("logs")
-            logs_dir.mkdir(exist_ok=True)
+            # Fallback: write to system temp dir, never to CWD (issue #1)
+            print(f"⚠️ Logger: PathManager unavailable ({e}), using temp fallback", file=sys.stderr)
+            logs_dir = _temp_logs_dir()
             log_file = logs_dir / log_filename
         
         # File handler with JSON formatting (100MB max, 5 backups)
