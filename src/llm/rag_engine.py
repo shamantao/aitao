@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Union
 import time
 
 from src.core.config import ConfigManager
+from src.core.license import LicenseManager
 from src.core.logger import StructuredLogger
 
 
@@ -146,6 +147,9 @@ class RAGEngine:
             config: ConfigManager instance for reading config.toml
             logger: StructuredLogger instance for logging
         """
+        # Premium feature — blocked in Core edition
+        LicenseManager().require_premium("rag_chat")
+
         self.config = config
         self.logger = logger
         
