@@ -23,7 +23,19 @@ from cli.utils import (
 from core.registry import StatsKeys
 
 
-app = typer.Typer(help="LanceDB (vector database) management")
+app = typer.Typer(
+    help=(
+        "Gestion de LanceDB (base de vecteurs sémantiques).\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Voir les statistiques (nb de vecteurs) :\n"
+        "    [green]./aitao.sh db stats[/green]\n\n"
+        "  Vérifier l'état de la base :\n"
+        "    [green]./aitao.sh db status[/green]\n\n"
+        "[dim]LanceDB stocke la représentation sémantique des documents\n"
+        "(vecteurs). Elle permet la recherche par sens, pas seulement par mots.[/dim]"
+    ),
+    rich_markup_mode="rich",
+)
 
 
 @app.command("status")

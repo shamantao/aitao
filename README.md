@@ -237,22 +237,22 @@ without having to run several commands one by one.
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  AiTao Dashboard  —  v2.6.0  —  10 Mar 2026  14:32             ║
+║  AiTao Dashboard  —  v2.7.0  —  11 Mar 2026  09:15             ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 ■ Services                          ■ Modèles Ollama en mémoire
-  ✓ AiTao API    localhost:8200       ✓ qwen2.5:14b      8 420 MB  (expire dans 4 min)
+  ✓ AiTao API    localhost:8200       ✓ llama3.1-local   4 700 MB  (expire dans 2 min)
   ✓ Meilisearch  localhost:7700       ✓ nomic-embed-text   274 MB  (expire dans 9 min)
-  ✓ Ollama       localhost:11434
-  ✗ OpenWebUI    localhost:3000     ■ Worker / Scan
-  ✗ OnlyOffice   localhost:8080       ● Worker actif (PID 1234)
-                                       En attente      0
-■ Index                                En cours         0
-  Meilisearch   12 483 docs            Complétés   1 482
-  LanceDB       12 471 vecteurs        Échoués        12
-  ✓ Synchronisé
-  Sources : 3 dossier(s) configuré(s)
-    ~/Downloads/_sources/
+  ✓ Ollama       localhost:11434        (OpenWebUI et OnlyOffice masqués si non actifs)
+
+■ Index                             ■ Worker / Scan
+  Meilisearch   12 483 docs           ◌ Worker en veille (PID 1234)
+  LanceDB       12 312 vecteurs         En attente         0
+  12 312/12 483 docs vectorisés (98%)   En cours           0
+  → ./aitao.sh scan run                 Complétés (≠ docs indexés)   1 482
+     puis ./aitao.sh start              Échoués             12
+  Sources : 3 dossier(s) configuré(s)   → ./aitao.sh queue retry
+    ~/Downloads/_sources/                  puis ./aitao.sh start
     ~/Documents/
     ~/pCloudSync/_Business/
 ```
@@ -276,8 +276,15 @@ If the counts differ by a lot, the worker is probably still catching up — chec
 
 The dashboard shows two types of indexing failures:
 
-- **Format errors** (shown in yellow) — AiTao does not yet know how to read this file type (e.g. `.epub`, `.mobi`). These will be retried automatically once support is added.
-- **Content errors** (shown in red) — The file is corrupted, password-protected, or scanned without OCR text. These require your attention.
+- **Format errors** (shown in yellow) — AiTao does not yet know how to read this file type (e.g. `.epub`, `.mobi`). These will be retried automatically once support is added. **No action required.**
+- **Content errors** (shown in red) — The file is corrupted, password-protected, or scanned without OCR text. Open the file directly to investigate.
+
+If there are failed queue items, re-process them with:
+
+```bash
+./aitao.sh queue retry
+./aitao.sh start
+```
 
 ---
 
@@ -458,7 +465,20 @@ AItao uses [Ollama](https://ollama.ai/) as its AI engine. Models are managed thr
 |---------|--------------|
 | `./aitao.sh config show` | Display current configuration |
 | `./aitao.sh config validate` | Check config file for errors |
+### Help System
 
+Every command group has built-in help with practical examples:
+
+| Command | What It Does |
+|---------|-------------- |
+| `./aitao.sh help` | Overview of all commands with situational guide |
+| `./aitao.sh queue help` | File queue management with examples |
+| `./aitao.sh scan help` | Folder scanner with examples |
+| `./aitao.sh worker help` | Background worker with examples |
+| `./aitao.sh ms help` | Meilisearch management with examples |
+| `./aitao.sh db help` | LanceDB vector database with examples |
+| `./aitao.sh search help` | Hybrid search operations with examples |
+| `./aitao.sh index help` | Indexing pipeline with examples |
 ---
 
 ## Troubleshooting
@@ -524,9 +544,42 @@ AItao can index these file types:
 
 ## Getting Help
 
+- **Built-in CLI help**: Run `./aitao.sh help` for a quick situational guide, or `./aitao.sh <group> help` (e.g. `./aitao.sh queue help`) for detailed examples on any command group.
 - **Documentation**: Check the `docs/` folder for detailed guides
 - **Issues**: Report bugs on [GitHub Issues](https://github.com/shamantao/aitao/issues)
 - **Configuration**: See `prd/PRD.md` for technical details
+
+---
+
+## What's New
+
+### v2.7.0 — March 2026
+
+**CLI startup performance — 18× faster**
+Help commands now load in ~0.2 seconds (down from 3.6 s). Heavy AI libraries (`sentence-transformers`, `lancedb`) are now loaded lazily — only when actually needed for indexing, not on every command invocation.
+
+**Built-in help for every command group**
+All major groups now expose contextual help with practical examples:
+```bash
+./aitao.sh help            # Situational guide (start here when lost)
+./aitao.sh queue help      # Queue management & retry failed files
+./aitao.sh scan help       # Folder scanner
+./aitao.sh worker help     # Background worker
+./aitao.sh ms help         # Meilisearch engine
+./aitao.sh search help     # Hybrid search (semantic + fulltext)
+```
+
+**Dashboard improvements**
+- Optional services (OpenWebUI, OnlyOffice) are hidden when not running — no more spurious ✗
+- Worker now has 3 states: `en cours` (green) / `en veille` (yellow, idle) / `arrêté` (red)
+- Index section shows vectorisation ratio: `12 312/12 483 docs vectorisés (98%)`
+- Actionnable hints on errors and sync gaps: exact commands to copy-paste
+
+### v2.6.0 — March 2026
+
+- CLI dashboard `./aitao.sh dashboard` (US-044)
+- Config migrated from YAML to TOML (US-045)
+- Windows portable distribution + auto-update (US-034b, US-036, US-038, US-046)
 
 ---
 

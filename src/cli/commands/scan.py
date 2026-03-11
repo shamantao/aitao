@@ -23,7 +23,21 @@ from cli.utils import (
 )
 
 
-app = typer.Typer(help="Filesystem scanning")
+app = typer.Typer(
+    help=(
+        "Scanner les dossiers configurés et découvrir de nouveaux fichiers.\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Lancer un scan immédiat :\n"
+        "    [green]./aitao.sh scan run[/green]\n\n"
+        "  Voir les dossiers configurés :\n"
+        "    [green]./aitao.sh scan paths[/green]\n\n"
+        "  État du dernier scan :\n"
+        "    [green]./aitao.sh scan status[/green]\n\n"
+        "  Vider les tâches en attente :\n"
+        "    [green]./aitao.sh scan clear[/green]"
+    ),
+    rich_markup_mode="rich",
+)
 
 
 @app.command("run")

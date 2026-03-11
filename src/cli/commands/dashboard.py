@@ -88,19 +88,31 @@ def _section_services(config) -> Panel:
     ms_port    = int(ms_url.split(":")[-1]) if ":" in ms_url else 7700
     ol_port    = int(ollama_url.split(":")[-1]) if ":" in ollama_url else 11434
 
-    services = [
+    # Core services (always shown)
+    core = [
         ("AiTao API",   f"http://localhost:{api_port}", _port_open("localhost", api_port)),
         ("Meilisearch", ms_url,                          _port_open("localhost", ms_port)),
         ("Ollama",      ollama_url,                      _port_open("localhost", ol_port)),
-        ("OpenWebUI",   "http://localhost:3000",          _port_open("localhost", 3000)),
-        ("OnlyOffice",  "http://localhost:8080",          _port_open("localhost", 8080)),
     ]
 
-    lines = [_service_row(name, url, alive) for name, url, alive in services]
+    # Optional interfaces — shown only if port actually responds
+    optional_ports = [
+        ("OpenWebUI",  3000, "Interface de chat"),
+        ("OnlyOffice", 8080, "Lecture .docx/.xlsx"),
+    ]
+    optional_active = [
+        (name, f"http://localhost:{port}", True, note)
+        for name, port, note in optional_ports
+        if _port_open("localhost", port)
+    ]
 
     table = Table(box=None, show_header=False, padding=(0, 0))
-    for line in lines:
-        table.add_row(line)
+    for name, url, alive in core:
+        table.add_row(_service_row(name, url, alive))
+    if optional_active:
+        table.add_row(Text("  Interfaces optionnelles", style="dim italic"))
+        for name, url, alive, note in optional_active:
+            table.add_row(_service_row(name, url, alive, extra=f"({note})"))
 
     return Panel(table, title="[bold cyan]■ Services[/bold cyan]", border_style="cyan", expand=True)
 
@@ -145,7 +157,7 @@ def _section_models(ollama_url: str) -> Panel:
     return Panel(table, title="[bold cyan]■ Modèles Ollama en mémoire[/bold cyan]", border_style="cyan", expand=True)
 
 
-def _section_index(config, ms_url: str) -> Panel:
+def _section_index(config, ms_url: str, is_worker_running: bool = False) -> Panel:
     """Section: Index statistics (Meilisearch + LanceDB) and configured sources."""
     ms_docs    = None
     ms_version = "?"
@@ -173,16 +185,25 @@ def _section_index(config, ms_url: str) -> Panel:
     except Exception:
         pass
 
-    # Diff indicator
+    # Sync indicator — actionnable, no question marks
     diff = ""
+    diff_hint = ""
     if ms_docs is not None and ldb_docs is not None:
         d = ms_docs - ldb_docs
         if d == 0:
-            diff = "[green]✓ Synchronisé[/green]"
+            diff = "[green]✓ Tous les documents sont vectorisés[/green]"
         elif d > 0:
-            diff = f"[yellow]⚠ {d:,} docs sans vecteur (indexation en cours?)[/yellow]"
+            pct = int(ldb_docs / ms_docs * 100) if ms_docs > 0 else 0
+            ratio = f"[bold]{ldb_docs:,}[/bold]/[bold]{ms_docs:,}[/bold] docs vectorisés ({pct}%)"
+            if is_worker_running:
+                diff = f"[yellow]{ratio} — worker actif, vectorisation en cours[/yellow]"
+            else:
+                diff = f"[yellow]{ratio}[/yellow]"
+                # Re-scan forces re-processing of files already completed but not vectorised
+                diff_hint = "→ ./aitao.sh scan run  puis  ./aitao.sh start"
         else:
-            diff = f"[red]⚠ LanceDB a {abs(d):,} vecteurs orphelins[/red]"
+            diff = f"[red]⚠ {abs(d):,} vecteurs sans document source[/red]"
+            diff_hint = "→ ./aitao.sh scan run pour réindexer"
 
     # --- include_paths ---
     paths = config.get("indexing.include_paths", []) or []
@@ -201,6 +222,8 @@ def _section_index(config, ms_url: str) -> Panel:
     )
     if diff:
         table.add_row(Text(""), Text.from_markup(f"  {diff}"), Text(""))
+    if diff_hint:
+        table.add_row(Text(""), Text(f"  {diff_hint}", style="dim italic"), Text(""))
 
     if paths:
         table.add_row(Text(""), Text(""), Text(""))
@@ -217,11 +240,12 @@ def _section_index(config, ms_url: str) -> Panel:
     return Panel(table, title="[bold cyan]■ Index[/bold cyan]", border_style="cyan", expand=True)
 
 
-def _section_worker(config) -> Panel:
+def _section_worker(config, worker=None) -> Panel:
     """Section: Worker status and queue breakdown."""
     try:
-        from indexation.worker import BackgroundWorker
-        worker      = BackgroundWorker(config_path=get_config_path())
+        if worker is None:
+            from indexation.worker import BackgroundWorker
+            worker = BackgroundWorker(config_path=get_config_path())
         is_running  = worker.is_running()
         pid         = worker.get_pid()
         queue_stats = worker.queue.get_stats()
@@ -231,25 +255,42 @@ def _section_worker(config) -> Panel:
         completed  = queue_stats.get("completed", 0)
         failed     = queue_stats.get("failed", 0)
 
-        if is_running:
+        # 3 distinct states: processing / idle (alive but nothing to do) / stopped
+        if is_running and processing > 0:
             w_text = Text.assemble(
                 Text("● Worker ", style="bold"),
-                Text("actif", style="bold green"),
+                Text("en cours", style="bold green"),
                 Text(f"  (PID {pid})", style="dim"),
+            )
+        elif is_running:
+            w_text = Text.assemble(
+                Text("● Worker ", style="bold"),
+                Text("en veille", style="bold yellow"),
+                Text(f"  (PID {pid}, attend de nouveaux fichiers)", style="dim"),
             )
         else:
             w_text = Text.assemble(
                 Text("● Worker ", style="bold"),
                 Text("arrêté", style="bold red"),
+                Text("  → ./aitao.sh start pour démarrer", style="dim"),
             )
 
         table = Table(box=None, show_header=False, padding=(0, 0))
         table.add_row(w_text)
         table.add_row(Text(""))
-        table.add_row(Text.from_markup(f"  En attente   [yellow]{pending:>6,}[/yellow]"))
-        table.add_row(Text.from_markup(f"  En cours     [cyan]{processing:>6,}[/cyan]"))
-        table.add_row(Text.from_markup(f"  Complétés    [green]{completed:>6,}[/green]"))
-        table.add_row(Text.from_markup(f"  Échoués      [red]{failed:>6,}[/red]"))
+        table.add_row(Text.from_markup(f"  En attente        [yellow]{pending:>6,}[/yellow]"))
+        table.add_row(Text.from_markup(f"  En cours          [cyan]{processing:>6,}[/cyan]"))
+        # 'completed' = tasks finished without exception, NOT necessarily indexed docs
+        table.add_row(Text.from_markup(
+            f"  Tâches finies     [green]{completed:>6,}[/green]"
+            f"  [dim](≠ docs indexés — certains fichiers sans contenu)[/dim]"
+        ))
+        table.add_row(Text.from_markup(f"  Échecs            [red]{failed:>6,}[/red]"))
+        if failed > 0:
+            table.add_row(Text(
+                "  → ./aitao.sh queue retry  puis  ./aitao.sh start",
+                style="dim italic"
+            ))
 
     except Exception as e:
         table = Table(box=None, show_header=False, padding=(0, 0))
@@ -258,11 +299,12 @@ def _section_worker(config) -> Panel:
     return Panel(table, title="[bold cyan]■ Worker / Scan[/bold cyan]", border_style="cyan", expand=True)
 
 
-def _section_errors(config) -> Optional[Panel]:
+def _section_errors(config, worker=None) -> Optional[Panel]:
     """Section: Recent failed tasks split by error type."""
     try:
-        from indexation.worker import BackgroundWorker
-        worker = BackgroundWorker(config_path=get_config_path())
+        if worker is None:
+            from indexation.worker import BackgroundWorker
+            worker = BackgroundWorker(config_path=get_config_path())
         tasks  = worker.queue.list_tasks(status="failed", limit=100)
 
         if not tasks:
@@ -291,26 +333,32 @@ def _section_errors(config) -> Optional[Panel]:
         if format_counts:
             total_fmt = sum(format_counts.values())
             table.add_row(Text.from_markup(
-                f"[yellow]Format non supporté[/yellow] [dim](réessayable après mise à jour)[/dim]"
-                f"  [bold]{total_fmt}[/bold] fichier(s)"
+                f"[yellow]■ Format non supporté[/yellow]  [bold]{total_fmt}[/bold] fichier(s)"
             ))
             for ext, cnt in format_counts.most_common(8):
                 table.add_row(Text(f"    {ext}  ({cnt})", style="dim"))
+            table.add_row(Text(
+                "  → Aucune action requise. Ces formats seront ignorés automatiquement.",
+                style="dim italic"
+            ))
 
         if content_errors:
             if format_counts:
                 table.add_row(Text(""))
             table.add_row(Text.from_markup(
-                f"[red]Erreur de contenu[/red] [dim](fichier corrompu / protégé)[/dim]"
-                f"  [bold]{len(content_errors)}[/bold] fichier(s)"
+                f"[red]■ Fichier illisible[/red]  [bold]{len(content_errors)}[/bold] fichier(s)"
+                f"  [dim](corrompu, protégé par mot de passe, ou vide)[/dim]"
             ))
             for fp in content_errors[:5]:
                 p = Path(fp)
-                # Truncate long paths
                 display = str(p) if len(str(p)) < 60 else f"…/{p.parent.name}/{p.name}"
                 table.add_row(Text(f"    {display}", style="dim"))
             if len(content_errors) > 5:
                 table.add_row(Text(f"    … et {len(content_errors)-5} autres", style="dim italic"))
+            table.add_row(Text(
+                "  → Ouvrez ces fichiers pour vérifier s'ils sont corrompus ou protégés.",
+                style="dim italic"
+            ))
 
         return Panel(table, title="[bold red]■ Erreurs récentes[/bold red]", border_style="red", expand=True)
 
@@ -353,14 +401,23 @@ def show_dashboard():
     console.print(Columns([services_panel, models_panel], equal=True, expand=True))
     console.print()
 
+    # Pre-compute worker state once — shared by index, worker, and errors sections
+    try:
+        from indexation.worker import BackgroundWorker
+        _worker     = BackgroundWorker(config_path=get_config_path())
+        _is_running = _worker.is_running()
+    except Exception:
+        _worker     = None
+        _is_running = False
+
     # Index + Worker side-by-side
-    index_panel  = _section_index(config, ms_url)
-    worker_panel = _section_worker(config)
+    index_panel  = _section_index(config, ms_url, is_worker_running=_is_running)
+    worker_panel = _section_worker(config, worker=_worker)
     console.print(Columns([index_panel, worker_panel], equal=False, expand=True))
     console.print()
 
     # Errors (only if there are any)
-    errors_panel = _section_errors(config)
+    errors_panel = _section_errors(config, worker=_worker)
     if errors_panel:
         console.print(errors_panel)
         console.print()

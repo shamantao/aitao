@@ -23,7 +23,21 @@ _CONFIG_PATH = _PROJECT_ROOT / "config" / "config.toml"
 _CONFIG_TEMPLATE = _PROJECT_ROOT / "config" / "config.toml.template"
 
 
-app = typer.Typer(help="Configuration management", no_args_is_help=True)
+app = typer.Typer(
+    help=(
+        "Gestion de la configuration AiTao.\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Voir la configuration active (résolue) :\n"
+        "    [green]./aitao.sh config show[/green]\n\n"
+        "  Vérifier que la config est valide :\n"
+        "    [green]./aitao.sh config validate[/green]\n\n"
+        "  Voir le fichier de config :\n"
+        "    [green]./aitao.sh config path[/green]\n\n"
+        "[dim]Le fichier de config est : config/config.toml[/dim]"
+    ),
+    rich_markup_mode="rich",
+    no_args_is_help=True,
+)
 
 
 @app.command("show")

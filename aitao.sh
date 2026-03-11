@@ -1,24 +1,51 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# ☯️ AI Tao V2 - Command Line Interface (Façade)
+# ☯️ AI Tao — Interface de commande
 # =============================================================================
 #
-# Thin shell wrapper that delegates to the Python CLI.
-# All commands are implemented in Python (src/cli/) for maintainability.
+# DÉMARRAGE RAPIDE
+#   ./aitao.sh start             Démarrer tous les services
+#   ./aitao.sh dashboard         État en un coup d'œil
+#   ./aitao.sh stop              Arrêter tous les services
 #
-# Usage:
-#   ./aitao.sh status          # System status
-#   ./aitao.sh ms upgrade      # Meilisearch management
-#   ./aitao.sh db stats        # LanceDB stats
-#   ./aitao.sh config show     # Configuration
-#   ./aitao.sh test            # Run unit tests
-#   ./aitao.sh test -v         # Run unit tests (verbose)
-#   ./aitao.sh validate        # Full validation (unit + e2e + functional)
-#   ./aitao.sh contracts       # Check architecture contracts
-#   ./aitao.sh contracts --stats  # Show adoption metrics only
-#   ./aitao.sh benchmark       # Benchmark MLX vs Ollama backends
-#   ./aitao.sh benchmark -n 5  # Benchmark with 5 iterations
+# SITUATIONS COURANTES
+#   Fichiers en échec :
+#     ./aitao.sh queue list failed    Voir quels fichiers ont échoué
+#     ./aitao.sh queue retry          Remettre les échecs en file d'attente
+#     ./aitao.sh start                Relancer le traitement
+#
+#   Vectorisation incomplète (LanceDB < Meilisearch) :
+#     ./aitao.sh scan run             Re-scanner les dossiers
+#     ./aitao.sh start                Compléter la vectorisation
+#
+#   Configuration et diagnostic :
+#     ./aitao.sh config show          Voir la configuration active
+#     ./aitao.sh config validate      Vérifier la configuration
+#     ./aitao.sh status               État des services (résumé)
+#     ./aitao.sh version              Version installée
+#
+# GROUPES DE COMMANDES (./aitao.sh <groupe> --help pour le détail)
+#   start / stop / restart    Contrôle des services
+#   dashboard                 Vue d'ensemble complète
+#   queue                     File de traitement (list, retry, status...)
+#   scan                      Scan des dossiers configurés
+#   ms                        Meilisearch — recherche texte intégral
+#   db                        LanceDB — vecteurs sémantiques
+#   models                    Modèles Ollama/MLX
+#   config                    Configuration
+#   worker                    Worker indépendant
+#   extract                   Extraction de texte
+#   index                     Pipeline d'indexation
+#   search                    Recherche hybride
+#   api                       Serveur API
+#
+# DÉVELOPPEMENT
+#   ./aitao.sh test            Tests unitaires
+#   ./aitao.sh test -v         Tests unitaires (verbose)
+#   ./aitao.sh validate        Pipeline complet (tests + e2e + fonctionnel)
+#   ./aitao.sh contracts       Vérification des contrats d'architecture
+#   ./aitao.sh benchmark       Benchmark MLX vs Ollama
 #
 # =============================================================================
 #clear
@@ -86,6 +113,26 @@ if [ "${1:-}" = "benchmark" ]; then
     shift
     "$PYTHON" "$SCRIPT_DIR/scripts/benchmark_backends.py" "$@"
     exit $?
+fi
+
+# --- help / --help : afficher l'aide principale ---
+if [ "${1:-}" = "help" ] || [ "${1:-}" = "--help" ]; then
+    cd "$SRC_DIR"
+    exec "$PYTHON" -m cli --help
+fi
+
+# --- <groupe> help : traduire en <groupe> --help ---
+# Groupes avec sous-commandes : queue, scan, worker, ms, db, config,
+#                               models, search, index, extract, lifecycle, api
+_GROUPS="queue scan worker ms db config models search index extract lifecycle api"
+if [ -n "${1:-}" ] && [ -n "${2:-}" ] && [ "${2:-}" = "help" ]; then
+    _GROUP="${1}"
+    for _g in $_GROUPS; do
+        if [ "$_GROUP" = "$_g" ]; then
+            cd "$SRC_DIR"
+            exec "$PYTHON" -m cli "$_GROUP" --help
+        fi
+    done
 fi
 
 # --- Delegate to Python CLI ---

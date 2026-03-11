@@ -26,14 +26,33 @@ from cli.utils import (
     spinner,
     status_line
 )
-from indexation.worker import BackgroundWorker
+# Heavy import — loaded lazily inside functions to keep CLI startup fast
+# from indexation.worker import BackgroundWorker
 
 console = Console()
-app = typer.Typer(help="Background worker management commands")
+app = typer.Typer(
+    help=(
+        "Contrôle du worker de traitement en arrière-plan.\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Démarrer le worker seul (sans Meilisearch) :\n"
+        "    [green]./aitao.sh worker start[/green]\n\n"
+        "  Voir l'état et le PID :\n"
+        "    [green]./aitao.sh worker status[/green]\n\n"
+        "  Arrêter le worker :\n"
+        "    [green]./aitao.sh worker stop[/green]\n\n"
+        "  Voir les logs du worker :\n"
+        "    [green]./aitao.sh worker logs[/green]\n\n"
+        "  Traiter une seule tâche (test) :\n"
+        "    [green]./aitao.sh worker run-once[/green]\n\n"
+        "[dim]Note : ./aitao.sh start démarre le worker ET Meilisearch ensemble.[/dim]"
+    ),
+    rich_markup_mode="rich",
+)
 
 
-def get_worker() -> BackgroundWorker:
+def get_worker():
     """Get configured BackgroundWorker instance."""
+    from indexation.worker import BackgroundWorker  # lazy import
     config_path = get_config_path()
     return BackgroundWorker(config_path=config_path)
 

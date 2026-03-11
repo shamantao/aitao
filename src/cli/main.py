@@ -47,25 +47,41 @@ except ImportError:
 # Create main app
 app = typer.Typer(
     name="aitao",
-    help="AItao V2 - Document Search & Translation Engine",
+    help=(
+        "AiTao — Moteur de recherche et d'indexation documentaire local.\n\n"
+        "[bold cyan]Démarrage rapide[/bold cyan]\n\n"
+        "  [green]./aitao.sh start[/green]              Démarrer tous les services\n"
+        "  [green]./aitao.sh dashboard[/green]           État en un coup d'œil\n"
+        "  [green]./aitao.sh stop[/green]               Arrêter tous les services\n\n"
+        "[bold cyan]Fichiers en échec ?[/bold cyan]\n\n"
+        "  [green]./aitao.sh queue list failed[/green]   Voir quels fichiers ont échoué\n"
+        "  [green]./aitao.sh queue retry[/green]         Remettre les échecs en attente\n"
+        "  [green]./aitao.sh start[/green]               Relancer le traitement\n\n"
+        "[bold cyan]Vectorisation incomplète (LanceDB < Meilisearch) ?[/bold cyan]\n\n"
+        "  [green]./aitao.sh scan run[/green]            Re-scanner les dossiers\n"
+        "  [green]./aitao.sh start[/green]               Compléter la vectorisation\n\n"
+        "[bold cyan]Détail d'une erreur ?[/bold cyan]\n\n"
+        "  [green]./aitao.sh queue list failed -n 100[/green]  Lister jusqu'à 100 échecs\n"
+        "  [green]./aitao.sh queue info <TASK_ID>[/green]      Détail complet d'une tâche"
+    ),
     no_args_is_help=True,
     rich_markup_mode="rich",
     add_completion=True,
 )
 
-# Register command groups
-app.add_typer(ms_cmd.app, name="ms", help="Meilisearch management")
-app.add_typer(db_cmd.app, name="db", help="LanceDB vector database")
-app.add_typer(config_cmd.app, name="config", help="Configuration management")
-app.add_typer(scan_cmd.app, name="scan", help="Filesystem scanning")
-app.add_typer(queue_cmd.app, name="queue", help="Task queue management")
-app.add_typer(worker_cmd.app, name="worker", help="Background worker control")
-app.add_typer(extract_cmd.app, name="extract", help="Text extraction from documents")
-app.add_typer(index_cmd.app, name="index", help="Document indexing pipeline")
-app.add_typer(search_cmd.app, name="search", help="Hybrid document search")
-app.add_typer(lifecycle_cmd.app, name="lifecycle", help="Service lifecycle (start/stop/restart)")
-app.add_typer(models_cmd.app, name="models", help="LLM model management")
-app.add_typer(api_cmd.app, name="api", help="API server management")
+# Register command groups — help text is defined in each sub-module's typer.Typer()
+app.add_typer(ms_cmd.app, name="ms")
+app.add_typer(db_cmd.app, name="db")
+app.add_typer(config_cmd.app, name="config")
+app.add_typer(scan_cmd.app, name="scan")
+app.add_typer(queue_cmd.app, name="queue")
+app.add_typer(worker_cmd.app, name="worker")
+app.add_typer(extract_cmd.app, name="extract")
+app.add_typer(index_cmd.app, name="index")
+app.add_typer(search_cmd.app, name="search")
+app.add_typer(lifecycle_cmd.app, name="lifecycle")
+app.add_typer(models_cmd.app, name="models")
+app.add_typer(api_cmd.app, name="api")
 
 
 @app.command()
@@ -138,11 +154,6 @@ def main(
     debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug output"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress log output"),
 ):
-    """
-    AItao V2 - Document Search & Translation Engine
-    
-    Local-first, privacy-focused document management.
-    """
     import os
     
     # Set quiet mode by default in CLI (cleaner output with spinners)

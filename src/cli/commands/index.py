@@ -17,7 +17,21 @@ from cli.utils import status_line, spinner
 from core.registry import StatsKeys
 
 console = Console()
-app = typer.Typer(help="Index documents into search databases")
+app = typer.Typer(
+    help=(
+        "Pipeline d'indexation des documents.\n\n"
+        "[bold cyan]Exemples[/bold cyan]\n\n"
+        "  Indexer un fichier manuellement :\n"
+        "    [green]./aitao.sh index file /chemin/vers/document.pdf[/green]\n\n"
+        "  Voir l'état de l'index :\n"
+        "    [green]./aitao.sh index status[/green]\n\n"
+        "  Supprimer un document de l'index :\n"
+        "    [green]./aitao.sh index delete <DOC_ID>[/green]\n\n"
+        "[dim]Note : le worker traite les fichiers automatiquement.\n"
+        "Utilisez cette commande pour des opérations ponctuelles.[/dim]"
+    ),
+    rich_markup_mode="rich",
+)
 
 
 @app.command("file")
