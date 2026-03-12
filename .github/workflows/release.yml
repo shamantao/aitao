@@ -53,6 +53,7 @@ jobs:
           # AiTao source
           cp -r src/ "${ARCHIVE}/aitao/src/"
           cp pyproject.toml "${ARCHIVE}/aitao/"
+          cp aitao_cli.py "${ARCHIVE}/aitao/"
           cp config/config.toml.template "${ARCHIVE}/aitao/config/"
           # VERSION file
           cp VERSION "${ARCHIVE}/aitao/VERSION"
@@ -97,6 +98,7 @@ jobs:
           # AiTao source
           cp -r src/ "${ARCHIVE}/aitao/src/"
           cp pyproject.toml "${ARCHIVE}/aitao/"
+          cp aitao_cli.py "${ARCHIVE}/aitao/"
           cp config/config.toml.template "${ARCHIVE}/aitao/config/"
           # VERSION file
           cp VERSION "${ARCHIVE}/aitao/VERSION"

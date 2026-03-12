@@ -248,13 +248,35 @@ if (Test-Path $aitaoSrc) {
         Copy-Item -Path (Join-Path $AITAO_SOURCE "src") -Destination $AITAO_DIR -Recurse
         Copy-Item -Path (Join-Path $AITAO_SOURCE "config") -Destination $AITAO_DIR -Recurse
         Copy-Item -Path (Join-Path $AITAO_SOURCE "pyproject.toml") -Destination $AITAO_DIR
+        Copy-Item -Path (Join-Path $AITAO_SOURCE "aitao_cli.py") -Destination $AITAO_DIR
     } else {
         Write-Host "  NOTE: AiTao source not auto-copied." -ForegroundColor Yellow
         Write-Host "  Please copy manually:"
-        Write-Host "    - src/        -> $AITAO_DIR\src\"
-        Write-Host "    - config/     -> $AITAO_DIR\config\"
+        Write-Host "    - src/           -> $AITAO_DIR\src\"
+        Write-Host "    - config/        -> $AITAO_DIR\config\"
         Write-Host "    - pyproject.toml -> $AITAO_DIR\"
+        Write-Host "    - aitao_cli.py   -> $AITAO_DIR\"
     }
+}
+
+# ============================================================================
+# Step 8: Install AiTao as editable package (generates aitao.exe)
+# ============================================================================
+Write-Step "8/8" "Registering AiTao CLI entry point..."
+
+$aitaoPyproject = Join-Path $AITAO_DIR "pyproject.toml"
+if (Test-Path $aitaoPyproject) {
+    Push-Location $AITAO_DIR
+    & $pythonExe -m pip install -e . --no-deps --quiet 2>&1 | Out-Null
+    Pop-Location
+    $aitaoExe = Join-Path $PYTHON_DIR "Scripts\aitao.exe"
+    if (Test-Path $aitaoExe) {
+        Write-Host "  OK - aitao.exe ready at $aitaoExe" -ForegroundColor Green
+    } else {
+        Write-Host "  WARNING: aitao.exe not generated, CLI entry point unavailable" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  SKIP - pyproject.toml not found, run after copying AiTao source" -ForegroundColor Yellow
 }
 
 # ============================================================================
@@ -282,6 +304,11 @@ Write-Host "  aitao/        AiTao source code"
 Write-Host "  data/         Runtime data (models, indexes, logs)"
 Write-Host ""
 Write-Host "Next steps:"
-Write-Host "  1. Copy AiTao source to aitao/ (if not done automatically)"
-Write-Host "  2. Run: .\start-aitao.ps1"
+Write-Host "  1. Run: .\start.bat            Start all services"
+Write-Host "  2. Run: .\python\python.exe -m pip install -e aitao\ --no-deps" 
+Write-Host "         (if aitao.exe was not auto-generated)"
+Write-Host ""
+Write-Host "Activate your licence:"
+Write-Host "  .\python\Scripts\aitao license activate .\aitao-yourname.key"
+Write-Host "  .\python\Scripts\aitao license status"
 Write-Host ""
