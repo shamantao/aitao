@@ -124,7 +124,7 @@ fi
 # --- <groupe> help : traduire en <groupe> --help ---
 # Groupes avec sous-commandes : queue, scan, worker, ms, db, config,
 #                               models, search, index, extract, lifecycle, api
-_GROUPS="queue scan worker ms db config models search index extract lifecycle api"
+_GROUPS="queue scan worker ms db config models search index extract lifecycle api license"
 if [ -n "${1:-}" ] && [ -n "${2:-}" ] && [ "${2:-}" = "help" ]; then
     _GROUP="${1}"
     for _g in $_GROUPS; do

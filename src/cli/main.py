@@ -35,6 +35,7 @@ from cli.commands import search as search_cmd
 from cli.commands import lifecycle as lifecycle_cmd
 from cli.commands import models as models_cmd
 from cli.commands import api as api_cmd
+from cli.commands import license as license_cmd
 
 # Import version
 try:
@@ -82,6 +83,7 @@ app.add_typer(search_cmd.app, name="search")
 app.add_typer(lifecycle_cmd.app, name="lifecycle")
 app.add_typer(models_cmd.app, name="models")
 app.add_typer(api_cmd.app, name="api")
+app.add_typer(license_cmd.app, name="license")
 
 
 @app.command()
