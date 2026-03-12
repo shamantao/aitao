@@ -19,37 +19,46 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 
 
-def check_critical_imports() -> list[tuple[str, bool, str]]:
+def check_critical_imports() -> list[tuple[str, bool, str, str]]:
     """Check if critical modules can be imported."""
+    # (import_name, description, version_attr_or_None)
     critical_modules = [
-        # Core AI
-        ("sentence_transformers", "Embeddings (sentence-transformers)"),
+        # Core AI / ML
+        ("torch", "PyTorch (ML engine)", "__version__"),
+        ("llama_cpp", "llama-cpp-python (GGUF inference)", "__version__"),
+        ("transformers", "Hugging Face Transformers", "__version__"),
+        ("sentence_transformers", "Sentence Transformers (embeddings)", "__version__"),
         # Databases
-        ("lancedb", "Vector database (LanceDB)"),
-        ("meilisearch", "Full-text search (Meilisearch SDK)"),
-        # CLI
-        ("typer", "CLI framework"),
-        ("rich", "Terminal formatting"),
+        ("lancedb", "Vector database (LanceDB)", "__version__"),
+        ("meilisearch", "Full-text search (Meilisearch SDK)", None),
+        # CLI / display
+        ("typer", "CLI framework", "__version__"),
+        ("rich", "Terminal formatting", None),
         # API
-        ("fastapi", "REST API framework"),
-        ("uvicorn", "ASGI server"),
+        ("fastapi", "REST API framework", "__version__"),
+        ("uvicorn", "ASGI server", "__version__"),
         # Document extraction
-        ("pypdf", "PDF extraction"),
-        ("docx", "DOCX extraction (python-docx)"),
-        ("langdetect", "Language detection"),
+        ("pypdf", "PDF extraction", "__version__"),
+        ("docx", "DOCX extraction (python-docx)", "__version__"),
+        ("openpyxl", "Excel extraction (.xlsx)", "__version__"),
+        ("langdetect", "Language detection", "VERSION"),
+        ("PIL", "Image processing (Pillow)", "__version__"),
+        # Security
+        ("cryptography", "License validation (RSA)", "__version__"),
         # Config & Utils
-        ("toml", "TOML parsing"),
-        ("psutil", "System monitoring"),
+        ("toml", "TOML parsing", None),
+        ("psutil", "System monitoring", "__version__"),
     ]
-    
+
     results = []
-    for module, description in critical_modules:
+    for module, description, ver_attr in critical_modules:
         try:
-            __import__(module)
-            results.append((module, True, description))
+            m = __import__(module)
+            version = getattr(m, ver_attr, "?") if ver_attr else "ok"
+            results.append((module, True, description, str(version)))
         except ImportError as e:
-            results.append((module, False, f"{description} - {e}"))
-    
+            results.append((module, False, f"{description} - {e}", ""))
+
     return results
 
 
@@ -87,12 +96,13 @@ def main():
     print(f"\n{BOLD}2. Critical Module Imports:{RESET}")
     import_results = check_critical_imports()
     failed_imports = []
-    
-    for module, success, desc in import_results:
+
+    for module, success, desc, version in import_results:
         if success:
-            print(f"  {GREEN}✓{RESET} {module}")
+            ver_str = f" ({version})" if version and version != "ok" else ""
+            print(f"  {GREEN}✓{RESET} {module:<30} {ver_str}")
         else:
-            print(f"  {RED}✗{RESET} {module} - MISSING")
+            print(f"  {RED}✗{RESET} {module:<30} MISSING — {desc}")
             failed_imports.append(module)
     
     # Summary
