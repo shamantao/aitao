@@ -63,6 +63,8 @@ dependencies = [
     "langdetect>=1.0.9",
     # --- Image EXIF Extraction (US-027) ---
     "Pillow>=10.0.0",
+    # --- License validation (US-044) ---
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]
@@ -80,8 +82,6 @@ premium = [
     # --- Translation ---
     "transformers>=4.40.0",
     "sentencepiece>=0.2.0",
-    # --- License validation ---
-    "cryptography>=42.0.0",
 ]
 
 [tool.setuptools]

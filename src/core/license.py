@@ -14,18 +14,43 @@ To switch to enforced license checking, set:
   AITAO_BETA=false  in environment, or
   [license] beta_mode = false  in config/config.toml
 
+License key format: AITAO-<base64url(payload_json)>.<base64url(rsa_sha256_signature)>
+Validation: RSA-SHA256 offline verification using the embedded public key.
+
 Usage:
     from src.core.license import LicenseManager
 
     LicenseManager().require_premium("rag_chat")   # raises if not licensed
     if LicenseManager().is_premium():
         ...
+    LicenseManager().activate("AITAO-xxx.yyy")     # install a key
+    LicenseManager().get_info()                     # {'tier':'premium','exp':'...','label':'...'}
 """
 
 from __future__ import annotations
 
+import base64
+import datetime
+import json
 import os
 from pathlib import Path
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
+
+# RSA public key — verifies license signatures (private key never leaves the admin machine)
+_PUBLIC_KEY_PEM = """\
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAviLlFdMu7i5YD5WmPkZh
+3pNo+dNIATdlzJlB/iDPAQSnqtlfrVhtmAUE6tq0C8fet0Jck73fdwvK+FB6saiT
+wn6ZimVrLLkV2mblOTl8AXvjbLfJ2OtTMQRymDkaambGR+39DERpAfhgnpNQGi3X
+hX8255jPZhDr59pnmWrvZ5nJwXdiryq3MzVyVnxJT+0P6bDrXQAcexp64imjYz5q
+QyLdA8bAusMYxdb9M5Tirp7zg3S4QHxckvkj+/T8mLdwXL9q1CMVsRegzKQbhEfU
+cnZ7GX9fycImNd3Xn5uCWpKXYoHStMy43KkJgw38G8umb4DqEBj1vhpC7jAq0jDD
+7QIDAQAB
+-----END PUBLIC KEY-----
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -121,14 +146,71 @@ class LicenseManager:
         # Default: beta ON during pre-commercial phase
         return True
 
+    def activate(self, key_str: str) -> bool:
+        """Write a license key to disk. Returns True if the key is valid before saving."""
+        if not self._verify_key_string(key_str):
+            return False
+        key_path = Path.home() / ".config" / "aitao" / "license.key"
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        key_path.write_text(key_str.strip())
+        return True
+
+    def deactivate(self) -> None:
+        """Remove the license key file."""
+        key_path = Path.home() / ".config" / "aitao" / "license.key"
+        if key_path.exists():
+            key_path.unlink()
+
+    def get_info(self) -> dict:
+        """Return parsed license payload, or empty dict if no valid key."""
+        key_path = Path.home() / ".config" / "aitao" / "license.key"
+        if not key_path.exists():
+            return {}
+        raw = key_path.read_text().strip()
+        return self._parse_payload(raw) or {}
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
     def _check_license_key(self) -> bool:
-        """
-        Validate a license key file.
-        Not implemented yet — always returns False when beta is off.
-        Will use RSA signature verification in v3.0.0 release.
-        """
+        """Validate the on-disk license key using RSA-SHA256 signature."""
         key_path = Path.home() / ".config" / "aitao" / "license.key"
         if not key_path.exists():
             return False
-        # TODO (v3.0.0): verify RSA signature of key contents
-        return False
+        try:
+            raw = key_path.read_text().strip()
+            return self._verify_key_string(raw)
+        except Exception:
+            return False
+
+    def _verify_key_string(self, key_str: str) -> bool:
+        """Verify RSA signature and expiry of a raw key string."""
+        if not key_str.startswith("AITAO-"):
+            return False
+        parts = key_str[6:].rsplit(".", 1)
+        if len(parts) != 2:
+            return False
+        payload_b64, sig_b64 = parts
+        try:
+            payload_bytes = base64.urlsafe_b64decode(payload_b64 + "==")
+            signature = base64.urlsafe_b64decode(sig_b64 + "==")
+            pub_key = serialization.load_pem_public_key(_PUBLIC_KEY_PEM.encode())
+            pub_key.verify(signature, payload_bytes, asym_padding.PKCS1v15(), hashes.SHA256())
+        except (InvalidSignature, Exception):
+            return False
+        data = self._parse_payload(key_str)
+        if not data:
+            return False
+        exp = datetime.date.fromisoformat(data["exp"])
+        return exp >= datetime.date.today() and data.get("tier") == "premium"
+
+    @staticmethod
+    def _parse_payload(key_str: str) -> dict | None:
+        """Decode and return the JSON payload from a key string, or None on error."""
+        try:
+            inner = key_str[6:].rsplit(".", 1)[0]
+            payload_bytes = base64.urlsafe_b64decode(inner + "==")
+            return json.loads(payload_bytes)
+        except Exception:
+            return None
