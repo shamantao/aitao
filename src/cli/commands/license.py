@@ -4,12 +4,13 @@ AiTao — src/cli/commands/license.py
 CLI commands for AiTao license management (end-user side).
 
 Commands:
-    ./aitao.sh license activate <KEY>   Install a license key
-    ./aitao.sh license status           Show current license info
-    ./aitao.sh license deactivate       Remove the installed key
+    ./aitao.sh license activate <KEY|FILE>  Install a license key or file
+    ./aitao.sh license status               Show current license info
+    ./aitao.sh license deactivate           Remove the installed key
 """
 
 import typer
+from pathlib import Path
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
@@ -25,14 +26,25 @@ app = typer.Typer(
 
 @app.command()
 def activate(
-    key: str = typer.Argument(..., help="Clé de licence (format AITAO-xxx.yyy)"),
+    key_or_file: str = typer.Argument(..., help="Clé de licence (AITAO-xxx.yyy) ou chemin vers un fichier .key"),
 ):
     """Activer une licence Premium.
 
-    Exemple:
+    Exemples:
         ./aitao.sh license activate AITAO-eyJ...xxx.sig
+        ./aitao.sh license activate ~/Downloads/aitao-monnom.key
     """
-    from core.license import LicenseManager, PremiumFeatureError
+    from core.license import LicenseManager
+
+    # If it looks like a file path, read the key from it
+    candidate = Path(key_or_file).expanduser()
+    if candidate.exists() and candidate.is_file():
+        key = candidate.read_text().strip()
+        if not key:
+            console.print("[red]✗ Le fichier est vide.[/red]")
+            raise typer.Exit(1)
+    else:
+        key = key_or_file
 
     lm = LicenseManager()
     if not key.startswith("AITAO-"):
